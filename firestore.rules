@@ -1,0 +1,38 @@
+rules_version = '2';
+
+// This app is built for a single owner/operator. All collections are
+// locked to the signed-in Firebase Auth account matching the owner's
+// email below. Update OWNER_EMAIL if you sign in with a different
+// address than the one this project was generated for.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isOwner() {
+      return request.auth != null &&
+        request.auth.token.email == 'chris64brock@gmail.com';
+    }
+
+    match /customers/{customerId} {
+      allow read, write: if isOwner();
+    }
+
+    match /mowVisits/{visitId} {
+      allow read, write: if isOwner();
+    }
+
+    match /sprayApplications/{sprayId} {
+      allow read, write: if isOwner();
+    }
+
+    match /maintenanceTasks/{taskId} {
+      allow read, write: if isOwner();
+    }
+
+    match /weatherDaily/{date} {
+      allow read, write: if isOwner();
+    }
+
+    match /settings/{settingId} {
+      allow read, write: if isOwner();
+    }
+  }
+}
