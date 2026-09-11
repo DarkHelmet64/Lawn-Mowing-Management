@@ -2,12 +2,12 @@
 // Firebase Console -> Project Settings -> General -> Your apps -> Web app
 // -> SDK setup and configuration -> Config
 export const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID",
+  apiKey: "AIzaSyCbxEGqMTjaxvexlPN_6WKUJI7HmL8g3c0",
+  authDomain: "lawn-mowing-management.firebaseapp.com",
+  projectId: "lawn-mowing-management",
+  storageBucket: "lawn-mowing-management.firebasestorage.app",
+  messagingSenderId: "722529945186",
+  appId: "1:722529945186:web:d929d9966ea1835ad1f33b",
 };
 
 export const isConfigured = !Object.values(firebaseConfig).some((value) =>
