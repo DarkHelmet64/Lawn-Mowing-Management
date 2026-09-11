@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lawn Mowing Management</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <div id="setup-banner" class="setup-banner hidden">
+    <strong>Setup needed:</strong> add your Firebase project config to
+    <code>public/js/firebase-config.js</code> and deploy Firestore rules. See the README for step-by-step instructions.
+  </div>
+
+  <div id="login-view" class="login-view hidden">
+    <form id="login-form" class="login-card">
+      <h1>🌱 Lawn Mowing Management</h1>
+      <p>Sign in to continue</p>
+      <label>Email
+        <input type="email" id="login-email" required autocomplete="username" />
+      </label>
+      <label>Password
+        <input type="password" id="login-password" required autocomplete="current-password" />
+      </label>
+      <button type="submit" class="primary-btn">Sign In</button>
+      <p id="login-error" class="error-text hidden"></p>
+    </form>
+  </div>
+
+  <div id="app-view" class="app-view hidden">
+    <header class="topbar">
+      <h1>🌱 Lawn Mowing Management</h1>
+      <nav id="main-nav">
+        <button data-view="dashboard" class="nav-btn active">Dashboard</button>
+        <button data-view="customers" class="nav-btn">Customers</button>
+        <button data-view="mow-log" class="nav-btn">Mow / Trim / Edge</button>
+        <button data-view="spray-log" class="nav-btn">Spray Log</button>
+        <button data-view="maintenance" class="nav-btn">Equipment</button>
+        <button data-view="weather" class="nav-btn">Weather &amp; GDD</button>
+      </nav>
+      <button id="logout-btn" class="ghost-btn">Sign Out</button>
+    </header>
+
+    <main>
+      <section id="view-dashboard" class="view active">
+        <h2>Dashboard</h2>
+        <div class="stat-grid">
+          <div class="stat-card">
+            <span class="stat-label">Today's GDD</span>
+            <span class="stat-value" id="stat-daily-gdd">–</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Season Cumulative GDD</span>
+            <span class="stat-value" id="stat-cumulative-gdd">–</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Rainfall (Last 7 Days)</span>
+            <span class="stat-value" id="stat-weekly-rain">–</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Customers</span>
+            <span class="stat-value" id="stat-customer-count">–</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Season GDD Accumulation</h3>
+          <svg id="chart-gdd" class="chart" viewBox="0 0 600 220" preserveAspectRatio="none"></svg>
+        </div>
+
+        <div class="card">
+          <h3>Weekly Rainfall (in)</h3>
+          <svg id="chart-rain" class="chart" viewBox="0 0 600 220" preserveAspectRatio="none"></svg>
+        </div>
+
+        <div class="card">
+          <h3>Recent Activity</h3>
+          <ul id="recent-activity-list" class="activity-list"></ul>
+        </div>
+      </section>
+
+      <section id="view-customers" class="view">
+        <div class="view-header">
+          <h2>Customers</h2>
+          <button id="add-customer-btn" class="primary-btn">+ Add Customer</button>
+        </div>
+        <div id="customer-form-card" class="card hidden">
+          <h3 id="customer-form-title">Add Customer</h3>
+          <form id="customer-form">
+            <input type="hidden" id="customer-id" />
+            <label>Name
+              <input type="text" id="customer-name" required />
+            </label>
+            <label>Address
+              <input type="text" id="customer-address" placeholder="123 Main St, Dayton, OH" />
+            </label>
+            <label>Phone
+              <input type="tel" id="customer-phone" />
+            </label>
+            <label>Email
+              <input type="email" id="customer-email" />
+            </label>
+            <label>Service Frequency
+              <select id="customer-frequency">
+                <option value="weekly">Weekly</option>
+                <option value="biweekly">Bi-Weekly</option>
+                <option value="asneeded">As Needed</option>
+                <option value="oneoff">One-Time</option>
+              </select>
+            </label>
+            <label>Notes
+              <textarea id="customer-notes" rows="2"></textarea>
+            </label>
+            <label class="checkbox-label">
+              <input type="checkbox" id="customer-active" checked /> Active
+            </label>
+            <div class="form-actions">
+              <button type="submit" class="primary-btn">Save</button>
+              <button type="button" id="cancel-customer-btn" class="ghost-btn">Cancel</button>
+            </div>
+          </form>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr><th>Name</th><th>Address</th><th>Frequency</th><th>Status</th><th></th></tr>
+            </thead>
+            <tbody id="customer-table-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="view-mow-log" class="view">
+        <div class="view-header">
+          <h2>Mow / Trim / Edge Log</h2>
+          <button id="add-visit-btn" class="primary-btn">+ Log Visit</button>
+        </div>
+        <div id="visit-form-card" class="card hidden">
+          <h3>Log a Visit</h3>
+          <form id="visit-form">
+            <input type="hidden" id="visit-id" />
+            <label>Customer
+              <select id="visit-customer" required></select>
+            </label>
+            <label>Date
+              <input type="date" id="visit-date" required />
+            </label>
+            <div class="checkbox-row">
+              <label class="checkbox-label"><input type="checkbox" id="visit-mowed" checked /> Mowed</label>
+              <label class="checkbox-label"><input type="checkbox" id="visit-trimmed" checked /> Trimmed</label>
+              <label class="checkbox-label"><input type="checkbox" id="visit-edged" /> Edged</label>
+            </div>
+            <label>Mow Pattern
+              <select id="visit-pattern">
+                <option value="stripes">Straight Stripes</option>
+                <option value="diagonal">Diagonal Stripes</option>
+                <option value="checkerboard">Checkerboard</option>
+                <option value="waves">Waves</option>
+                <option value="circular">Circular</option>
+                <option value="diamond">Diamond</option>
+                <option value="none">No Pattern</option>
+                <option value="other">Other</option>
+              </select>
+            </label>
+            <label>Deck Height (in)
+              <input type="number" id="visit-height" step="0.25" min="0" placeholder="e.g. 3.5" />
+            </label>
+            <label>Notes
+              <textarea id="visit-notes" rows="2"></textarea>
+            </label>
+            <div class="form-actions">
+              <button type="submit" class="primary-btn">Save</button>
+              <button type="button" id="cancel-visit-btn" class="ghost-btn">Cancel</button>
+            </div>
+          </form>
+        </div>
+        <div class="filter-row">
+          <label>Filter by customer
+            <select id="visit-filter-customer"><option value="">All Customers</option></select>
+          </label>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr><th>Date</th><th>Customer</th><th>Mowed</th><th>Trimmed</th><th>Edged</th><th>Pattern</th><th></th></tr>
+            </thead>
+            <tbody id="visit-table-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="view-spray-log" class="view">
+        <div class="view-header">
+          <h2>Spray Log</h2>
+          <button id="add-spray-btn" class="primary-btn">+ Log Application</button>
+        </div>
+        <div id="spray-form-card" class="card hidden">
+          <h3>Log Spray Application</h3>
+          <form id="spray-form">
+            <input type="hidden" id="spray-id" />
+            <label>Customer
+              <select id="spray-customer" required></select>
+            </label>
+            <label>Date
+              <input type="date" id="spray-date" required />
+            </label>
+            <label>Location
+              <select id="spray-location">
+                <option value="driveway">Driveway</option>
+                <option value="walkway">Walkway / Sidewalk</option>
+                <option value="flowerbed">Flowerbed</option>
+                <option value="lawn">Lawn</option>
+                <option value="other">Other</option>
+              </select>
+            </label>
+            <label>Target
+              <select id="spray-target">
+                <option value="weeds">Weeds</option>
+                <option value="insects">Insects</option>
+                <option value="fungus">Fungus / Disease</option>
+                <option value="fertilizer">Fertilizer</option>
+                <option value="other">Other</option>
+              </select>
+            </label>
+            <label>Product Used
+              <input type="text" id="spray-product" placeholder="e.g. Roundup, Ortho GroundClear" required />
+            </label>
+            <label>Notes
+              <textarea id="spray-notes" rows="2"></textarea>
+            </label>
+            <div class="form-actions">
+              <button type="submit" class="primary-btn">Save</button>
+              <button type="button" id="cancel-spray-btn" class="ghost-btn">Cancel</button>
+            </div>
+          </form>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr><th>Date</th><th>Customer</th><th>Location</th><th>Target</th><th>Product</th><th></th></tr>
+            </thead>
+            <tbody id="spray-table-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="view-maintenance" class="view">
+        <div class="view-header">
+          <h2>Equipment Maintenance</h2>
+          <button id="add-task-btn" class="primary-btn">+ Log Task</button>
+        </div>
+        <div id="task-form-card" class="card hidden">
+          <h3>Log Maintenance Task</h3>
+          <form id="task-form">
+            <input type="hidden" id="task-id" />
+            <label>Equipment
+              <input type="text" id="task-equipment" placeholder="e.g. Toro TimeMaster" required />
+            </label>
+            <label>Task Type
+              <select id="task-type">
+                <option value="blade_sharpen">Blade Sharpening</option>
+                <option value="blade_replace">Blade Replacement</option>
+                <option value="oil_change">Oil Change</option>
+                <option value="air_filter">Air Filter</option>
+                <option value="spark_plug">Spark Plug</option>
+                <option value="belt_cable">Belt / Cable</option>
+                <option value="general_service">General Service</option>
+                <option value="other">Other</option>
+              </select>
+            </label>
+            <label>Date
+              <input type="date" id="task-date" required />
+            </label>
+            <label>Engine / Blade Hours (optional)
+              <input type="number" id="task-hours" step="0.1" min="0" />
+            </label>
+            <label>Notes
+              <textarea id="task-notes" rows="2"></textarea>
+            </label>
+            <div class="form-actions">
+              <button type="submit" class="primary-btn">Save</button>
+              <button type="button" id="cancel-task-btn" class="ghost-btn">Cancel</button>
+            </div>
+          </form>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr><th>Date</th><th>Equipment</th><th>Task</th><th>Hours</th><th>Notes</th><th></th></tr>
+            </thead>
+            <tbody id="task-table-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="view-weather" class="view">
+        <div class="view-header">
+          <h2>Weather &amp; Growing Degree Days</h2>
+          <button id="refresh-weather-btn" class="primary-btn">Refresh Weather Data</button>
+        </div>
+        <div class="settings-row card">
+          <label>GDD Base Temp (°F)
+            <input type="number" id="gdd-base-temp" value="50" min="0" max="70" />
+          </label>
+          <label>Season Start
+            <input type="date" id="gdd-season-start" />
+          </label>
+          <button id="save-gdd-settings-btn" class="ghost-btn">Save Settings</button>
+          <span id="gdd-settings-saved" class="hint-text hidden">Saved!</span>
+        </div>
+        <p class="hint-text">Location: Dayton, OH (lat 39.7589, lon -84.1916). Data source: Open-Meteo (no API key required).</p>
+        <div class="card">
+          <h3>Season GDD Accumulation</h3>
+          <svg id="weather-chart-gdd" class="chart" viewBox="0 0 600 240" preserveAspectRatio="none"></svg>
+        </div>
+        <div class="card">
+          <h3>Weekly Rainfall (in)</h3>
+          <svg id="weather-chart-rain" class="chart" viewBox="0 0 600 240" preserveAspectRatio="none"></svg>
+        </div>
+        <div class="table-wrap">
+          <h3>Daily Detail (most recent 30 days)</h3>
+          <table class="data-table">
+            <thead>
+              <tr><th>Date</th><th>High (°F)</th><th>Low (°F)</th><th>Daily GDD</th><th>Cumulative GDD</th><th>Precip (in)</th></tr>
+            </thead>
+            <tbody id="weather-table-body"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

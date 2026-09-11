@@ -1,0 +1,99 @@
+import { isConfigured } from "./firebase.js";
+import { watchAuth, login, logout } from "./auth.js";
+import { byId } from "./utils.js";
+import { loadCustomers, initCustomersView } from "./customers.js";
+import { loadVisits, initMowLogView } from "./mowLog.js";
+import { loadSprays, initSprayLogView } from "./sprayLog.js";
+import { loadTasks, initMaintenanceView } from "./maintenance.js";
+import { initWeatherView } from "./weatherView.js";
+import { refreshDashboard } from "./dashboard.js";
+
+const initializedViews = new Set();
+
+function showSetupBanner() {
+  byId("setup-banner").classList.remove("hidden");
+  byId("login-view").classList.add("hidden");
+  byId("app-view").classList.add("hidden");
+}
+
+function showLogin() {
+  byId("login-view").classList.remove("hidden");
+  byId("app-view").classList.add("hidden");
+}
+
+async function showApp() {
+  byId("login-view").classList.add("hidden");
+  byId("app-view").classList.remove("hidden");
+  await Promise.all([loadCustomers(), loadVisits(), loadSprays(), loadTasks()]);
+  initView("dashboard");
+}
+
+function initView(view) {
+  if (initializedViews.has(view)) {
+    if (view === "dashboard") refreshDashboard();
+    return;
+  }
+  initializedViews.add(view);
+  switch (view) {
+    case "dashboard":
+      refreshDashboard();
+      break;
+    case "customers":
+      initCustomersView();
+      break;
+    case "mow-log":
+      initMowLogView();
+      break;
+    case "spray-log":
+      initSprayLogView();
+      break;
+    case "maintenance":
+      initMaintenanceView();
+      break;
+    case "weather":
+      initWeatherView();
+      break;
+  }
+}
+
+function switchView(view) {
+  document.querySelectorAll(".view").forEach((el) => el.classList.remove("active"));
+  document.querySelectorAll(".nav-btn").forEach((btn) => btn.classList.toggle("active", btn.dataset.view === view));
+  byId(`view-${view}`).classList.add("active");
+  initView(view);
+}
+
+function setupNav() {
+  document.querySelectorAll(".nav-btn").forEach((btn) => btn.addEventListener("click", () => switchView(btn.dataset.view)));
+}
+
+function setupLoginForm() {
+  byId("login-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    byId("login-error").classList.add("hidden");
+    try {
+      await login(byId("login-email").value, byId("login-password").value);
+    } catch (err) {
+      console.error("Sign-in failed", err);
+      byId("login-error").textContent = "Sign-in failed. Check your email and password.";
+      byId("login-error").classList.remove("hidden");
+    }
+  });
+}
+
+function setupLogout() {
+  byId("logout-btn").addEventListener("click", () => logout());
+}
+
+function main() {
+  if (!isConfigured) {
+    showSetupBanner();
+    return;
+  }
+  setupNav();
+  setupLoginForm();
+  setupLogout();
+  watchAuth(showApp, showLogin);
+}
+
+main();
