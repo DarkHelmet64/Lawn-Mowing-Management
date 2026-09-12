@@ -1,7 +1,14 @@
 import { createDoc } from "./db.js";
 import { byId, todayStr } from "./utils.js";
 import { getCustomers, populateCustomerSelect } from "./customers.js";
-import { populateEquipmentSelect, populateDeckHeightSelect } from "./equipment.js";
+import {
+  populateEquipmentSelect,
+  populateDeckHeightSelect,
+  populateGroundSpeedSelect,
+  populateBladeSpeedSelect,
+} from "./equipment.js";
+import { populateLocationSelect } from "./locations.js";
+import { populateAreaSelect } from "./areas.js";
 import { populateYardFeatureSelect } from "./yardFeatures.js";
 import { loadVisits } from "./mowLog.js";
 import { loadSprays } from "./sprayLog.js";
@@ -12,8 +19,18 @@ function updateCategoryVisibility() {
   byId("event-spray-fields").classList.toggle("hidden", category !== "spray");
 }
 
+function refreshLocationOptions() {
+  populateLocationSelect(byId("event-location"), byId("event-customer").value);
+  refreshAreaOptions();
+}
+
+function refreshAreaOptions() {
+  populateAreaSelect(byId("event-area"), byId("event-location").value);
+  refreshFeatureOptions();
+}
+
 function refreshFeatureOptions() {
-  populateYardFeatureSelect(byId("event-feature"), byId("event-customer").value);
+  populateYardFeatureSelect(byId("event-feature"), byId("event-area").value);
 }
 
 function openForm() {
@@ -23,7 +40,6 @@ function openForm() {
   byId("event-customer").value = getCustomers()[0]?.id || "";
   byId("event-date").value = todayStr();
   byId("event-category").value = "yardwork";
-  byId("event-yard-area").value = "";
   byId("event-equipment").value = "";
   byId("event-mowed").checked = true;
   byId("event-trimmed").checked = true;
@@ -32,11 +48,15 @@ function openForm() {
   byId("event-trimmed-bushes").checked = false;
   byId("event-pattern").value = "parallel";
   populateDeckHeightSelect(byId("event-height"), "");
-  byId("event-spray-location").value = "driveway";
+  populateGroundSpeedSelect(byId("event-ground-speed"), "");
+  populateBladeSpeedSelect(byId("event-blade-speed"), "");
+  byId("event-time-of-day").value = "";
+  byId("event-grass-condition").value = "";
+  byId("event-spray-surface").value = "driveway";
   byId("event-spray-target").value = "weeds";
   byId("event-spray-product").value = "";
   byId("event-notes").value = "";
-  refreshFeatureOptions();
+  refreshLocationOptions();
   updateCategoryVisibility();
 }
 
@@ -51,7 +71,8 @@ async function handleSubmit(e) {
   const date = byId("event-date").value;
   const category = byId("event-category").value;
   const notes = byId("event-notes").value.trim();
-  const yardArea = byId("event-yard-area").value || null;
+  const locationId = byId("event-location").value || null;
+  const areaId = byId("event-area").value || null;
   const featureId = byId("event-feature").value || null;
   const equipmentId = byId("event-equipment").value || null;
 
@@ -66,7 +87,12 @@ async function handleSubmit(e) {
       trimmedBushes: byId("event-trimmed-bushes").checked,
       pattern: byId("event-pattern").value,
       deckHeight: byId("event-height").value ? Number(byId("event-height").value) : null,
-      yardArea,
+      groundSpeed: byId("event-ground-speed").value || null,
+      bladeSpeed: byId("event-blade-speed").value || null,
+      timeOfDay: byId("event-time-of-day").value || null,
+      grassCondition: byId("event-grass-condition").value || null,
+      locationId,
+      areaId,
       featureId,
       equipmentId,
       notes,
@@ -86,10 +112,11 @@ async function handleSubmit(e) {
     await createDoc("sprayApplications", {
       customerId,
       date,
-      location: byId("event-spray-location").value,
+      surface: byId("event-spray-surface").value,
       target: byId("event-spray-target").value,
       product,
-      yardArea,
+      locationId,
+      areaId,
       featureId,
       equipmentId,
       notes,
@@ -111,9 +138,13 @@ export function initEventLogView() {
   });
   byId("cancel-event-btn").addEventListener("click", closeForm);
   byId("event-category").addEventListener("change", updateCategoryVisibility);
-  byId("event-customer").addEventListener("change", refreshFeatureOptions);
+  byId("event-customer").addEventListener("change", refreshLocationOptions);
+  byId("event-location").addEventListener("change", refreshAreaOptions);
+  byId("event-area").addEventListener("change", refreshFeatureOptions);
   byId("event-equipment").addEventListener("change", () => {
     populateDeckHeightSelect(byId("event-height"), byId("event-equipment").value);
+    populateGroundSpeedSelect(byId("event-ground-speed"), byId("event-equipment").value);
+    populateBladeSpeedSelect(byId("event-blade-speed"), byId("event-equipment").value);
   });
   byId("log-event-form").addEventListener("submit", handleSubmit);
 }

@@ -9,6 +9,7 @@ import { getSettings } from "./settings.js";
 const COLLECTION = "customers";
 let cache = [];
 let mowStatus = new Map();
+let mowStatusReady = false;
 let listenersBound = false;
 
 export async function loadCustomers() {
@@ -43,6 +44,9 @@ export function populateCustomerSelect(selectEl, { includeAll = false } = {}) {
 }
 
 function mowStatusCell(customerId) {
+  if (!mowStatusReady) {
+    return `<td>–</td><td><span class="badge badge-inactive">Loading…</span></td>`;
+  }
   const status = mowStatus.get(customerId);
   if (!status || !status.lastMowDate) {
     return `<td>–</td><td><span class="badge badge-inactive">No mow history</span></td>`;
@@ -88,6 +92,8 @@ async function refreshMowStatus() {
     grassProfile: profileFor(settings.grassType),
     mowThresholdGPDays: settings.mowThresholdGPDays,
   });
+  mowStatusReady = true;
+  renderTable();
 }
 
 function openForm(customer = null) {
@@ -134,9 +140,9 @@ async function handleSubmit(e) {
 
 export async function refreshCustomersView() {
   await loadCustomers();
-  await refreshMowStatus();
   renderTable();
   document.dispatchEvent(new CustomEvent("customers:changed"));
+  refreshMowStatus().catch((err) => console.error("Failed to refresh mow status", err));
 }
 
 export function initCustomersView() {

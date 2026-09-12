@@ -1,14 +1,16 @@
 import { listAll, createDoc, updateDocById, deleteDocById } from "./db.js";
-import { byId, escapeHtml, todayStr, formatDateDisplay, YARD_AREA_LABELS } from "./utils.js";
+import { byId, escapeHtml, todayStr, formatDateDisplay } from "./utils.js";
 import { getCustomers, getCustomerName, populateCustomerSelect } from "./customers.js";
 import { populateEquipmentSelect, getEquipmentName } from "./equipment.js";
+import { getLocationLabel, populateLocationSelect } from "./locations.js";
+import { getAreaName, populateAreaSelect } from "./areas.js";
 import { populateYardFeatureSelect, getYardFeatureName } from "./yardFeatures.js";
 
 const COLLECTION = "sprayApplications";
 let cache = [];
 let listenersBound = false;
 
-const LOCATION_LABELS = {
+const SURFACE_LABELS = {
   driveway: "Driveway",
   walkway: "Walkway / Sidewalk",
   flowerbed: "Flowerbed",
@@ -41,10 +43,11 @@ function renderTable() {
       <tr>
         <td>${formatDateDisplay(s.date)}</td>
         <td>${escapeHtml(getCustomerName(s.customerId))}</td>
-        <td>${LOCATION_LABELS[s.location] || s.location}</td>
+        <td>${SURFACE_LABELS[s.surface] || s.surface}</td>
         <td>${TARGET_LABELS[s.target] || s.target}</td>
         <td>${escapeHtml(s.product || "")}</td>
-        <td>${YARD_AREA_LABELS[s.yardArea] || ""}</td>
+        <td>${escapeHtml(getLocationLabel(s.locationId) || "")}</td>
+        <td>${escapeHtml(getAreaName(s.areaId) || "")}</td>
         <td>${escapeHtml(getYardFeatureName(s.featureId) || "")}</td>
         <td>${escapeHtml(getEquipmentName(s.equipmentId) || "")}</td>
         <td class="row-actions">
@@ -63,8 +66,18 @@ function renderTable() {
   );
 }
 
+function refreshLocationOptions() {
+  populateLocationSelect(byId("spray-location"), byId("spray-customer").value);
+  refreshAreaOptions();
+}
+
+function refreshAreaOptions() {
+  populateAreaSelect(byId("spray-area"), byId("spray-location").value);
+  refreshFeatureOptions();
+}
+
 function refreshFeatureOptions() {
-  populateYardFeatureSelect(byId("spray-feature"), byId("spray-customer").value);
+  populateYardFeatureSelect(byId("spray-feature"), byId("spray-area").value);
 }
 
 function openForm(spray = null) {
@@ -74,12 +87,16 @@ function openForm(spray = null) {
   byId("spray-id").value = spray?.id || "";
   byId("spray-customer").value = spray?.customerId || getCustomers()[0]?.id || "";
   byId("spray-date").value = spray?.date || todayStr();
-  byId("spray-location").value = spray?.location || "driveway";
+  byId("spray-surface").value = spray?.surface || "driveway";
   byId("spray-target").value = spray?.target || "weeds";
   byId("spray-product").value = spray?.product || "";
-  byId("spray-yard-area").value = spray?.yardArea || "";
   byId("spray-equipment").value = spray?.equipmentId || "";
   byId("spray-notes").value = spray?.notes || "";
+
+  refreshLocationOptions();
+  byId("spray-location").value = spray?.locationId || "";
+  refreshAreaOptions();
+  byId("spray-area").value = spray?.areaId || "";
   refreshFeatureOptions();
   if (spray?.featureId) byId("spray-feature").value = spray.featureId;
 }
@@ -101,10 +118,11 @@ async function handleSubmit(e) {
   const data = {
     customerId: byId("spray-customer").value,
     date: byId("spray-date").value,
-    location: byId("spray-location").value,
+    surface: byId("spray-surface").value,
     target: byId("spray-target").value,
     product: byId("spray-product").value.trim(),
-    yardArea: byId("spray-yard-area").value || null,
+    locationId: byId("spray-location").value || null,
+    areaId: byId("spray-area").value || null,
     featureId: byId("spray-feature").value || null,
     equipmentId: byId("spray-equipment").value || null,
     notes: byId("spray-notes").value.trim(),
@@ -131,7 +149,9 @@ export function initSprayLogView() {
     });
     byId("cancel-spray-btn").addEventListener("click", closeForm);
     byId("spray-form").addEventListener("submit", handleSubmit);
-    byId("spray-customer").addEventListener("change", refreshFeatureOptions);
+    byId("spray-customer").addEventListener("change", refreshLocationOptions);
+    byId("spray-location").addEventListener("change", refreshAreaOptions);
+    byId("spray-area").addEventListener("change", refreshFeatureOptions);
     document.addEventListener("customers:changed", renderTable);
     listenersBound = true;
   }

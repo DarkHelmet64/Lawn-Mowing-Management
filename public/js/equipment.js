@@ -31,12 +31,19 @@ export function getEquipmentName(id) {
   return getEquipmentById(id)?.name || null;
 }
 
-function parseDeckHeights(raw) {
+// Deck heights are numeric, so they're comparable/sortable regardless of
+// input order. Ground/blade speed settings are often named ("Slow, Fast")
+// rather than numeric, so those keep whatever order they were entered in.
+function parseNumberList(raw) {
   const values = raw
     .split(",")
     .map((s) => Number(s.trim()))
     .filter((n) => !Number.isNaN(n));
   return [...new Set(values)].sort((a, b) => a - b);
+}
+
+function parseTextList(raw) {
+  return [...new Set(raw.split(",").map((s) => s.trim()).filter(Boolean))];
 }
 
 export function populateEquipmentSelect(selectEl, { includeNone = true } = {}) {
@@ -57,30 +64,53 @@ export function populateEquipmentSelect(selectEl, { includeNone = true } = {}) {
   if (current) selectEl.value = current;
 }
 
-// Populates a deck-height <select> with the chosen mower's configured
-// height settings. currentValue (if given) is preserved as an option even
-// if it's not one of the mower's current settings, so editing an older
-// visit doesn't silently lose its recorded height.
-export function populateDeckHeightSelect(selectEl, equipmentId, currentValue = null) {
+// Shared logic for populating a mower-setting <select> (deck height, ground
+// speed, blade speed) from the chosen equipment's configured options for
+// `field`. currentValue (if given) is preserved as an option even if it's
+// not one of the mower's current settings, so editing an older record
+// doesn't silently lose what was actually recorded. `format` renders each
+// option's display text (e.g. adding an inch mark for deck height).
+function populateMowerSettingSelect(selectEl, equipmentId, field, currentValue, { format = (v) => String(v), noneConfiguredText = "No settings configured" } = {}) {
   const eq = getEquipmentById(equipmentId);
   const isMower = eq?.type === "mower";
-  const heights = new Set(isMower ? eq.deckHeights || [] : []);
-  if (currentValue != null) heights.add(currentValue);
-  const sorted = [...heights].sort((a, b) => a - b);
+  const configured = isMower ? eq[field] || [] : [];
+  const options = [...configured];
+  if (currentValue != null && currentValue !== "" && !options.includes(currentValue)) {
+    options.push(currentValue);
+  }
 
   selectEl.innerHTML = "";
   const blank = document.createElement("option");
   blank.value = "";
-  blank.textContent = !eq ? "Select equipment first" : !isMower ? "Not applicable" : sorted.length ? "Select height" : "No heights configured";
+  blank.textContent = !eq ? "Select equipment first" : !isMower ? "Not applicable" : options.length ? "Select" : noneConfiguredText;
   selectEl.appendChild(blank);
-  for (const h of sorted) {
+  for (const value of options) {
     const opt = document.createElement("option");
-    opt.value = String(h);
-    opt.textContent = `${h}"`;
+    opt.value = String(value);
+    opt.textContent = format(value);
     selectEl.appendChild(opt);
   }
   selectEl.value = currentValue != null ? String(currentValue) : "";
   selectEl.disabled = !isMower;
+}
+
+export function populateDeckHeightSelect(selectEl, equipmentId, currentValue = null) {
+  populateMowerSettingSelect(selectEl, equipmentId, "deckHeights", currentValue, {
+    format: (h) => `${h}"`,
+    noneConfiguredText: "No heights configured",
+  });
+}
+
+export function populateGroundSpeedSelect(selectEl, equipmentId, currentValue = null) {
+  populateMowerSettingSelect(selectEl, equipmentId, "groundSpeeds", currentValue, {
+    noneConfiguredText: "No ground speeds configured",
+  });
+}
+
+export function populateBladeSpeedSelect(selectEl, equipmentId, currentValue = null) {
+  populateMowerSettingSelect(selectEl, equipmentId, "bladeSpeeds", currentValue, {
+    noneConfiguredText: "No blade speeds configured",
+  });
 }
 
 function renderTable() {
@@ -92,6 +122,8 @@ function renderTable() {
         <td>${escapeHtml(e.name)}</td>
         <td>${EQUIPMENT_TYPE_LABELS[e.type] || e.type}</td>
         <td>${e.type === "mower" && e.deckHeights?.length ? e.deckHeights.map((h) => `${h}"`).join(", ") : ""}</td>
+        <td>${e.type === "mower" && e.groundSpeeds?.length ? escapeHtml(e.groundSpeeds.join(", ")) : ""}</td>
+        <td>${e.type === "mower" && e.bladeSpeeds?.length ? escapeHtml(e.bladeSpeeds.join(", ")) : ""}</td>
         <td><span class="badge ${e.active === false ? "badge-inactive" : "badge-active"}">${e.active === false ? "Inactive" : "Active"}</span></td>
         <td class="row-actions">
           <button class="link-btn" data-edit="${e.id}">Edit</button>
@@ -109,9 +141,9 @@ function renderTable() {
   );
 }
 
-function updateDeckHeightVisibility() {
+function updateMowerFieldsVisibility() {
   const isMower = byId("equipment-type").value === "mower";
-  byId("equipment-deck-height-row").classList.toggle("hidden", !isMower);
+  byId("equipment-mower-fields").classList.toggle("hidden", !isMower);
 }
 
 function openForm(equipment = null) {
@@ -121,9 +153,11 @@ function openForm(equipment = null) {
   byId("equipment-name").value = equipment?.name || "";
   byId("equipment-type").value = equipment?.type || "mower";
   byId("equipment-deck-heights").value = equipment?.deckHeights?.join(", ") || "";
+  byId("equipment-ground-speeds").value = equipment?.groundSpeeds?.join(", ") || "";
+  byId("equipment-blade-speeds").value = equipment?.bladeSpeeds?.join(", ") || "";
   byId("equipment-notes").value = equipment?.notes || "";
   byId("equipment-active").checked = equipment?.active !== false;
-  updateDeckHeightVisibility();
+  updateMowerFieldsVisibility();
 }
 
 function closeForm() {
@@ -141,10 +175,13 @@ async function handleSubmit(e) {
   e.preventDefault();
   const id = byId("equipment-id").value;
   const type = byId("equipment-type").value;
+  const isMower = type === "mower";
   const data = {
     name: byId("equipment-name").value.trim(),
     type,
-    deckHeights: type === "mower" ? parseDeckHeights(byId("equipment-deck-heights").value) : [],
+    deckHeights: isMower ? parseNumberList(byId("equipment-deck-heights").value) : [],
+    groundSpeeds: isMower ? parseTextList(byId("equipment-ground-speeds").value) : [],
+    bladeSpeeds: isMower ? parseTextList(byId("equipment-blade-speeds").value) : [],
     notes: byId("equipment-notes").value.trim(),
     active: byId("equipment-active").checked,
   };
@@ -165,7 +202,7 @@ export function initEquipmentView() {
     byId("add-equipment-btn").addEventListener("click", () => openForm());
     byId("cancel-equipment-btn").addEventListener("click", closeForm);
     byId("equipment-form").addEventListener("submit", handleSubmit);
-    byId("equipment-type").addEventListener("change", updateDeckHeightVisibility);
+    byId("equipment-type").addEventListener("change", updateMowerFieldsVisibility);
     listenersBound = true;
   }
   return refreshEquipmentView();

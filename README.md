@@ -21,26 +21,33 @@ API in the browser and cached in Firestore.
 - **Log an Event (Dashboard button)** — one quick-entry form covering every
   event type: mowing, trimming, edging, pruning, and bush trimming as a
   single yard-work visit, or a spray application, without leaving the
-  Dashboard. Every event can note which yard area it was in, which
+  Dashboard. Every event can note which location/area it was in, which
   registered plant/object it applied to, and which piece of equipment was
   used.
 - **Yard Work Log** — per-visit record of what was done (mowed, trimmed,
   edged, pruned, bushes trimmed), the mowing pattern used (parallel,
-  perpendicular, diagonal left, diagonal right, other), deck height, yard
-  area, plant/object, equipment used, and notes.
-- **Spray Log** — records whether you sprayed weeds (or other targets) in
-  driveways, walkways, flowerbeds, or the lawn itself, which product,
-  equipment, yard area, and plant/object it applied to, and notes.
-- **Settings** — customer records, an **equipment** registry (mowers,
-  trimmers, edgers, blowers, sprayers - mowers store their available deck
-  height settings, e.g. 2", 2.5", 3"; picking that mower elsewhere turns
-  the deck height field into a select limited to its settings), equipment
-  maintenance
-  tasks (blade sharpening, oil changes, etc., now tied to a specific piece
-  of equipment), and **yard features** (plants, trees, shrubs, or other
-  objects on a customer's property worth tracking, like "rose bushes by
-  the mailbox") all live here, since they're set-up/upkeep tasks rather
-  than day-to-day logging.
+  perpendicular, diagonal left, diagonal right, other), deck height, ground
+  speed, and blade speed (each limited to whatever settings you've defined
+  for the mower used), the time of day and grass condition (e.g. "morning
+  mow with wet dew grass" or "afternoon mow with dry grass"), location/area,
+  plant/object, equipment used, and notes.
+- **Spray Log** — records whether you sprayed weeds (or other targets) on
+  a driveway, walkway, flowerbed, or the lawn itself, which product,
+  equipment, location/area, and plant/object it applied to, and notes.
+- **Settings** — customer records; **locations** (a customer's properties -
+  most have one, but a customer with a rental or second property can have
+  more) with their own **areas** (Front Yard, Back Yard, or whatever
+  subdivisions make sense for that property); **yard features** (plants,
+  trees, shrubs, or other objects worth tracking within a specific area,
+  like "rose bushes by the mailbox" in the Front Yard); an **equipment**
+  registry (mowers, trimmers, edgers, blowers, sprayers - mowers store
+  their available deck height, ground speed, and blade speed settings, e.g.
+  deck heights of 2", 2.5", 3", ground speeds of 1-5, blade speeds of
+  Low/High; picking that mower elsewhere turns each of those fields into a
+  select limited to its settings); and equipment maintenance tasks (blade
+  sharpening, oil changes, etc., tied to a specific piece of equipment).
+  All of this lives in Settings since it's set-up/upkeep rather than
+  day-to-day logging.
 - **Weather & Growth Potential** — daily high/low temps and precipitation
   for Dayton, OH, a turfgrass Growth Potential (GP) score (0-100%, how fast
   the grass is growing today), and a weekly rainfall chart.
@@ -85,7 +92,7 @@ firebase deploy --only firestore:rules,firestore:indexes,hosting
 
 ### Automatic deploys via GitHub Actions
 
-`.github/workflows/firebase-hosting.yml` deploys `public/` to Firebase Hosting on every push to `main`. To enable it:
+`.github/workflows/firebase-hosting.yml` deploys `public/` to Firebase Hosting **and** deploys `firestore.rules`/`firestore.indexes.json` to your live Firestore project, on every push to `main`. Both matter: adding a new collection to `firestore.rules` in this repo does nothing on its own until it's actually deployed - Firestore denies access to any collection with no matching rule. To enable it:
 
 1. Edit the workflow file and replace `REPLACE_WITH_YOUR_FIREBASE_PROJECT_ID` with your project ID.
 2. Generate a service account key for deploys: `firebase init hosting:github` (this walks you through creating the `FIREBASE_SERVICE_ACCOUNT` GitHub secret automatically), or create one manually under Project Settings → Service Accounts and add it as a repository secret named `FIREBASE_SERVICE_ACCOUNT`.
@@ -145,28 +152,44 @@ rest of the year from the historical archive API — then cached in the
 `weatherDaily` Firestore collection so the app doesn't need to refetch the
 whole year every time.
 
-## Yard areas and yard features
+## Locations, areas, and yard features
 
-Every yard-work visit and spray application can optionally note a **Yard
-Area** - Front Yard, Back Yard, Side Yard, Driveway, Whole Property, or
-Other, a fixed list rather than something you set up per customer - and a
-**Plant / Object**, which is looked up from that customer's own **Yard
-Features** list (managed in Settings). Yard Features are simple named
-items on a specific customer's property - "Rose bushes by mailbox," "Oak
-tree in back corner" - with a type (plant/tree/shrub/hardscape/other) and
-notes, so you can log "pruned the boxwood hedge in the front yard" instead
-of just "pruned."
+These three sit in a simple hierarchy, all managed in Settings:
+
+```
+Customer -> Location(s) -> Area(s) -> Yard Feature(s)
+```
+
+- A **Location** is a customer's property - its address. Most customers
+  have exactly one; a customer with a rental property or a second home
+  would have more than one.
+- An **Area** is a subdivision of a location - Front Yard, Back Yard,
+  Driveway, whatever makes sense for that property. Unlike the old fixed
+  list, areas are just data you create, so name them however you like.
+- A **Yard Feature** is a specific plant, tree, shrub, or other object
+  worth tracking within a specific area - "Rose bushes by mailbox," "Oak
+  tree in back corner" - with a type (plant/tree/shrub/hardscape/other)
+  and notes.
+
+When logging a yard-work visit or spray application, picking a customer
+narrows the Location dropdown to that customer's properties, picking a
+location narrows the Area dropdown to that property's areas, and picking
+an area narrows the Plant/Object dropdown to that area's features - so you
+can log something as specific as "pruned the boxwood hedge in the Front
+Yard at the Smiths' rental property" instead of just "pruned."
 
 ## Data model (Firestore collections)
 
 | Collection | Purpose |
 |---|---|
 | `customers` | Customer/property records |
-| `mowVisits` | Yard-work visit log entries (mow/trim/edge/prune/bush-trim flags, pattern, deck height, yard area, equipment, feature) |
-| `sprayApplications` | Weed/insect/fungus/fertilizer spray log entries (location, target, product, yard area, equipment, feature) |
+| `locations` | A customer's properties/addresses (usually one per customer) |
+| `areas` | Subdivisions of a location (Front Yard, Back Yard, etc.) |
+| `yardFeatures` | Plants/trees/shrubs/objects worth tracking, one per area |
+| `mowVisits` | Yard-work visit log entries (mow/trim/edge/prune/bush-trim flags, pattern, deck height, ground speed, blade speed, time of day, grass condition, location, area, equipment, feature) |
+| `sprayApplications` | Weed/insect/fungus/fertilizer spray log entries (surface, target, product, location, area, equipment, feature) |
 | `maintenanceTasks` | Equipment maintenance log entries, tied to an equipment record |
-| `equipment` | Mowers, trimmers, edgers, blowers, sprayers - mowers carry a list of deck height settings |
-| `yardFeatures` | Plants/trees/shrubs/objects worth tracking, one per customer |
+| `equipment` | Mowers, trimmers, edgers, blowers, sprayers - mowers carry lists of deck height, ground speed, and blade speed settings |
 | `weatherDaily` | Cached daily weather + Growth Potential inputs, keyed by date |
 | `settings` | App settings (grass type, mow threshold in GP-days) |
 

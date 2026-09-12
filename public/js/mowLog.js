@@ -1,7 +1,15 @@
 import { listAll, createDoc, updateDocById, deleteDocById } from "./db.js";
-import { byId, escapeHtml, todayStr, formatDateDisplay, YARD_AREA_LABELS } from "./utils.js";
+import { byId, escapeHtml, todayStr, formatDateDisplay } from "./utils.js";
 import { getCustomers, getCustomerName, populateCustomerSelect } from "./customers.js";
-import { populateEquipmentSelect, getEquipmentName, populateDeckHeightSelect } from "./equipment.js";
+import {
+  populateEquipmentSelect,
+  getEquipmentName,
+  populateDeckHeightSelect,
+  populateGroundSpeedSelect,
+  populateBladeSpeedSelect,
+} from "./equipment.js";
+import { getLocationLabel, populateLocationSelect } from "./locations.js";
+import { getAreaName, populateAreaSelect } from "./areas.js";
 import { populateYardFeatureSelect, getYardFeatureName } from "./yardFeatures.js";
 
 const COLLECTION = "mowVisits";
@@ -13,6 +21,22 @@ const PATTERN_LABELS = {
   perpendicular: "Perpendicular",
   diagonal_left: "Diagonal Left",
   diagonal_right: "Diagonal Right",
+  other: "Other",
+};
+
+const TIME_OF_DAY_LABELS = {
+  morning: "Morning",
+  midday: "Midday",
+  afternoon: "Afternoon",
+  evening: "Evening",
+  other: "Other",
+};
+
+const GRASS_CONDITION_LABELS = {
+  dry: "Dry",
+  wet_dew: "Wet (dew)",
+  wet_rain: "Wet (rain)",
+  damp: "Damp",
   other: "Other",
 };
 
@@ -41,7 +65,13 @@ function renderTable() {
         <td>${v.pruned ? "✓" : ""}</td>
         <td>${v.trimmedBushes ? "✓" : ""}</td>
         <td>${PATTERN_LABELS[v.pattern] || v.pattern || ""}</td>
-        <td>${YARD_AREA_LABELS[v.yardArea] || ""}</td>
+        <td>${v.deckHeight != null ? `${v.deckHeight}"` : ""}</td>
+        <td>${escapeHtml(v.groundSpeed || "")}</td>
+        <td>${escapeHtml(v.bladeSpeed || "")}</td>
+        <td>${TIME_OF_DAY_LABELS[v.timeOfDay] || ""}</td>
+        <td>${GRASS_CONDITION_LABELS[v.grassCondition] || ""}</td>
+        <td>${escapeHtml(getLocationLabel(v.locationId) || "")}</td>
+        <td>${escapeHtml(getAreaName(v.areaId) || "")}</td>
         <td>${escapeHtml(getYardFeatureName(v.featureId) || "")}</td>
         <td>${escapeHtml(getEquipmentName(v.equipmentId) || "")}</td>
         <td class="row-actions">
@@ -60,8 +90,18 @@ function renderTable() {
   );
 }
 
+function refreshLocationOptions() {
+  populateLocationSelect(byId("visit-location"), byId("visit-customer").value);
+  refreshAreaOptions();
+}
+
+function refreshAreaOptions() {
+  populateAreaSelect(byId("visit-area"), byId("visit-location").value);
+  refreshFeatureOptions();
+}
+
 function refreshFeatureOptions() {
-  populateYardFeatureSelect(byId("visit-feature"), byId("visit-customer").value);
+  populateYardFeatureSelect(byId("visit-feature"), byId("visit-area").value);
 }
 
 function openForm(visit = null) {
@@ -78,9 +118,17 @@ function openForm(visit = null) {
   byId("visit-trimmed-bushes").checked = visit?.trimmedBushes ?? false;
   byId("visit-pattern").value = visit?.pattern || "parallel";
   populateDeckHeightSelect(byId("visit-height"), visit?.equipmentId || "", visit?.deckHeight ?? null);
-  byId("visit-yard-area").value = visit?.yardArea || "";
+  populateGroundSpeedSelect(byId("visit-ground-speed"), visit?.equipmentId || "", visit?.groundSpeed ?? null);
+  populateBladeSpeedSelect(byId("visit-blade-speed"), visit?.equipmentId || "", visit?.bladeSpeed ?? null);
   byId("visit-equipment").value = visit?.equipmentId || "";
+  byId("visit-time-of-day").value = visit?.timeOfDay || "";
+  byId("visit-grass-condition").value = visit?.grassCondition || "";
   byId("visit-notes").value = visit?.notes || "";
+
+  refreshLocationOptions();
+  byId("visit-location").value = visit?.locationId || "";
+  refreshAreaOptions();
+  byId("visit-area").value = visit?.areaId || "";
   refreshFeatureOptions();
   if (visit?.featureId) byId("visit-feature").value = visit.featureId;
 }
@@ -109,7 +157,12 @@ async function handleSubmit(e) {
     trimmedBushes: byId("visit-trimmed-bushes").checked,
     pattern: byId("visit-pattern").value,
     deckHeight: byId("visit-height").value ? Number(byId("visit-height").value) : null,
-    yardArea: byId("visit-yard-area").value || null,
+    groundSpeed: byId("visit-ground-speed").value || null,
+    bladeSpeed: byId("visit-blade-speed").value || null,
+    timeOfDay: byId("visit-time-of-day").value || null,
+    grassCondition: byId("visit-grass-condition").value || null,
+    locationId: byId("visit-location").value || null,
+    areaId: byId("visit-area").value || null,
     featureId: byId("visit-feature").value || null,
     equipmentId: byId("visit-equipment").value || null,
     notes: byId("visit-notes").value.trim(),
@@ -138,9 +191,13 @@ export function initMowLogView() {
     byId("cancel-visit-btn").addEventListener("click", closeForm);
     byId("visit-form").addEventListener("submit", handleSubmit);
     byId("visit-filter-customer").addEventListener("change", renderTable);
-    byId("visit-customer").addEventListener("change", refreshFeatureOptions);
+    byId("visit-customer").addEventListener("change", refreshLocationOptions);
+    byId("visit-location").addEventListener("change", refreshAreaOptions);
+    byId("visit-area").addEventListener("change", refreshFeatureOptions);
     byId("visit-equipment").addEventListener("change", () => {
       populateDeckHeightSelect(byId("visit-height"), byId("visit-equipment").value);
+      populateGroundSpeedSelect(byId("visit-ground-speed"), byId("visit-equipment").value);
+      populateBladeSpeedSelect(byId("visit-blade-speed"), byId("visit-equipment").value);
     });
     document.addEventListener("customers:changed", () => {
       populateCustomerSelect(byId("visit-filter-customer"), { includeAll: true });

@@ -6,6 +6,8 @@ import { loadVisits, initMowLogView, refreshMowLogView } from "./mowLog.js";
 import { loadSprays, initSprayLogView, refreshSprayLogView } from "./sprayLog.js";
 import { loadTasks, initMaintenanceView, refreshMaintenanceView } from "./maintenance.js";
 import { loadEquipment, initEquipmentView, refreshEquipmentView } from "./equipment.js";
+import { loadLocations, initLocationsView, refreshLocationsView } from "./locations.js";
+import { loadAreas, initAreasView, refreshAreasView } from "./areas.js";
 import { loadYardFeatures, initYardFeaturesView, refreshYardFeaturesView } from "./yardFeatures.js";
 import { initWeatherView, startBackgroundWeatherSync } from "./weatherView.js";
 import { refreshDashboard } from "./dashboard.js";
@@ -27,7 +29,16 @@ function showLogin() {
 async function showApp() {
   byId("login-view").classList.add("hidden");
   byId("app-view").classList.remove("hidden");
-  await Promise.all([loadCustomers(), loadVisits(), loadSprays(), loadTasks(), loadEquipment(), loadYardFeatures()]);
+  await Promise.all([
+    loadCustomers(),
+    loadVisits(),
+    loadSprays(),
+    loadTasks(),
+    loadEquipment(),
+    loadLocations(),
+    loadAreas(),
+    loadYardFeatures(),
+  ]);
   initEventLogView();
   document.addEventListener("event:logged", () => refreshDashboard());
   document.addEventListener("weather:synced", () => {
@@ -45,6 +56,8 @@ function initView(view) {
     if (view === "spray-log") refreshSprayLogView();
     if (view === "settings") {
       refreshCustomersView();
+      refreshLocationsView();
+      refreshAreasView();
       refreshEquipmentView();
       refreshMaintenanceView();
       refreshYardFeaturesView();
@@ -64,6 +77,8 @@ function initView(view) {
       break;
     case "settings":
       initCustomersView();
+      initLocationsView();
+      initAreasView();
       initEquipmentView();
       initMaintenanceView();
       initYardFeaturesView();
