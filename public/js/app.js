@@ -41,10 +41,7 @@ async function showApp() {
   ]);
   initEventLogView();
   document.addEventListener("event:logged", () => refreshDashboard());
-  document.addEventListener("weather:synced", () => {
-    refreshDashboard();
-    if (initializedViews.has("settings")) refreshCustomersView();
-  });
+  document.addEventListener("weather:synced", () => refreshDashboard());
   initView("dashboard");
   startBackgroundWeatherSync();
 }
