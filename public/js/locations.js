@@ -45,11 +45,6 @@ export function populateLocationSelect(selectEl, customerId, { includeNone = tru
   }
 }
 
-function contactsSummary(contacts) {
-  if (!contacts?.length) return "";
-  return contacts.map((c) => c.name || c.phone || c.email).filter(Boolean).join(", ");
-}
-
 function renderTable() {
   const body = byId("location-table-body");
   body.innerHTML = cache
@@ -59,8 +54,6 @@ function renderTable() {
         <td>${escapeHtml(l.label)}</td>
         <td>${escapeHtml(getCustomerName(l.customerId))}</td>
         <td>${escapeHtml(l.address || "")}</td>
-        <td>${escapeHtml(contactsSummary(l.contacts))}</td>
-        <td>${escapeHtml(l.notes || "")}</td>
         <td class="row-actions">
           <button class="link-btn" data-edit="${l.id}">✏️ Edit</button>
         </td>
