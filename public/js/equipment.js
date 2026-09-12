@@ -48,7 +48,7 @@ function parseTextList(raw) {
   return [...new Set(raw.split(",").map((s) => s.trim()).filter(Boolean))];
 }
 
-export function populateEquipmentSelect(selectEl, { includeNone = true } = {}) {
+export function populateEquipmentSelect(selectEl, { includeNone = true, typeFilter = null } = {}) {
   const current = selectEl.value;
   selectEl.innerHTML = "";
   if (includeNone) {
@@ -57,7 +57,7 @@ export function populateEquipmentSelect(selectEl, { includeNone = true } = {}) {
     opt.textContent = "None / Not specified";
     selectEl.appendChild(opt);
   }
-  for (const e of cache.filter((e) => e.active !== false)) {
+  for (const e of cache.filter((e) => e.active !== false && (!typeFilter || e.type === typeFilter))) {
     const opt = document.createElement("option");
     opt.value = e.id;
     opt.textContent = `${e.name} (${EQUIPMENT_TYPE_LABELS[e.type] || e.type})`;
