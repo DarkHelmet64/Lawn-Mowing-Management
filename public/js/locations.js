@@ -82,13 +82,17 @@ function openForm(location = null) {
   const customerId = location?.customerId || getCustomers()[0]?.id || "";
   byId("location-customer").value = customerId;
   byId("location-label").value = location?.label || "";
-  byId("location-address").value = location ? location.address || "" : customerAddress(customerId);
   byId("location-notes").value = location?.notes || "";
+  const sameAsCustomer = location?.sameAsCustomerAddress || false;
+  byId("location-same-as-customer").checked = sameAsCustomer;
+  byId("location-address").value = sameAsCustomer ? customerAddress(customerId) : location?.address || "";
+  byId("location-address").disabled = sameAsCustomer;
 }
 
 function closeForm() {
   byId("location-form-card").classList.add("hidden");
   byId("location-form").reset();
+  byId("location-address").disabled = false;
 }
 
 async function handleDelete(id) {
@@ -104,6 +108,7 @@ async function handleSubmit(e) {
     customerId: byId("location-customer").value,
     label: byId("location-label").value.trim(),
     address: byId("location-address").value.trim(),
+    sameAsCustomerAddress: byId("location-same-as-customer").checked,
     notes: byId("location-notes").value.trim(),
   };
   if (id) await updateDocById(COLLECTION, id, data);
@@ -129,9 +134,17 @@ export function initLocationsView() {
     });
     byId("cancel-location-btn").addEventListener("click", closeForm);
     byId("location-form").addEventListener("submit", handleSubmit);
+    byId("location-same-as-customer").addEventListener("change", () => {
+      const checked = byId("location-same-as-customer").checked;
+      byId("location-address").disabled = checked;
+      if (checked) {
+        byId("location-address").value = customerAddress(byId("location-customer").value);
+      }
+    });
     byId("location-customer").addEventListener("change", () => {
-      if (byId("location-id").value) return;
-      byId("location-address").value = customerAddress(byId("location-customer").value);
+      if (byId("location-same-as-customer").checked) {
+        byId("location-address").value = customerAddress(byId("location-customer").value);
+      }
     });
     listenersBound = true;
   }
