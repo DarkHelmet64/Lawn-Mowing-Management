@@ -2,11 +2,12 @@ import { isConfigured } from "./firebase.js";
 import { watchAuth, login, logout } from "./auth.js";
 import { byId } from "./utils.js";
 import { loadCustomers, initCustomersView, refreshCustomersView } from "./customers.js";
-import { loadVisits, initMowLogView } from "./mowLog.js";
-import { loadSprays, initSprayLogView } from "./sprayLog.js";
+import { loadVisits, initMowLogView, refreshMowLogView } from "./mowLog.js";
+import { loadSprays, initSprayLogView, refreshSprayLogView } from "./sprayLog.js";
 import { loadTasks, initMaintenanceView } from "./maintenance.js";
 import { initWeatherView } from "./weatherView.js";
 import { refreshDashboard } from "./dashboard.js";
+import { initEventLogView } from "./eventLog.js";
 
 const initializedViews = new Set();
 
@@ -25,6 +26,8 @@ async function showApp() {
   byId("login-view").classList.add("hidden");
   byId("app-view").classList.remove("hidden");
   await Promise.all([loadCustomers(), loadVisits(), loadSprays(), loadTasks()]);
+  initEventLogView();
+  document.addEventListener("event:logged", () => refreshDashboard());
   initView("dashboard");
 }
 
@@ -32,6 +35,8 @@ function initView(view) {
   if (initializedViews.has(view)) {
     if (view === "dashboard") refreshDashboard();
     if (view === "customers") refreshCustomersView();
+    if (view === "mow-log") refreshMowLogView();
+    if (view === "spray-log") refreshSprayLogView();
     return;
   }
   initializedViews.add(view);

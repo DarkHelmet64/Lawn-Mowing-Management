@@ -1,5 +1,6 @@
 import { getCustomers, getCustomerName } from "./customers.js";
 import { getVisits } from "./mowLog.js";
+import { getSprays } from "./sprayLog.js";
 import { getTasks } from "./maintenance.js";
 import { refreshWeatherView } from "./weatherView.js";
 import { weeklyRainfall, last7DaysRainfall, profileFor } from "./growthPotential.js";
@@ -61,11 +62,27 @@ function renderReadyToMow(mowStatus) {
       .join("") || "<li>No lawns ready to mow yet.</li>";
 }
 
+const VISIT_FLAG_LABELS = {
+  mowed: "Mowed",
+  trimmed: "Trimmed",
+  edged: "Edged",
+  pruned: "Pruned",
+  trimmedBushes: "Trimmed bushes",
+};
+
+function describeVisit(v) {
+  const done = Object.keys(VISIT_FLAG_LABELS).filter((flag) => v[flag]);
+  const summary = done.length ? done.map((flag) => VISIT_FLAG_LABELS[flag]).join(", ") : "Visit";
+  return `${summary} for ${getCustomerName(v.customerId)}`;
+}
+
 function renderRecentActivity() {
   const visits = getVisits().slice(0, 5);
+  const sprays = getSprays().slice(0, 5);
   const tasks = getTasks().slice(0, 3);
   const items = [
-    ...visits.map((v) => ({ date: v.date, text: `Mow visit logged for ${getCustomerName(v.customerId)}` })),
+    ...visits.map((v) => ({ date: v.date, text: describeVisit(v) })),
+    ...sprays.map((s) => ({ date: s.date, text: `Sprayed ${s.product} for ${getCustomerName(s.customerId)}` })),
     ...tasks.map((t) => ({ date: t.date, text: `Maintenance: ${t.taskType.replace(/_/g, " ")}` })),
   ]
     .sort((a, b) => (a.date < b.date ? 1 : -1))

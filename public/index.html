@@ -33,7 +33,7 @@
       <nav id="main-nav">
         <button data-view="dashboard" class="nav-btn active">Dashboard</button>
         <button data-view="customers" class="nav-btn">Customers</button>
-        <button data-view="mow-log" class="nav-btn">Mow / Trim / Edge</button>
+        <button data-view="mow-log" class="nav-btn">Yard Work</button>
         <button data-view="spray-log" class="nav-btn">Spray Log</button>
         <button data-view="maintenance" class="nav-btn">Equipment</button>
         <button data-view="weather" class="nav-btn">Weather &amp; Growth</button>
@@ -43,7 +43,84 @@
 
     <main>
       <section id="view-dashboard" class="view active">
-        <h2>Dashboard</h2>
+        <div class="view-header">
+          <h2>Dashboard</h2>
+          <button id="log-event-btn" class="primary-btn">+ Log Event</button>
+        </div>
+        <div id="log-event-form-card" class="card hidden">
+          <h3>Log an Event</h3>
+          <form id="log-event-form">
+            <label>Customer
+              <select id="event-customer" required></select>
+            </label>
+            <label>Date
+              <input type="date" id="event-date" required />
+            </label>
+            <label>Event Type
+              <select id="event-category">
+                <option value="yardwork">Yard Work (mow / trim / edge / prune / bushes)</option>
+                <option value="spray">Spray Application</option>
+              </select>
+            </label>
+
+            <div id="event-yardwork-fields">
+              <div class="checkbox-row">
+                <label class="checkbox-label"><input type="checkbox" id="event-mowed" checked /> Mowed</label>
+                <label class="checkbox-label"><input type="checkbox" id="event-trimmed" checked /> Trimmed</label>
+                <label class="checkbox-label"><input type="checkbox" id="event-edged" /> Edged</label>
+                <label class="checkbox-label"><input type="checkbox" id="event-pruned" /> Pruned</label>
+                <label class="checkbox-label"><input type="checkbox" id="event-trimmed-bushes" /> Trimmed Bushes</label>
+              </div>
+              <label>Mow Pattern
+                <select id="event-pattern">
+                  <option value="stripes">Straight Stripes</option>
+                  <option value="diagonal">Diagonal Stripes</option>
+                  <option value="checkerboard">Checkerboard</option>
+                  <option value="waves">Waves</option>
+                  <option value="circular">Circular</option>
+                  <option value="diamond">Diamond</option>
+                  <option value="none">No Pattern</option>
+                  <option value="other">Other</option>
+                </select>
+              </label>
+              <label>Deck Height (in)
+                <input type="number" id="event-height" step="0.25" min="0" placeholder="e.g. 3.5" />
+              </label>
+            </div>
+
+            <div id="event-spray-fields" class="hidden">
+              <label>Location
+                <select id="event-spray-location">
+                  <option value="driveway">Driveway</option>
+                  <option value="walkway">Walkway / Sidewalk</option>
+                  <option value="flowerbed">Flowerbed</option>
+                  <option value="lawn">Lawn</option>
+                  <option value="other">Other</option>
+                </select>
+              </label>
+              <label>Target
+                <select id="event-spray-target">
+                  <option value="weeds">Weeds</option>
+                  <option value="insects">Insects</option>
+                  <option value="fungus">Fungus / Disease</option>
+                  <option value="fertilizer">Fertilizer</option>
+                  <option value="other">Other</option>
+                </select>
+              </label>
+              <label>Product Used
+                <input type="text" id="event-spray-product" placeholder="e.g. Roundup, Ortho GroundClear" />
+              </label>
+            </div>
+
+            <label>Notes
+              <textarea id="event-notes" rows="2"></textarea>
+            </label>
+            <div class="form-actions">
+              <button type="submit" class="primary-btn">Save</button>
+              <button type="button" id="cancel-event-btn" class="ghost-btn">Cancel</button>
+            </div>
+          </form>
+        </div>
         <div class="stat-grid">
           <div class="stat-card">
             <span class="stat-label">Today's Growth Potential</span>
@@ -141,7 +218,7 @@
 
       <section id="view-mow-log" class="view">
         <div class="view-header">
-          <h2>Mow / Trim / Edge Log</h2>
+          <h2>Yard Work Log</h2>
           <button id="add-visit-btn" class="primary-btn">+ Log Visit</button>
         </div>
         <div id="visit-form-card" class="card hidden">
@@ -158,6 +235,8 @@
               <label class="checkbox-label"><input type="checkbox" id="visit-mowed" checked /> Mowed</label>
               <label class="checkbox-label"><input type="checkbox" id="visit-trimmed" checked /> Trimmed</label>
               <label class="checkbox-label"><input type="checkbox" id="visit-edged" /> Edged</label>
+              <label class="checkbox-label"><input type="checkbox" id="visit-pruned" /> Pruned</label>
+              <label class="checkbox-label"><input type="checkbox" id="visit-trimmed-bushes" /> Trimmed Bushes</label>
             </div>
             <label>Mow Pattern
               <select id="visit-pattern">
@@ -191,7 +270,7 @@
         <div class="table-wrap">
           <table class="data-table">
             <thead>
-              <tr><th>Date</th><th>Customer</th><th>Mowed</th><th>Trimmed</th><th>Edged</th><th>Pattern</th><th></th></tr>
+              <tr><th>Date</th><th>Customer</th><th>Mowed</th><th>Trimmed</th><th>Edged</th><th>Pruned</th><th>Bushes</th><th>Pattern</th><th></th></tr>
             </thead>
             <tbody id="visit-table-body"></tbody>
           </table>

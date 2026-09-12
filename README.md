@@ -1,10 +1,12 @@
 # Lawn Mowing Management
 
-A personal web app for tracking a lawn care business: mow/trim/edge visits
-(with the mowing pattern used per visit), driveway and flowerbed weed
-spraying, equipment maintenance (like blade sharpening), and local weather
-with a turfgrass Growth Potential model and weekly rainfall for grass near
-Dayton, Ohio — including a per-customer "ready to mow" indicator.
+A personal web app for tracking a lawn care business: yard-work visits
+(mowing, trimming, edging, pruning, bush trimming - with the mowing pattern
+used per visit), driveway and flowerbed weed spraying, equipment
+maintenance (like blade sharpening), and local weather with a turfgrass
+Growth Potential model and weekly rainfall for grass near Dayton, Ohio —
+including a per-customer "ready to mow" indicator. A single "+ Log Event"
+button on the Dashboard covers all of these event types in one place.
 
 Built as a static site on **Firebase Hosting**, with **Firestore** as the
 database and **Firebase Authentication** to keep the data private to one
@@ -15,9 +17,14 @@ API in the browser and cached in Firestore.
 ## Features
 
 - **Customers** — name, address, contact info, service frequency, active/inactive.
-- **Mow / Trim / Edge Log** — per-visit record of what was done, the mowing
-  pattern used (stripes, diagonal, checkerboard, waves, circular, diamond,
-  etc.), deck height, and notes.
+- **Log an Event (Dashboard button)** — one quick-entry form covering every
+  event type: mowing, trimming, edging, pruning, and bush trimming as a
+  single yard-work visit, or a spray application, without leaving the
+  Dashboard.
+- **Yard Work Log** — per-visit record of what was done (mowed, trimmed,
+  edged, pruned, bushes trimmed), the mowing pattern used (stripes,
+  diagonal, checkerboard, waves, circular, diamond, etc.), deck height, and
+  notes.
 - **Spray Log** — records whether you sprayed weeds (or other targets) in
   driveways, walkways, flowerbeds, or the lawn itself, which product you
   used, and notes.
@@ -133,7 +140,7 @@ whole year every time.
 | Collection | Purpose |
 |---|---|
 | `customers` | Customer/property records |
-| `mowVisits` | Mow/trim/edge visit log entries |
+| `mowVisits` | Yard-work visit log entries (mow/trim/edge/prune/bush-trim flags) |
 | `sprayApplications` | Weed/insect/fungus/fertilizer spray log entries |
 | `maintenanceTasks` | Equipment maintenance log entries |
 | `weatherDaily` | Cached daily weather + Growth Potential inputs, keyed by date |

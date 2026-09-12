@@ -4,6 +4,7 @@ import { getCustomers, getCustomerName, populateCustomerSelect } from "./custome
 
 const COLLECTION = "sprayApplications";
 let cache = [];
+let listenersBound = false;
 
 const LOCATION_LABELS = {
   driveway: "Driveway",
@@ -23,6 +24,10 @@ const TARGET_LABELS = {
 
 export async function loadSprays() {
   cache = await listAll(COLLECTION, { orderByField: "date", direction: "desc" });
+  return cache;
+}
+
+export function getSprays() {
   return cache;
 }
 
@@ -73,7 +78,7 @@ function closeForm() {
 async function handleDelete(id) {
   if (!confirm("Delete this spray record?")) return;
   await deleteDocById(COLLECTION, id);
-  await refresh();
+  await refreshSprayLogView();
 }
 
 async function handleSubmit(e) {
@@ -90,25 +95,27 @@ async function handleSubmit(e) {
   if (id) await updateDocById(COLLECTION, id, data);
   else await createDoc(COLLECTION, data);
   closeForm();
-  await refresh();
+  await refreshSprayLogView();
 }
 
-async function refresh() {
+export async function refreshSprayLogView() {
   await loadSprays();
   renderTable();
 }
 
 export function initSprayLogView() {
-  byId("add-spray-btn").addEventListener("click", () => {
-    if (!getCustomers().length) {
-      alert("Add a customer first.");
-      return;
-    }
-    openForm();
-  });
-  byId("cancel-spray-btn").addEventListener("click", closeForm);
-  byId("spray-form").addEventListener("submit", handleSubmit);
-  document.addEventListener("customers:changed", renderTable);
-
-  refresh();
+  if (!listenersBound) {
+    byId("add-spray-btn").addEventListener("click", () => {
+      if (!getCustomers().length) {
+        alert("Add a customer first.");
+        return;
+      }
+      openForm();
+    });
+    byId("cancel-spray-btn").addEventListener("click", closeForm);
+    byId("spray-form").addEventListener("submit", handleSubmit);
+    document.addEventListener("customers:changed", renderTable);
+    listenersBound = true;
+  }
+  return refreshSprayLogView();
 }
