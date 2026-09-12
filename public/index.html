@@ -664,7 +664,21 @@
           tune the threshold up or down based on how it matches what you see in the yard.
         </p>
         <div class="card">
-          <h3>Growth Potential (%)</h3>
+          <div class="view-header">
+            <h3>Growth Potential (%)</h3>
+            <div class="settings-row">
+              <label>View
+                <select id="gp-view-mode">
+                  <option value="weekly">Weekly</option>
+                  <option value="monthly">Monthly</option>
+                  <option value="annual">Annual</option>
+                </select>
+              </label>
+              <label id="gp-view-count-wrap">Number of Weeks
+                <input type="number" id="gp-view-count" value="8" min="1" max="52" step="1" />
+              </label>
+            </div>
+          </div>
           <svg id="weather-chart-gp" class="chart" viewBox="0 0 600 240" preserveAspectRatio="none"></svg>
         </div>
         <div class="card">

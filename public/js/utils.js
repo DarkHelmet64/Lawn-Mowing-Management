@@ -19,6 +19,14 @@ export function formatDateDisplay(dateStr) {
   return `${m}/${d}/${y}`;
 }
 
+const MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+export function formatMonthDisplay(monthStr) {
+  if (!monthStr) return "";
+  const [y, m] = monthStr.split("-");
+  return `${MONTH_ABBR[Number(m) - 1]} '${y.slice(2)}`;
+}
+
 export function byId(id) {
   return document.getElementById(id);
 }
