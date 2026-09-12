@@ -385,6 +385,26 @@
                 <input type="text" id="equipment-blade-speeds" placeholder="e.g. Low, High" />
               </label>
             </div>
+            <div class="subsection">
+              <div class="subsection-header"><span>Purchase Details</span></div>
+              <label>Brand
+                <input type="text" id="equipment-brand" list="equipment-brand-options" placeholder="e.g. Toro, Stihl, Honda" />
+                <datalist id="equipment-brand-options"></datalist>
+              </label>
+              <label>Model Number
+                <input type="text" id="equipment-model-number" />
+              </label>
+              <label>Serial Number
+                <input type="text" id="equipment-serial-number" />
+              </label>
+              <label>Purchase Date
+                <input type="date" id="equipment-purchase-date" />
+              </label>
+              <label>Purchased From
+                <input type="text" id="equipment-purchased-from" list="equipment-purchased-from-options" placeholder="e.g. Home Depot, Local Dealer" />
+                <datalist id="equipment-purchased-from-options"></datalist>
+              </label>
+            </div>
             <label>Notes
               <textarea id="equipment-notes" rows="2"></textarea>
             </label>
@@ -446,6 +466,11 @@
               <button type="button" id="delete-task-btn" class="danger-btn hidden">Delete Task</button>
             </div>
           </form>
+        </div>
+        <div class="filter-row">
+          <label>Filter by equipment type
+            <select id="task-filter-type"><option value="">All Types</option></select>
+          </label>
         </div>
         <div class="table-wrap">
           <table class="data-table">

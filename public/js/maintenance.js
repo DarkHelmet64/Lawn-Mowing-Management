@@ -1,6 +1,6 @@
 import { listAll, createDoc, updateDocById, deleteDocById } from "./db.js";
 import { byId, escapeHtml, todayStr, formatDateDisplay } from "./utils.js";
-import { getEquipment, getEquipmentName, populateEquipmentSelect } from "./equipment.js";
+import { getEquipment, getEquipmentById, getEquipmentName, populateEquipmentSelect, EQUIPMENT_TYPE_LABELS } from "./equipment.js";
 
 const COLLECTION = "maintenanceTasks";
 let cache = [];
@@ -27,9 +27,24 @@ export function getTasks() {
   return cache;
 }
 
+function populateTypeFilterOptions() {
+  const select = byId("task-filter-type");
+  const current = select.value;
+  select.innerHTML = '<option value="">All Types</option>';
+  for (const [value, label] of Object.entries(EQUIPMENT_TYPE_LABELS)) {
+    const opt = document.createElement("option");
+    opt.value = value;
+    opt.textContent = label;
+    select.appendChild(opt);
+  }
+  if (current) select.value = current;
+}
+
 function renderTable() {
+  const typeFilter = byId("task-filter-type").value;
   const body = byId("task-table-body");
   body.innerHTML = cache
+    .filter((t) => !typeFilter || getEquipmentById(t.equipmentId)?.type === typeFilter)
     .map(
       (t) => `
       <tr>
@@ -94,6 +109,7 @@ async function handleSubmit(e) {
 
 export async function refreshMaintenanceView() {
   await loadTasks();
+  populateTypeFilterOptions();
   renderTable();
 }
 
@@ -109,6 +125,7 @@ export function initMaintenanceView() {
     byId("cancel-task-btn").addEventListener("click", closeForm);
     byId("task-form").addEventListener("submit", handleSubmit);
     byId("delete-task-btn").addEventListener("click", handleDelete);
+    byId("task-filter-type").addEventListener("change", renderTable);
     listenersBound = true;
   }
   return refreshMaintenanceView();

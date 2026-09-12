@@ -143,6 +143,17 @@ function updateMowerFieldsVisibility() {
   byId("equipment-mower-fields").classList.toggle("hidden", !isMower);
 }
 
+// Feeds the Brand/Purchased From datalists from whatever values have
+// already been used across other equipment records, so those fields work
+// as a "pick from what I've used before, or type something new" combo.
+function uniqueSortedValues(field) {
+  return [...new Set(cache.map((e) => e[field]).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+}
+
+function populateDatalist(datalistId, values) {
+  byId(datalistId).innerHTML = values.map((v) => `<option value="${escapeHtml(v)}"></option>`).join("");
+}
+
 function openForm(equipment = null) {
   byId("equipment-form-card").classList.remove("hidden");
   byId("equipment-form-title").textContent = equipment ? "Edit Equipment" : "Add Equipment";
@@ -152,6 +163,13 @@ function openForm(equipment = null) {
   byId("equipment-deck-heights").value = equipment?.deckHeights?.join(", ") || "";
   byId("equipment-ground-speeds").value = equipment?.groundSpeeds?.join(", ") || "";
   byId("equipment-blade-speeds").value = equipment?.bladeSpeeds?.join(", ") || "";
+  populateDatalist("equipment-brand-options", uniqueSortedValues("brand"));
+  populateDatalist("equipment-purchased-from-options", uniqueSortedValues("purchasedFrom"));
+  byId("equipment-brand").value = equipment?.brand || "";
+  byId("equipment-model-number").value = equipment?.modelNumber || "";
+  byId("equipment-serial-number").value = equipment?.serialNumber || "";
+  byId("equipment-purchase-date").value = equipment?.purchaseDate || "";
+  byId("equipment-purchased-from").value = equipment?.purchasedFrom || "";
   byId("equipment-notes").value = equipment?.notes || "";
   byId("equipment-active").checked = equipment?.active !== false;
   updateMowerFieldsVisibility();
@@ -183,6 +201,11 @@ async function handleSubmit(e) {
     deckHeights: isMower ? parseNumberList(byId("equipment-deck-heights").value) : [],
     groundSpeeds: isMower ? parseTextList(byId("equipment-ground-speeds").value) : [],
     bladeSpeeds: isMower ? parseTextList(byId("equipment-blade-speeds").value) : [],
+    brand: byId("equipment-brand").value.trim(),
+    modelNumber: byId("equipment-model-number").value.trim(),
+    serialNumber: byId("equipment-serial-number").value.trim(),
+    purchaseDate: byId("equipment-purchase-date").value || null,
+    purchasedFrom: byId("equipment-purchased-from").value.trim(),
     notes: byId("equipment-notes").value.trim(),
     active: byId("equipment-active").checked,
   };

@@ -50,9 +50,13 @@ API in the browser and cached in Firestore.
   speed, and blade speed settings, e.g. deck heights of 2", 2.5", 3",
   ground speeds of 1-5, blade speeds of Low/High; picking that mower
   elsewhere turns each of those fields into a select limited to its
-  settings); and equipment maintenance tasks (blade sharpening, oil
-  changes, etc., tied to a specific piece of equipment). All of this lives
-  in Settings since it's set-up/upkeep rather than day-to-day logging.
+  settings; each piece of equipment can also record its brand, model
+  number, serial number, purchase date, and where it was purchased from -
+  Brand and Purchased From offer a dropdown of values you've used before
+  but still accept a new one); and equipment maintenance tasks (blade
+  sharpening, tire checks, oil changes, etc., tied to a specific piece of
+  equipment, filterable by equipment type). All of this lives in Settings
+  since it's set-up/upkeep rather than day-to-day logging.
 - **Weather & Growth Potential** — daily high/low temps and precipitation
   for Dayton, OH, a turfgrass Growth Potential (GP) score (0-100%, how fast
   the grass is growing today), and a weekly rainfall chart.
