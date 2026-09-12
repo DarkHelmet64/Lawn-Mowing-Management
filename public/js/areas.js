@@ -8,6 +8,12 @@ let cache = [];
 let listenersBound = false;
 let expandedLocationIds = new Set();
 
+const QUICK_ADD_OPTIONS = [
+  { id: "area-quick-front", name: "Front Yard" },
+  { id: "area-quick-back", name: "Back Yard" },
+  { id: "area-quick-flowerbed", name: "Flower Bed" },
+];
+
 export async function loadAreas() {
   cache = await listAll(COLLECTION, { orderByField: "name", direction: "asc" });
   return cache;
@@ -120,6 +126,7 @@ function openForm(area = null) {
   byId("area-name").value = area?.name || "";
   byId("area-notes").value = area?.notes || "";
   byId("delete-area-btn").classList.toggle("hidden", !area);
+  byId("area-quick-add").classList.toggle("hidden", !!area);
 }
 
 function closeForm() {
@@ -144,13 +151,36 @@ async function handleSubmit(e) {
     alert("Select a location for this area.");
     return;
   }
-  const data = {
-    locationId,
-    name: byId("area-name").value.trim(),
-    notes: byId("area-notes").value.trim(),
-  };
-  if (id) await updateDocById(COLLECTION, id, data);
-  else await createDoc(COLLECTION, data);
+  const notes = byId("area-notes").value.trim();
+  const customName = byId("area-name").value.trim();
+
+  if (id) {
+    if (!customName) {
+      alert("Enter a name for this area.");
+      return;
+    }
+    await updateDocById(COLLECTION, id, { locationId, name: customName, notes });
+    expandedLocationIds.add(locationId);
+    closeForm();
+    await refreshAreasView();
+    return;
+  }
+
+  const names = QUICK_ADD_OPTIONS.filter((opt) => byId(opt.id).checked).map((opt) => opt.name);
+  if (customName) names.push(customName);
+  if (!names.length) {
+    alert("Enter a name or check at least one common area.");
+    return;
+  }
+  const existingNames = new Set(getAreasForLocation(locationId).map((a) => a.name.toLowerCase()));
+  const newNames = [...new Set(names)].filter((n) => !existingNames.has(n.toLowerCase()));
+  if (!newNames.length) {
+    alert("Those areas already exist for this location.");
+    return;
+  }
+  for (const name of newNames) {
+    await createDoc(COLLECTION, { locationId, name, notes });
+  }
   expandedLocationIds.add(locationId);
   closeForm();
   await refreshAreasView();
