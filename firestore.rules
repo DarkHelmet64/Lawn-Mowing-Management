@@ -27,6 +27,14 @@ service cloud.firestore {
       allow read, write: if isOwner();
     }
 
+    match /equipment/{equipmentId} {
+      allow read, write: if isOwner();
+    }
+
+    match /yardFeatures/{featureId} {
+      allow read, write: if isOwner();
+    }
+
     match /weatherDaily/{date} {
       allow read, write: if isOwner();
     }

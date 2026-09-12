@@ -1,8 +1,10 @@
 import { listAll, createDoc, updateDocById, deleteDocById } from "./db.js";
 import { byId, escapeHtml, todayStr, formatDateDisplay } from "./utils.js";
+import { getEquipment, getEquipmentName, populateEquipmentSelect } from "./equipment.js";
 
 const COLLECTION = "maintenanceTasks";
 let cache = [];
+let listenersBound = false;
 
 const TASK_LABELS = {
   blade_sharpen: "Blade Sharpening",
@@ -31,7 +33,7 @@ function renderTable() {
       (t) => `
       <tr>
         <td>${formatDateDisplay(t.date)}</td>
-        <td>${escapeHtml(t.equipment || "")}</td>
+        <td>${escapeHtml(getEquipmentName(t.equipmentId) || t.equipment || "")}</td>
         <td>${TASK_LABELS[t.taskType] || t.taskType}</td>
         <td>${t.hours ?? ""}</td>
         <td>${escapeHtml(t.notes || "")}</td>
@@ -53,8 +55,9 @@ function renderTable() {
 
 function openForm(task = null) {
   byId("task-form-card").classList.remove("hidden");
+  populateEquipmentSelect(byId("task-equipment"), { includeNone: false });
   byId("task-id").value = task?.id || "";
-  byId("task-equipment").value = task?.equipment || "";
+  byId("task-equipment").value = task?.equipmentId || "";
   byId("task-type").value = task?.taskType || "blade_sharpen";
   byId("task-date").value = task?.date || todayStr();
   byId("task-hours").value = task?.hours ?? "";
@@ -69,14 +72,14 @@ function closeForm() {
 async function handleDelete(id) {
   if (!confirm("Delete this maintenance record?")) return;
   await deleteDocById(COLLECTION, id);
-  await refresh();
+  await refreshMaintenanceView();
 }
 
 async function handleSubmit(e) {
   e.preventDefault();
   const id = byId("task-id").value;
   const data = {
-    equipment: byId("task-equipment").value.trim(),
+    equipmentId: byId("task-equipment").value,
     taskType: byId("task-type").value,
     date: byId("task-date").value,
     hours: byId("task-hours").value ? Number(byId("task-hours").value) : null,
@@ -85,18 +88,26 @@ async function handleSubmit(e) {
   if (id) await updateDocById(COLLECTION, id, data);
   else await createDoc(COLLECTION, data);
   closeForm();
-  await refresh();
+  await refreshMaintenanceView();
 }
 
-async function refresh() {
+export async function refreshMaintenanceView() {
   await loadTasks();
   renderTable();
 }
 
 export function initMaintenanceView() {
-  byId("add-task-btn").addEventListener("click", () => openForm());
-  byId("cancel-task-btn").addEventListener("click", closeForm);
-  byId("task-form").addEventListener("submit", handleSubmit);
-
-  refresh();
+  if (!listenersBound) {
+    byId("add-task-btn").addEventListener("click", () => {
+      if (!getEquipment().length) {
+        alert("Add equipment first.");
+        return;
+      }
+      openForm();
+    });
+    byId("cancel-task-btn").addEventListener("click", closeForm);
+    byId("task-form").addEventListener("submit", handleSubmit);
+    listenersBound = true;
+  }
+  return refreshMaintenanceView();
 }

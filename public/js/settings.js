@@ -1,7 +1,7 @@
 import { getDocById, setDocById } from "./db.js";
 
-const DOC_ID = "gdd";
-const DEFAULTS = { baseTempF: 50, seasonStart: `${new Date().getFullYear()}-04-01` };
+const DOC_ID = "growthPotential";
+const DEFAULTS = { grassType: "cool", mowThresholdGPDays: 5 };
 
 let cached = null;
 

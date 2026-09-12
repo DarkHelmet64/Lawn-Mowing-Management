@@ -1,12 +1,15 @@
 import { isConfigured } from "./firebase.js";
 import { watchAuth, login, logout } from "./auth.js";
 import { byId } from "./utils.js";
-import { loadCustomers, initCustomersView } from "./customers.js";
-import { loadVisits, initMowLogView } from "./mowLog.js";
-import { loadSprays, initSprayLogView } from "./sprayLog.js";
-import { loadTasks, initMaintenanceView } from "./maintenance.js";
+import { loadCustomers, initCustomersView, refreshCustomersView } from "./customers.js";
+import { loadVisits, initMowLogView, refreshMowLogView } from "./mowLog.js";
+import { loadSprays, initSprayLogView, refreshSprayLogView } from "./sprayLog.js";
+import { loadTasks, initMaintenanceView, refreshMaintenanceView } from "./maintenance.js";
+import { loadEquipment, initEquipmentView, refreshEquipmentView } from "./equipment.js";
+import { loadYardFeatures, initYardFeaturesView, refreshYardFeaturesView } from "./yardFeatures.js";
 import { initWeatherView } from "./weatherView.js";
 import { refreshDashboard } from "./dashboard.js";
+import { initEventLogView } from "./eventLog.js";
 
 const initializedViews = new Set();
 
@@ -24,13 +27,23 @@ function showLogin() {
 async function showApp() {
   byId("login-view").classList.add("hidden");
   byId("app-view").classList.remove("hidden");
-  await Promise.all([loadCustomers(), loadVisits(), loadSprays(), loadTasks()]);
+  await Promise.all([loadCustomers(), loadVisits(), loadSprays(), loadTasks(), loadEquipment(), loadYardFeatures()]);
+  initEventLogView();
+  document.addEventListener("event:logged", () => refreshDashboard());
   initView("dashboard");
 }
 
 function initView(view) {
   if (initializedViews.has(view)) {
     if (view === "dashboard") refreshDashboard();
+    if (view === "mow-log") refreshMowLogView();
+    if (view === "spray-log") refreshSprayLogView();
+    if (view === "settings") {
+      refreshCustomersView();
+      refreshEquipmentView();
+      refreshMaintenanceView();
+      refreshYardFeaturesView();
+    }
     return;
   }
   initializedViews.add(view);
@@ -38,17 +51,17 @@ function initView(view) {
     case "dashboard":
       refreshDashboard();
       break;
-    case "customers":
-      initCustomersView();
-      break;
     case "mow-log":
       initMowLogView();
       break;
     case "spray-log":
       initSprayLogView();
       break;
-    case "maintenance":
+    case "settings":
+      initCustomersView();
+      initEquipmentView();
       initMaintenanceView();
+      initYardFeaturesView();
       break;
     case "weather":
       initWeatherView();

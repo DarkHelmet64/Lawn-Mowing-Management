@@ -293,6 +293,7 @@ form {
 
 .table-wrap {
   overflow-x: auto;
+  margin-bottom: 24px;
 }
 
 .data-table {
@@ -340,6 +341,22 @@ form {
 .badge-inactive {
   background: rgba(120, 120, 120, 0.15);
   color: var(--text-muted);
+}
+
+.badge-ready {
+  background: rgba(46, 125, 50, 0.15);
+  color: var(--primary-dark);
+}
+
+.badge-waiting {
+  background: rgba(217, 119, 6, 0.15);
+  color: #b45309;
+}
+
+@media (prefers-color-scheme: dark) {
+  .badge-waiting {
+    color: #fbbf24;
+  }
 }
 
 .activity-list {

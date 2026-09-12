@@ -1,10 +1,14 @@
 # Lawn Mowing Management
 
-A personal web app for tracking a lawn care business: mow/trim/edge visits
-(with the mowing pattern used per visit), driveway and flowerbed weed
-spraying, equipment maintenance (like blade sharpening), and local weather
-with growing degree days (GDD) and weekly rainfall for grass near Dayton,
-Ohio.
+A personal web app for tracking a lawn care business: yard-work visits
+(mowing, trimming, edging, pruning, bush trimming - with the mowing pattern
+used, which piece of equipment, which part of the yard, and which plant or
+object the work applied to), driveway and flowerbed weed spraying,
+equipment maintenance (like blade sharpening), and local weather with a
+turfgrass Growth Potential model and weekly rainfall for grass near
+Dayton, Ohio — including a per-customer "ready to mow" indicator. A single
+"+ Log Event" button on the Dashboard covers all of these event types in
+one place.
 
 Built as a static site on **Firebase Hosting**, with **Firestore** as the
 database and **Firebase Authentication** to keep the data private to one
@@ -14,21 +18,37 @@ API in the browser and cached in Firestore.
 
 ## Features
 
-- **Customers** — name, address, contact info, service frequency, active/inactive.
-- **Mow / Trim / Edge Log** — per-visit record of what was done, the mowing
-  pattern used (stripes, diagonal, checkerboard, waves, circular, diamond,
-  etc.), deck height, and notes.
+- **Log an Event (Dashboard button)** — one quick-entry form covering every
+  event type: mowing, trimming, edging, pruning, and bush trimming as a
+  single yard-work visit, or a spray application, without leaving the
+  Dashboard. Every event can note which yard area it was in, which
+  registered plant/object it applied to, and which piece of equipment was
+  used.
+- **Yard Work Log** — per-visit record of what was done (mowed, trimmed,
+  edged, pruned, bushes trimmed), the mowing pattern used (parallel,
+  perpendicular, diagonal left, diagonal right, other), deck height, yard
+  area, plant/object, equipment used, and notes.
 - **Spray Log** — records whether you sprayed weeds (or other targets) in
-  driveways, walkways, flowerbeds, or the lawn itself, which product you
-  used, and notes.
-- **Equipment Maintenance** — logs tasks like blade sharpening, blade
-  replacement, oil changes, air filters, spark plugs, belts/cables, per
-  piece of equipment.
-- **Weather & GDD** — daily high/low temps and precipitation for Dayton, OH,
-  a configurable-base-temperature growing degree day calculation with
-  season-to-date accumulation, and a weekly rainfall chart.
-- **Dashboard** — today's GDD, season cumulative GDD, last 7 days of
-  rainfall, and recent activity at a glance.
+  driveways, walkways, flowerbeds, or the lawn itself, which product,
+  equipment, yard area, and plant/object it applied to, and notes.
+- **Settings** — customer records, an **equipment** registry (mowers,
+  trimmers, edgers, blowers, sprayers - mowers track a deck height that
+  auto-fills when you pick that mower elsewhere), equipment maintenance
+  tasks (blade sharpening, oil changes, etc., now tied to a specific piece
+  of equipment), and **yard features** (plants, trees, shrubs, or other
+  objects on a customer's property worth tracking, like "rose bushes by
+  the mailbox") all live here, since they're set-up/upkeep tasks rather
+  than day-to-day logging.
+- **Weather & Growth Potential** — daily high/low temps and precipitation
+  for Dayton, OH, a turfgrass Growth Potential (GP) score (0-100%, how fast
+  the grass is growing today), and a weekly rainfall chart.
+- **Ready to Mow** — per customer, tracks accumulated Growth Potential
+  since their last mow and flags the lawn "ready to mow" once it crosses a
+  threshold you tune by observation. Shown on both the Dashboard and the
+  Customers table.
+- **Dashboard** — today's Growth Potential, 7-day average, last 7 days of
+  rainfall, how many customers are ready to mow right now, and recent
+  activity at a glance.
 
 ## Tech stack
 
@@ -81,39 +101,72 @@ python3 -m http.server --directory public 8080
 
 Firebase Auth/Firestore calls will still hit your live Firebase project even when previewing locally, since there's no local backend.
 
-## How growing degree days (GDD) are calculated
+## How Growth Potential (GP) and "ready to mow" are calculated
 
-Daily GDD uses the standard average method:
+Growth Potential is a model published by [PACE Turf](https://www.paceturf.org/)
+(Woods, et al.) that estimates the fraction of a turfgrass species' maximum
+growth rate you'd expect at a given temperature, as a Gaussian curve
+centered on that species' optimal temperature:
 
 ```
-dailyGDD = max(0, ((highTempF + lowTempF) / 2) - baseTempF)
+GP = exp(-0.5 * ((meanTempC - Topt) / a)^2)
 ```
 
-These accumulate from a **season start date** through the current day to
-give season-to-date cumulative GDD. Both the **base temperature** and
-**season start date** are adjustable in the Weather & GDD tab (defaults:
-50°F base, April 1 of the current year — reasonable for tracking active
-growth of cool-season turfgrass in Ohio). Some turf GDD models used in the
-turfgrass industry instead use a 32°F base starting January 1; adjust the
-settings to match whichever model you prefer to track by.
+`meanTempC` is the day's mean temperature ((high + low) / 2, converted to
+Celsius). `Topt` and `a` are species constants — this app uses the two
+standard published profiles, selectable in the Weather & Growth tab:
+
+| Grass type | Topt | a |
+|---|---|---|
+| Cool-season (Kentucky bluegrass, tall fescue, perennial ryegrass) | 20°C | 5.5 |
+| Warm-season (bermudagrass, zoysiagrass) | 31°C | 10 |
+
+Lawns in the Dayton, Ohio area are almost always cool-season turf, so that's
+the default. GP is shown as a 0-100% score — near 100% means conditions are
+close to ideal for that species and the grass is growing fast; low GP means
+slow growth (too cold, too hot, or dormant).
+
+**Ready to mow**: for each customer, the app sums the daily GP score for
+every day since their last logged mow. Once that running total crosses the
+**Mow Threshold (GP-days)** setting (default: 5), the lawn is flagged
+"Ready to mow" — both on the Dashboard and as a column on the Customers
+table, which also shows an estimated number of days until ready based on
+the last 5 days' average GP. There's no universally "correct" threshold —
+watch how the accumulated GP-days value tracks against what you actually
+see in the yard over a few mow cycles, and adjust the threshold up or down
+to match.
 
 Weather data (daily high/low temperature and precipitation) is fetched
 directly from Open-Meteo for Dayton, OH (39.7589, -84.1916) — recent days
 from the forecast API (which also serves recent observed data) and the
-rest of the season from the historical archive API — then cached in the
+rest of the year from the historical archive API — then cached in the
 `weatherDaily` Firestore collection so the app doesn't need to refetch the
-whole season every time.
+whole year every time.
+
+## Yard areas and yard features
+
+Every yard-work visit and spray application can optionally note a **Yard
+Area** - Front Yard, Back Yard, Side Yard, Driveway, Whole Property, or
+Other, a fixed list rather than something you set up per customer - and a
+**Plant / Object**, which is looked up from that customer's own **Yard
+Features** list (managed in Settings). Yard Features are simple named
+items on a specific customer's property - "Rose bushes by mailbox," "Oak
+tree in back corner" - with a type (plant/tree/shrub/hardscape/other) and
+notes, so you can log "pruned the boxwood hedge in the front yard" instead
+of just "pruned."
 
 ## Data model (Firestore collections)
 
 | Collection | Purpose |
 |---|---|
 | `customers` | Customer/property records |
-| `mowVisits` | Mow/trim/edge visit log entries |
-| `sprayApplications` | Weed/insect/fungus/fertilizer spray log entries |
-| `maintenanceTasks` | Equipment maintenance log entries |
-| `weatherDaily` | Cached daily weather + GDD inputs, keyed by date |
-| `settings` | App settings (GDD base temp, season start) |
+| `mowVisits` | Yard-work visit log entries (mow/trim/edge/prune/bush-trim flags, pattern, deck height, yard area, equipment, feature) |
+| `sprayApplications` | Weed/insect/fungus/fertilizer spray log entries (location, target, product, yard area, equipment, feature) |
+| `maintenanceTasks` | Equipment maintenance log entries, tied to an equipment record |
+| `equipment` | Mowers, trimmers, edgers, blowers, sprayers - mowers carry a deck height |
+| `yardFeatures` | Plants/trees/shrubs/objects worth tracking, one per customer |
+| `weatherDaily` | Cached daily weather + Growth Potential inputs, keyed by date |
+| `settings` | App settings (grass type, mow threshold in GP-days) |
 
 ## Security
 

@@ -1,18 +1,18 @@
 import { listAll, createDoc, updateDocById, deleteDocById } from "./db.js";
-import { byId, escapeHtml, todayStr, formatDateDisplay } from "./utils.js";
+import { byId, escapeHtml, todayStr, formatDateDisplay, YARD_AREA_LABELS } from "./utils.js";
 import { getCustomers, getCustomerName, populateCustomerSelect } from "./customers.js";
+import { populateEquipmentSelect, getEquipmentName, suggestedDeckHeight } from "./equipment.js";
+import { populateYardFeatureSelect, getYardFeatureName } from "./yardFeatures.js";
 
 const COLLECTION = "mowVisits";
 let cache = [];
+let listenersBound = false;
 
 const PATTERN_LABELS = {
-  stripes: "Straight Stripes",
-  diagonal: "Diagonal Stripes",
-  checkerboard: "Checkerboard",
-  waves: "Waves",
-  circular: "Circular",
-  diamond: "Diamond",
-  none: "No Pattern",
+  parallel: "Parallel",
+  perpendicular: "Perpendicular",
+  diagonal_left: "Diagonal Left",
+  diagonal_right: "Diagonal Right",
   other: "Other",
 };
 
@@ -38,7 +38,12 @@ function renderTable() {
         <td>${v.mowed ? "✓" : ""}</td>
         <td>${v.trimmed ? "✓" : ""}</td>
         <td>${v.edged ? "✓" : ""}</td>
+        <td>${v.pruned ? "✓" : ""}</td>
+        <td>${v.trimmedBushes ? "✓" : ""}</td>
         <td>${PATTERN_LABELS[v.pattern] || v.pattern || ""}</td>
+        <td>${YARD_AREA_LABELS[v.yardArea] || ""}</td>
+        <td>${escapeHtml(getYardFeatureName(v.featureId) || "")}</td>
+        <td>${escapeHtml(getEquipmentName(v.equipmentId) || "")}</td>
         <td class="row-actions">
           <button class="link-btn" data-edit="${v.id}">Edit</button>
           <button class="link-btn danger" data-delete="${v.id}">Delete</button>
@@ -55,18 +60,29 @@ function renderTable() {
   );
 }
 
+function refreshFeatureOptions() {
+  populateYardFeatureSelect(byId("visit-feature"), byId("visit-customer").value);
+}
+
 function openForm(visit = null) {
   byId("visit-form-card").classList.remove("hidden");
   populateCustomerSelect(byId("visit-customer"));
+  populateEquipmentSelect(byId("visit-equipment"));
   byId("visit-id").value = visit?.id || "";
   byId("visit-customer").value = visit?.customerId || getCustomers()[0]?.id || "";
   byId("visit-date").value = visit?.date || todayStr();
   byId("visit-mowed").checked = visit?.mowed ?? true;
   byId("visit-trimmed").checked = visit?.trimmed ?? true;
   byId("visit-edged").checked = visit?.edged ?? false;
-  byId("visit-pattern").value = visit?.pattern || "stripes";
+  byId("visit-pruned").checked = visit?.pruned ?? false;
+  byId("visit-trimmed-bushes").checked = visit?.trimmedBushes ?? false;
+  byId("visit-pattern").value = visit?.pattern || "parallel";
   byId("visit-height").value = visit?.deckHeight ?? "";
+  byId("visit-yard-area").value = visit?.yardArea || "";
+  byId("visit-equipment").value = visit?.equipmentId || "";
   byId("visit-notes").value = visit?.notes || "";
+  refreshFeatureOptions();
+  if (visit?.featureId) byId("visit-feature").value = visit.featureId;
 }
 
 function closeForm() {
@@ -77,7 +93,7 @@ function closeForm() {
 async function handleDelete(id) {
   if (!confirm("Delete this visit record?")) return;
   await deleteDocById(COLLECTION, id);
-  await refresh();
+  await refreshMowLogView();
 }
 
 async function handleSubmit(e) {
@@ -89,38 +105,49 @@ async function handleSubmit(e) {
     mowed: byId("visit-mowed").checked,
     trimmed: byId("visit-trimmed").checked,
     edged: byId("visit-edged").checked,
+    pruned: byId("visit-pruned").checked,
+    trimmedBushes: byId("visit-trimmed-bushes").checked,
     pattern: byId("visit-pattern").value,
     deckHeight: byId("visit-height").value ? Number(byId("visit-height").value) : null,
+    yardArea: byId("visit-yard-area").value || null,
+    featureId: byId("visit-feature").value || null,
+    equipmentId: byId("visit-equipment").value || null,
     notes: byId("visit-notes").value.trim(),
   };
   if (id) await updateDocById(COLLECTION, id, data);
   else await createDoc(COLLECTION, data);
   closeForm();
-  await refresh();
+  await refreshMowLogView();
 }
 
-async function refresh() {
+export async function refreshMowLogView() {
   await loadVisits();
+  populateCustomerSelect(byId("visit-filter-customer"), { includeAll: true });
   renderTable();
 }
 
 export function initMowLogView() {
-  populateCustomerSelect(byId("visit-filter-customer"), { includeAll: true });
-
-  byId("add-visit-btn").addEventListener("click", () => {
-    if (!getCustomers().length) {
-      alert("Add a customer first.");
-      return;
-    }
-    openForm();
-  });
-  byId("cancel-visit-btn").addEventListener("click", closeForm);
-  byId("visit-form").addEventListener("submit", handleSubmit);
-  byId("visit-filter-customer").addEventListener("change", renderTable);
-  document.addEventListener("customers:changed", () => {
-    populateCustomerSelect(byId("visit-filter-customer"), { includeAll: true });
-    renderTable();
-  });
-
-  refresh();
+  if (!listenersBound) {
+    byId("add-visit-btn").addEventListener("click", () => {
+      if (!getCustomers().length) {
+        alert("Add a customer first.");
+        return;
+      }
+      openForm();
+    });
+    byId("cancel-visit-btn").addEventListener("click", closeForm);
+    byId("visit-form").addEventListener("submit", handleSubmit);
+    byId("visit-filter-customer").addEventListener("change", renderTable);
+    byId("visit-customer").addEventListener("change", refreshFeatureOptions);
+    byId("visit-equipment").addEventListener("change", () => {
+      const suggested = suggestedDeckHeight(byId("visit-equipment").value);
+      if (suggested != null) byId("visit-height").value = suggested;
+    });
+    document.addEventListener("customers:changed", () => {
+      populateCustomerSelect(byId("visit-filter-customer"), { includeAll: true });
+      renderTable();
+    });
+    listenersBound = true;
+  }
+  return refreshMowLogView();
 }
