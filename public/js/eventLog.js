@@ -1,6 +1,8 @@
 import { createDoc } from "./db.js";
 import { byId, todayStr } from "./utils.js";
 import { getCustomers, populateCustomerSelect } from "./customers.js";
+import { populateEquipmentSelect, suggestedDeckHeight } from "./equipment.js";
+import { populateYardFeatureSelect } from "./yardFeatures.js";
 import { loadVisits } from "./mowLog.js";
 import { loadSprays } from "./sprayLog.js";
 
@@ -10,12 +12,19 @@ function updateCategoryVisibility() {
   byId("event-spray-fields").classList.toggle("hidden", category !== "spray");
 }
 
+function refreshFeatureOptions() {
+  populateYardFeatureSelect(byId("event-feature"), byId("event-customer").value);
+}
+
 function openForm() {
   byId("log-event-form-card").classList.remove("hidden");
   populateCustomerSelect(byId("event-customer"));
+  populateEquipmentSelect(byId("event-equipment"));
   byId("event-customer").value = getCustomers()[0]?.id || "";
   byId("event-date").value = todayStr();
   byId("event-category").value = "yardwork";
+  byId("event-yard-area").value = "";
+  byId("event-equipment").value = "";
   byId("event-mowed").checked = true;
   byId("event-trimmed").checked = true;
   byId("event-edged").checked = false;
@@ -27,6 +36,7 @@ function openForm() {
   byId("event-spray-target").value = "weeds";
   byId("event-spray-product").value = "";
   byId("event-notes").value = "";
+  refreshFeatureOptions();
   updateCategoryVisibility();
 }
 
@@ -41,6 +51,9 @@ async function handleSubmit(e) {
   const date = byId("event-date").value;
   const category = byId("event-category").value;
   const notes = byId("event-notes").value.trim();
+  const yardArea = byId("event-yard-area").value || null;
+  const featureId = byId("event-feature").value || null;
+  const equipmentId = byId("event-equipment").value || null;
 
   if (category === "yardwork") {
     const data = {
@@ -53,6 +66,9 @@ async function handleSubmit(e) {
       trimmedBushes: byId("event-trimmed-bushes").checked,
       pattern: byId("event-pattern").value,
       deckHeight: byId("event-height").value ? Number(byId("event-height").value) : null,
+      yardArea,
+      featureId,
+      equipmentId,
       notes,
     };
     if (!data.mowed && !data.trimmed && !data.edged && !data.pruned && !data.trimmedBushes) {
@@ -73,6 +89,9 @@ async function handleSubmit(e) {
       location: byId("event-spray-location").value,
       target: byId("event-spray-target").value,
       product,
+      yardArea,
+      featureId,
+      equipmentId,
       notes,
     });
     await loadSprays();
@@ -92,5 +111,10 @@ export function initEventLogView() {
   });
   byId("cancel-event-btn").addEventListener("click", closeForm);
   byId("event-category").addEventListener("change", updateCategoryVisibility);
+  byId("event-customer").addEventListener("change", refreshFeatureOptions);
+  byId("event-equipment").addEventListener("change", () => {
+    const suggested = suggestedDeckHeight(byId("event-equipment").value);
+    if (suggested != null) byId("event-height").value = suggested;
+  });
   byId("log-event-form").addEventListener("submit", handleSubmit);
 }

@@ -61,6 +61,23 @@
                 <option value="spray">Spray Application</option>
               </select>
             </label>
+            <label>Yard Area
+              <select id="event-yard-area">
+                <option value="">Not specified</option>
+                <option value="front">Front Yard</option>
+                <option value="back">Back Yard</option>
+                <option value="side">Side Yard</option>
+                <option value="driveway">Driveway</option>
+                <option value="whole">Whole Property</option>
+                <option value="other">Other</option>
+              </select>
+            </label>
+            <label>Plant / Object
+              <select id="event-feature"></select>
+            </label>
+            <label>Equipment Used
+              <select id="event-equipment"></select>
+            </label>
 
             <div id="event-yardwork-fields">
               <div class="checkbox-row">
@@ -214,6 +231,53 @@
         </div>
 
         <div class="view-header">
+          <h3>Equipment</h3>
+          <button id="add-equipment-btn" class="primary-btn">+ Add Equipment</button>
+        </div>
+        <div id="equipment-form-card" class="card hidden">
+          <h3 id="equipment-form-title">Add Equipment</h3>
+          <form id="equipment-form">
+            <input type="hidden" id="equipment-id" />
+            <label>Name
+              <input type="text" id="equipment-name" placeholder="e.g. Toro TimeMaster" required />
+            </label>
+            <label>Type
+              <select id="equipment-type">
+                <option value="mower">Mower</option>
+                <option value="trimmer">Trimmer</option>
+                <option value="edger">Edger</option>
+                <option value="blower">Blower</option>
+                <option value="sprayer">Sprayer</option>
+                <option value="other">Other</option>
+              </select>
+            </label>
+            <div id="equipment-deck-height-row">
+              <label>Deck Height (in)
+                <input type="number" id="equipment-deck-height" step="0.25" min="0" placeholder="e.g. 3.5" />
+              </label>
+            </div>
+            <label>Notes
+              <textarea id="equipment-notes" rows="2"></textarea>
+            </label>
+            <label class="checkbox-label">
+              <input type="checkbox" id="equipment-active" checked /> Active
+            </label>
+            <div class="form-actions">
+              <button type="submit" class="primary-btn">Save</button>
+              <button type="button" id="cancel-equipment-btn" class="ghost-btn">Cancel</button>
+            </div>
+          </form>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr><th>Name</th><th>Type</th><th>Deck Height</th><th>Status</th><th></th></tr>
+            </thead>
+            <tbody id="equipment-table-body"></tbody>
+          </table>
+        </div>
+
+        <div class="view-header">
           <h3>Equipment Maintenance</h3>
           <button id="add-task-btn" class="primary-btn">+ Log Task</button>
         </div>
@@ -222,7 +286,7 @@
           <form id="task-form">
             <input type="hidden" id="task-id" />
             <label>Equipment
-              <input type="text" id="task-equipment" placeholder="e.g. Toro TimeMaster" required />
+              <select id="task-equipment" required></select>
             </label>
             <label>Task Type
               <select id="task-type">
@@ -259,6 +323,48 @@
             <tbody id="task-table-body"></tbody>
           </table>
         </div>
+
+        <div class="view-header">
+          <h3>Yard Features</h3>
+          <button id="add-feature-btn" class="primary-btn">+ Add Feature</button>
+        </div>
+        <p class="hint-text">Plants, trees, or other objects on a customer's property worth tracking (e.g. "Rose bushes by mailbox"), so you can reference them when logging events.</p>
+        <div id="feature-form-card" class="card hidden">
+          <h3 id="feature-form-title">Add Yard Feature</h3>
+          <form id="feature-form">
+            <input type="hidden" id="feature-id" />
+            <label>Customer
+              <select id="feature-customer" required></select>
+            </label>
+            <label>Name
+              <input type="text" id="feature-name" placeholder="e.g. Rose bushes by mailbox" required />
+            </label>
+            <label>Type
+              <select id="feature-type">
+                <option value="plant">Plant</option>
+                <option value="tree">Tree</option>
+                <option value="shrub">Shrub</option>
+                <option value="hardscape">Hardscape</option>
+                <option value="other">Other</option>
+              </select>
+            </label>
+            <label>Notes
+              <textarea id="feature-notes" rows="2" placeholder="e.g. needs pruning every spring"></textarea>
+            </label>
+            <div class="form-actions">
+              <button type="submit" class="primary-btn">Save</button>
+              <button type="button" id="cancel-feature-btn" class="ghost-btn">Cancel</button>
+            </div>
+          </form>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr><th>Name</th><th>Customer</th><th>Type</th><th>Notes</th><th></th></tr>
+            </thead>
+            <tbody id="feature-table-body"></tbody>
+          </table>
+        </div>
       </section>
 
       <section id="view-mow-log" class="view">
@@ -275,6 +381,23 @@
             </label>
             <label>Date
               <input type="date" id="visit-date" required />
+            </label>
+            <label>Yard Area
+              <select id="visit-yard-area">
+                <option value="">Not specified</option>
+                <option value="front">Front Yard</option>
+                <option value="back">Back Yard</option>
+                <option value="side">Side Yard</option>
+                <option value="driveway">Driveway</option>
+                <option value="whole">Whole Property</option>
+                <option value="other">Other</option>
+              </select>
+            </label>
+            <label>Plant / Object
+              <select id="visit-feature"></select>
+            </label>
+            <label>Equipment Used
+              <select id="visit-equipment"></select>
             </label>
             <div class="checkbox-row">
               <label class="checkbox-label"><input type="checkbox" id="visit-mowed" checked /> Mowed</label>
@@ -312,7 +435,7 @@
         <div class="table-wrap">
           <table class="data-table">
             <thead>
-              <tr><th>Date</th><th>Customer</th><th>Mowed</th><th>Trimmed</th><th>Edged</th><th>Pruned</th><th>Bushes</th><th>Pattern</th><th></th></tr>
+              <tr><th>Date</th><th>Customer</th><th>Mowed</th><th>Trimmed</th><th>Edged</th><th>Pruned</th><th>Bushes</th><th>Pattern</th><th>Area</th><th>Feature</th><th>Equipment</th><th></th></tr>
             </thead>
             <tbody id="visit-table-body"></tbody>
           </table>
@@ -333,6 +456,23 @@
             </label>
             <label>Date
               <input type="date" id="spray-date" required />
+            </label>
+            <label>Yard Area
+              <select id="spray-yard-area">
+                <option value="">Not specified</option>
+                <option value="front">Front Yard</option>
+                <option value="back">Back Yard</option>
+                <option value="side">Side Yard</option>
+                <option value="driveway">Driveway</option>
+                <option value="whole">Whole Property</option>
+                <option value="other">Other</option>
+              </select>
+            </label>
+            <label>Plant / Object
+              <select id="spray-feature"></select>
+            </label>
+            <label>Equipment Used
+              <select id="spray-equipment"></select>
             </label>
             <label>Location
               <select id="spray-location">
@@ -367,7 +507,7 @@
         <div class="table-wrap">
           <table class="data-table">
             <thead>
-              <tr><th>Date</th><th>Customer</th><th>Location</th><th>Target</th><th>Product</th><th></th></tr>
+              <tr><th>Date</th><th>Customer</th><th>Location</th><th>Target</th><th>Product</th><th>Area</th><th>Feature</th><th>Equipment</th><th></th></tr>
             </thead>
             <tbody id="spray-table-body"></tbody>
           </table>

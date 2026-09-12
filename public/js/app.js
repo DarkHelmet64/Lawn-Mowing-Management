@@ -5,6 +5,8 @@ import { loadCustomers, initCustomersView, refreshCustomersView } from "./custom
 import { loadVisits, initMowLogView, refreshMowLogView } from "./mowLog.js";
 import { loadSprays, initSprayLogView, refreshSprayLogView } from "./sprayLog.js";
 import { loadTasks, initMaintenanceView, refreshMaintenanceView } from "./maintenance.js";
+import { loadEquipment, initEquipmentView, refreshEquipmentView } from "./equipment.js";
+import { loadYardFeatures, initYardFeaturesView, refreshYardFeaturesView } from "./yardFeatures.js";
 import { initWeatherView } from "./weatherView.js";
 import { refreshDashboard } from "./dashboard.js";
 import { initEventLogView } from "./eventLog.js";
@@ -25,7 +27,7 @@ function showLogin() {
 async function showApp() {
   byId("login-view").classList.add("hidden");
   byId("app-view").classList.remove("hidden");
-  await Promise.all([loadCustomers(), loadVisits(), loadSprays(), loadTasks()]);
+  await Promise.all([loadCustomers(), loadVisits(), loadSprays(), loadTasks(), loadEquipment(), loadYardFeatures()]);
   initEventLogView();
   document.addEventListener("event:logged", () => refreshDashboard());
   initView("dashboard");
@@ -38,7 +40,9 @@ function initView(view) {
     if (view === "spray-log") refreshSprayLogView();
     if (view === "settings") {
       refreshCustomersView();
+      refreshEquipmentView();
       refreshMaintenanceView();
+      refreshYardFeaturesView();
     }
     return;
   }
@@ -55,7 +59,9 @@ function initView(view) {
       break;
     case "settings":
       initCustomersView();
+      initEquipmentView();
       initMaintenanceView();
+      initYardFeaturesView();
       break;
     case "weather":
       initWeatherView();
