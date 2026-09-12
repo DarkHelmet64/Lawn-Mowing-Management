@@ -4,6 +4,37 @@ import { getCustomers, getCustomerName, populateCustomerSelect } from "./custome
 import { getLocations, getLocationsForCustomer, populateLocationSelect } from "./locations.js";
 import { getAreas, getAreaName, populateAreaSelect } from "./areas.js";
 
+function populateFilterCustomerOptions() {
+  const select = byId("feature-filter-customer");
+  const current = select.value;
+  populateCustomerSelect(select, { includeAll: true });
+  select.options[0].textContent = "Select a customer…";
+  if (current) select.value = current;
+}
+
+function refreshFilterAreaOptions() {
+  const customerId = byId("feature-filter-customer").value;
+  const areaSelect = byId("feature-filter-area");
+  const current = areaSelect.value;
+  if (!customerId) {
+    areaSelect.innerHTML = '<option value="">Select a customer first</option>';
+    areaSelect.disabled = true;
+    return;
+  }
+  areaSelect.disabled = false;
+  const locationIds = new Set(getLocationsForCustomer(customerId).map((l) => l.id));
+  areaSelect.innerHTML = '<option value="">Select an area…</option>';
+  for (const a of getAreas().filter((a) => locationIds.has(a.locationId))) {
+    const opt = document.createElement("option");
+    opt.value = a.id;
+    opt.textContent = a.name;
+    areaSelect.appendChild(opt);
+  }
+  if (current && [...areaSelect.options].some((o) => o.value === current)) {
+    areaSelect.value = current;
+  }
+}
+
 const COLLECTION = "yardFeatures";
 let cache = [];
 let listenersBound = false;
@@ -59,8 +90,14 @@ function areaContext(areaId) {
 }
 
 function renderTable() {
+  const areaFilter = byId("feature-filter-area").value;
   const body = byId("feature-table-body");
+  if (!areaFilter) {
+    body.innerHTML = `<tr><td colspan="5" class="hint-text">Select a customer and area above to see yard features.</td></tr>`;
+    return;
+  }
   body.innerHTML = cache
+    .filter((f) => f.areaId === areaFilter)
     .map(
       (f) => `
       <tr>
@@ -91,6 +128,7 @@ function refreshAreaOptions() {
 
 function openForm(feature = null) {
   byId("feature-form-card").classList.remove("hidden");
+  byId("feature-filter-row").classList.add("hidden");
   byId("feature-form-title").textContent = feature ? "Edit Yard Feature" : "Add Yard Feature";
 
   const area = feature ? getAreas().find((a) => a.id === feature.areaId) : null;
@@ -111,6 +149,7 @@ function openForm(feature = null) {
 
 function closeForm() {
   byId("feature-form-card").classList.add("hidden");
+  byId("feature-filter-row").classList.remove("hidden");
   byId("feature-form").reset();
 }
 
@@ -145,6 +184,8 @@ async function handleSubmit(e) {
 
 export async function refreshYardFeaturesView() {
   await loadYardFeatures();
+  populateFilterCustomerOptions();
+  refreshFilterAreaOptions();
   renderTable();
   document.dispatchEvent(new CustomEvent("features:changed"));
 }
@@ -163,6 +204,11 @@ export function initYardFeaturesView() {
     byId("delete-feature-btn").addEventListener("click", handleDelete);
     byId("feature-customer").addEventListener("change", refreshLocationOptions);
     byId("feature-location").addEventListener("change", refreshAreaOptions);
+    byId("feature-filter-customer").addEventListener("change", () => {
+      refreshFilterAreaOptions();
+      renderTable();
+    });
+    byId("feature-filter-area").addEventListener("change", renderTable);
     listenersBound = true;
   }
   return refreshYardFeaturesView();

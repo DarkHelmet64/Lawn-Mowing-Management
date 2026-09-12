@@ -54,7 +54,7 @@ function renderCharts(series) {
     weeks.slice(-12).map((w) => ({ label: formatDateDisplay(w.weekStart).slice(0, 5), value: w.totalPrecipIn }))
   );
 
-  const recent = series.slice(-30).reverse();
+  const recent = series.slice(-14).reverse();
   byId("weather-table-body").innerHTML = recent
     .map(
       (d) => `

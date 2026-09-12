@@ -363,6 +363,7 @@
                 <option value="blower">Blower</option>
                 <option value="sprayer">Sprayer</option>
                 <option value="blades">Blades</option>
+                <option value="battery">Battery</option>
                 <option value="other">Other</option>
               </select>
             </label>
@@ -412,7 +413,7 @@
         </div>
         <div id="equipment-filter-row" class="filter-row">
           <label>Filter by type
-            <select id="equipment-filter-type"><option value="">All Types</option></select>
+            <select id="equipment-filter-type"><option value="">Select a type…</option></select>
           </label>
         </div>
         <div class="table-wrap">
@@ -466,7 +467,7 @@
         </div>
         <div id="task-filter-row" class="filter-row">
           <label>Filter by equipment type
-            <select id="task-filter-type"><option value="">All Types</option></select>
+            <select id="task-filter-type"><option value="">Select a type…</option></select>
           </label>
         </div>
         <div class="table-wrap">
@@ -517,6 +518,14 @@
               <button type="button" id="delete-feature-btn" class="danger-btn hidden">Delete Feature</button>
             </div>
           </form>
+        </div>
+        <div id="feature-filter-row" class="settings-row">
+          <label>Filter by Customer
+            <select id="feature-filter-customer"><option value="">Select a customer…</option></select>
+          </label>
+          <label>Filter by Area
+            <select id="feature-filter-area" disabled><option value="">Select a customer first</option></select>
+          </label>
         </div>
         <div class="table-wrap">
           <table class="data-table">
@@ -729,7 +738,7 @@
           <svg id="weather-chart-rain" class="chart" viewBox="0 0 600 240" preserveAspectRatio="none"></svg>
         </div>
         <div class="table-wrap">
-          <h3>Daily Detail (most recent 30 days)</h3>
+          <h3>Daily Detail (last 2 weeks)</h3>
           <table class="data-table">
             <thead>
               <tr>
