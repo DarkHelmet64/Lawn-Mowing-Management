@@ -70,14 +70,19 @@ function renderTable() {
   );
 }
 
+function customerAddress(customerId) {
+  return getCustomers().find((c) => c.id === customerId)?.address || "";
+}
+
 function openForm(location = null) {
   byId("location-form-card").classList.remove("hidden");
   byId("location-form-title").textContent = location ? "Edit Location" : "Add Location";
   populateCustomerSelect(byId("location-customer"));
   byId("location-id").value = location?.id || "";
-  byId("location-customer").value = location?.customerId || getCustomers()[0]?.id || "";
+  const customerId = location?.customerId || getCustomers()[0]?.id || "";
+  byId("location-customer").value = customerId;
   byId("location-label").value = location?.label || "";
-  byId("location-address").value = location?.address || "";
+  byId("location-address").value = location ? location.address || "" : customerAddress(customerId);
   byId("location-notes").value = location?.notes || "";
 }
 
@@ -124,6 +129,10 @@ export function initLocationsView() {
     });
     byId("cancel-location-btn").addEventListener("click", closeForm);
     byId("location-form").addEventListener("submit", handleSubmit);
+    byId("location-customer").addEventListener("change", () => {
+      if (byId("location-id").value) return;
+      byId("location-address").value = customerAddress(byId("location-customer").value);
+    });
     listenersBound = true;
   }
   return refreshLocationsView();

@@ -29,7 +29,7 @@ async function refreshWeatherStats() {
 
   renderLineChart(
     byId("chart-gp"),
-    series.map((d) => ({ label: formatDateDisplay(d.date).slice(0, 5), value: d.gp * 100 }))
+    series.slice(-14).map((d) => ({ label: formatDateDisplay(d.date).slice(0, 5), value: d.gp * 100 }))
   );
 
   const weeks = weeklyRainfall(days).slice(-10);
