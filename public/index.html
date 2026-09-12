@@ -123,15 +123,6 @@
             </div>
 
             <div id="event-spray-fields" class="hidden">
-              <label>Surface
-                <select id="event-spray-surface">
-                  <option value="driveway">Driveway</option>
-                  <option value="walkway">Walkway / Sidewalk</option>
-                  <option value="flowerbed">Flowerbed</option>
-                  <option value="lawn">Lawn</option>
-                  <option value="other">Other</option>
-                </select>
-              </label>
               <label>Target
                 <select id="event-spray-target">
                   <option value="weeds">Weeds</option>
@@ -335,6 +326,7 @@
                 <label class="checkbox-label"><input type="checkbox" id="area-quick-front" /> Front Yard</label>
                 <label class="checkbox-label"><input type="checkbox" id="area-quick-back" /> Back Yard</label>
                 <label class="checkbox-label"><input type="checkbox" id="area-quick-flowerbed" /> Flower Bed</label>
+                <label class="checkbox-label"><input type="checkbox" id="area-quick-driveway" /> Driveway/Sidewalk</label>
               </div>
             </div>
             <label>Name
@@ -654,15 +646,6 @@
             <label>Equipment Used
               <select id="spray-equipment"></select>
             </label>
-            <label>Surface
-              <select id="spray-surface">
-                <option value="driveway">Driveway</option>
-                <option value="walkway">Walkway / Sidewalk</option>
-                <option value="flowerbed">Flowerbed</option>
-                <option value="lawn">Lawn</option>
-                <option value="other">Other</option>
-              </select>
-            </label>
             <label>Target
               <select id="spray-target">
                 <option value="weeds">Weeds</option>
@@ -687,7 +670,7 @@
         <div class="table-wrap">
           <table class="data-table">
             <thead>
-              <tr><th>Date</th><th>Customer</th><th>Surface</th><th>Target</th><th>Product</th><th>Location</th><th>Area</th><th>Feature</th><th>Equipment</th><th></th></tr>
+              <tr><th>Date</th><th>Customer</th><th>Target</th><th>Product</th><th>Location</th><th>Area</th><th>Feature</th><th>Equipment</th><th></th></tr>
             </thead>
             <tbody id="spray-table-body"></tbody>
           </table>

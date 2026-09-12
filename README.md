@@ -31,9 +31,9 @@ API in the browser and cached in Firestore.
   for the mower used), the time of day and grass condition (e.g. "morning
   mow with wet dew grass" or "afternoon mow with dry grass"), location/area,
   plant/object, equipment used, and notes.
-- **Spray Log** — records whether you sprayed weeds (or other targets) on
-  a driveway, walkway, flowerbed, or the lawn itself, which product,
-  equipment, location/area, and plant/object it applied to, and notes.
+- **Spray Log** — records what you sprayed for (weeds, insects, fungus,
+  fertilizer, or other), which product, equipment, location/area, and
+  plant/object it applied to, and notes.
 - **Settings** — customer records, each with a **primary contact** (name,
   phone, email — the phone auto-formats to `(XXX) XXX-XXXX`) and an address
   you can validate against real US postal data with one click; **locations**
@@ -196,7 +196,7 @@ Yard at the Smiths' rental property" instead of just "pruned."
 | `areas` | Subdivisions of a location (Front Yard, Back Yard, etc.) |
 | `yardFeatures` | Plants/trees/shrubs/objects worth tracking, one per area |
 | `mowVisits` | Yard-work visit log entries (mow/trim/edge/prune/bush-trim flags, pattern, deck height, ground speed, blade speed, time of day, grass condition, location, area, equipment, feature) |
-| `sprayApplications` | Weed/insect/fungus/fertilizer spray log entries (surface, target, product, location, area, equipment, feature) |
+| `sprayApplications` | Weed/insect/fungus/fertilizer spray log entries (target, product, location, area, equipment, feature) |
 | `maintenanceTasks` | Equipment maintenance log entries, tied to an equipment record |
 | `equipment` | Mowers, trimmers, edgers, blowers, sprayers - mowers carry lists of deck height, ground speed, and blade speed settings |
 | `weatherDaily` | Cached daily weather + Growth Potential inputs, keyed by date |

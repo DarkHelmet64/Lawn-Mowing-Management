@@ -52,7 +52,6 @@ function openForm() {
   populateBladeSpeedSelect(byId("event-blade-speed"), "");
   byId("event-time-of-day").value = "";
   byId("event-grass-condition").value = "";
-  byId("event-spray-surface").value = "driveway";
   byId("event-spray-target").value = "weeds";
   byId("event-spray-product").value = "";
   byId("event-notes").value = "";
@@ -112,7 +111,6 @@ async function handleSubmit(e) {
     await createDoc("sprayApplications", {
       customerId,
       date,
-      surface: byId("event-spray-surface").value,
       target: byId("event-spray-target").value,
       product,
       locationId,
