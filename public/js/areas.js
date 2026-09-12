@@ -12,6 +12,7 @@ const QUICK_ADD_OPTIONS = [
   { id: "area-quick-front", name: "Front Yard" },
   { id: "area-quick-back", name: "Back Yard" },
   { id: "area-quick-flowerbed", name: "Flower Bed" },
+  { id: "area-quick-driveway", name: "Driveway/Sidewalk" },
 ];
 
 export async function loadAreas() {
