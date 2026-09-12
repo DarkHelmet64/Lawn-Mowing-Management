@@ -30,7 +30,7 @@ export function getTasks() {
 function populateTypeFilterOptions() {
   const select = byId("task-filter-type");
   const current = select.value;
-  select.innerHTML = '<option value="">All Types</option>';
+  select.innerHTML = '<option value="">Select a type…</option>';
   for (const [value, label] of Object.entries(EQUIPMENT_TYPE_LABELS)) {
     const opt = document.createElement("option");
     opt.value = value;
@@ -43,8 +43,12 @@ function populateTypeFilterOptions() {
 function renderTable() {
   const typeFilter = byId("task-filter-type").value;
   const body = byId("task-table-body");
+  if (!typeFilter) {
+    body.innerHTML = `<tr><td colspan="6" class="hint-text">Select a type above to see maintenance tasks.</td></tr>`;
+    return;
+  }
   body.innerHTML = cache
-    .filter((t) => !typeFilter || getEquipmentById(t.equipmentId)?.type === typeFilter)
+    .filter((t) => getEquipmentById(t.equipmentId)?.type === typeFilter)
     .map(
       (t) => `
       <tr>

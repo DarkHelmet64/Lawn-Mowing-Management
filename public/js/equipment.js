@@ -117,7 +117,7 @@ export function populateBladeSpeedSelect(selectEl, equipmentId, currentValue = n
 function populateTypeFilterOptions() {
   const select = byId("equipment-filter-type");
   const current = select.value;
-  select.innerHTML = '<option value="">All Types</option>';
+  select.innerHTML = '<option value="">Select a type…</option>';
   for (const [value, label] of Object.entries(EQUIPMENT_TYPE_LABELS)) {
     const opt = document.createElement("option");
     opt.value = value;
@@ -130,8 +130,12 @@ function populateTypeFilterOptions() {
 function renderTable() {
   const typeFilter = byId("equipment-filter-type").value;
   const body = byId("equipment-table-body");
+  if (!typeFilter) {
+    body.innerHTML = `<tr><td colspan="3" class="hint-text">Select a type above to see equipment.</td></tr>`;
+    return;
+  }
   body.innerHTML = cache
-    .filter((e) => !typeFilter || e.type === typeFilter)
+    .filter((e) => e.type === typeFilter)
     .map(
       (e) => `
       <tr>
