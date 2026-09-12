@@ -300,6 +300,71 @@ form {
   margin-top: 4px;
 }
 
+.input-with-button {
+  display: flex;
+  gap: 8px;
+}
+
+.input-with-button input {
+  flex: 1;
+  min-width: 0;
+}
+
+.address-status {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: -6px 0 0;
+  min-height: 15px;
+}
+
+.address-status-ok {
+  color: var(--primary-dark);
+}
+
+.address-status-warn {
+  color: #b45309;
+}
+
+@media (prefers-color-scheme: dark) {
+  .address-status-warn {
+    color: #fbbf24;
+  }
+}
+
+.subsection {
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+  margin-top: 4px;
+}
+
+.subsection-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+
+.contact-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px;
+  margin-bottom: 8px;
+  background: var(--bg);
+  border-radius: 6px;
+}
+
+.contact-row input {
+  flex: 1 1 120px;
+  min-width: 90px;
+}
+
+.contact-row [data-remove-contact] {
+  flex: 0 0 auto;
+}
+
 .filter-row {
   margin-bottom: 12px;
   max-width: 260px;

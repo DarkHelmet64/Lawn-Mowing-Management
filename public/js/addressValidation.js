@@ -1,0 +1,60 @@
+import { byId, escapeHtml } from "./utils.js";
+
+// Free, no-key US address lookup via the Census Bureau geocoder. Runs
+// directly from the browser - no backend needed, matching the rest of this
+// app's approach to third-party data (see weather.js / Open-Meteo).
+async function lookupAddress(address) {
+  const url =
+    "https://geocoding.geo.census.gov/geocoder/locations/onelineaddress" +
+    `?address=${encodeURIComponent(address)}&benchmark=Public_AR_Current&format=json`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Address lookup failed (${res.status})`);
+  const data = await res.json();
+  return data?.result?.addressMatches || [];
+}
+
+// Wires a "Validate" button + status line to an address <input>. Clicking
+// the button looks up the current address and reports whether it matched a
+// real US address, offering the standardized version if so. Editing the
+// address afterward clears the stale result.
+export function wireAddressValidation({ inputId, buttonId, statusId }) {
+  const input = byId(inputId);
+  const button = byId(buttonId);
+  const status = byId(statusId);
+
+  function setStatus(text, cls) {
+    status.textContent = text;
+    status.className = `address-status ${cls || ""}`.trim();
+  }
+
+  input.addEventListener("input", () => setStatus("", ""));
+
+  button.addEventListener("click", async () => {
+    const address = input.value.trim();
+    if (!address) {
+      setStatus("Enter an address first.", "address-status-warn");
+      return;
+    }
+    setStatus("Checking…", "");
+    button.disabled = true;
+    try {
+      const matches = await lookupAddress(address);
+      if (!matches.length) {
+        setStatus("⚠ No match found for this address - double check it.", "address-status-warn");
+      } else {
+        const matched = matches[0].matchedAddress;
+        status.innerHTML = `✓ Matches: ${escapeHtml(matched)} <button type="button" class="link-btn" data-use-match>Use this</button>`;
+        status.className = "address-status address-status-ok";
+        status.querySelector("[data-use-match]").addEventListener("click", () => {
+          input.value = matched;
+          setStatus("✓ Address updated to the standardized match.", "address-status-ok");
+        });
+      }
+    } catch (err) {
+      console.error("Address validation failed", err);
+      setStatus("Couldn't validate right now (check your connection).", "address-status-warn");
+    } finally {
+      button.disabled = false;
+    }
+  });
+}

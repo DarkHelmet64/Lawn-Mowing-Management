@@ -11,6 +11,7 @@ export const EQUIPMENT_TYPE_LABELS = {
   edger: "Edger",
   blower: "Blower",
   sprayer: "Sprayer",
+  blades: "Blades",
   other: "Other",
 };
 
