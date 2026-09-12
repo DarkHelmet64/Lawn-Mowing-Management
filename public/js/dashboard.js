@@ -72,6 +72,7 @@ const VISIT_FLAG_LABELS = {
   edged: "Edged",
   pruned: "Pruned",
   trimmedBushes: "Trimmed bushes",
+  mulched: "Mulched",
 };
 
 function describeVisit(v) {
