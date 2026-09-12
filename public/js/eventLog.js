@@ -114,6 +114,15 @@ function updateMowedFieldsVisibility() {
   const mowed = activeCategories().includes("yardwork") && byId("event-mowed").checked;
   byId("event-mowed-fields").classList.toggle("hidden", !mowed);
   populateEquipmentSelect(byId("event-equipment"), { typeFilter: mowed ? "mower" : null });
+  if (mowed) applyGrassConditionDefault();
+}
+
+// Grass Condition defaults to Damp when Time of Day is Morning, or Dry
+// otherwise - but only while Grass Condition is actually visible.
+function applyGrassConditionDefault() {
+  const visible = activeCategories().includes("yardwork") && byId("event-mowed").checked;
+  if (!visible) return;
+  byId("event-grass-condition").value = byId("event-time-of-day").value === "morning" ? "damp" : "dry";
 }
 
 function refreshLocationOptions() {
@@ -191,7 +200,6 @@ function openForm() {
   populateGroundSpeedSelect(byId("event-ground-speed"), "");
   populateBladeSpeedSelect(byId("event-blade-speed"), "");
   byId("event-time-of-day").value = "";
-  byId("event-grass-condition").value = "";
   byId("event-spray-target").value = "weeds";
   byId("event-spray-product").value = "";
   byId("event-notes").value = "";
@@ -316,6 +324,7 @@ export function initEventLogView() {
     refreshAreaOptions();
   });
   byId("event-mowed").addEventListener("change", updateMowedFieldsVisibility);
+  byId("event-time-of-day").addEventListener("change", applyGrassConditionDefault);
   byId("event-customer").addEventListener("change", refreshLocationOptions);
   byId("event-location").addEventListener("change", refreshAreaOptions);
   byId("event-equipment").addEventListener("change", () => {
