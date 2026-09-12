@@ -1,6 +1,8 @@
 import { listAll, createDoc, updateDocById, deleteDocById } from "./db.js";
 import { byId, escapeHtml } from "./utils.js";
 import { getCustomers, getCustomerName, populateCustomerSelect } from "./customers.js";
+import { getLocations, getLocationsForCustomer, populateLocationSelect } from "./locations.js";
+import { getAreas, getAreaName, populateAreaSelect } from "./areas.js";
 
 const COLLECTION = "yardFeatures";
 let cache = [];
@@ -27,8 +29,8 @@ export function getYardFeatureName(id) {
   return cache.find((f) => f.id === id)?.name || null;
 }
 
-// Populates a <select> with the yard features belonging to customerId only.
-export function populateYardFeatureSelect(selectEl, customerId, { includeNone = true } = {}) {
+// Populates a <select> with the yard features belonging to areaId only.
+export function populateYardFeatureSelect(selectEl, areaId, { includeNone = true } = {}) {
   const current = selectEl.value;
   selectEl.innerHTML = "";
   if (includeNone) {
@@ -37,7 +39,7 @@ export function populateYardFeatureSelect(selectEl, customerId, { includeNone = 
     opt.textContent = "None / Not specific";
     selectEl.appendChild(opt);
   }
-  for (const f of cache.filter((f) => f.customerId === customerId)) {
+  for (const f of cache.filter((f) => f.areaId === areaId)) {
     const opt = document.createElement("option");
     opt.value = f.id;
     opt.textContent = f.name;
@@ -48,6 +50,14 @@ export function populateYardFeatureSelect(selectEl, customerId, { includeNone = 
   }
 }
 
+function areaContext(areaId) {
+  const area = getAreas().find((a) => a.id === areaId);
+  if (!area) return "";
+  const loc = getLocations().find((l) => l.id === area.locationId);
+  if (!loc) return area.name;
+  return `${area.name} · ${loc.label} (${getCustomerName(loc.customerId)})`;
+}
+
 function renderTable() {
   const body = byId("feature-table-body");
   body.innerHTML = cache
@@ -55,7 +65,7 @@ function renderTable() {
       (f) => `
       <tr>
         <td>${escapeHtml(f.name)}</td>
-        <td>${escapeHtml(getCustomerName(f.customerId))}</td>
+        <td>${escapeHtml(areaContext(f.areaId))}</td>
         <td>${FEATURE_TYPE_LABELS[f.type] || f.type}</td>
         <td>${escapeHtml(f.notes || "")}</td>
         <td class="row-actions">
@@ -74,12 +84,29 @@ function renderTable() {
   );
 }
 
+function refreshLocationOptions() {
+  populateLocationSelect(byId("feature-location"), byId("feature-customer").value, { includeNone: false });
+  refreshAreaOptions();
+}
+
+function refreshAreaOptions() {
+  populateAreaSelect(byId("feature-area"), byId("feature-location").value, { includeNone: false });
+}
+
 function openForm(feature = null) {
   byId("feature-form-card").classList.remove("hidden");
   byId("feature-form-title").textContent = feature ? "Edit Yard Feature" : "Add Yard Feature";
+
+  const area = feature ? getAreas().find((a) => a.id === feature.areaId) : null;
+  const loc = area ? getLocations().find((l) => l.id === area.locationId) : null;
+
   populateCustomerSelect(byId("feature-customer"));
   byId("feature-id").value = feature?.id || "";
-  byId("feature-customer").value = feature?.customerId || getCustomers()[0]?.id || "";
+  byId("feature-customer").value = loc?.customerId || getCustomers()[0]?.id || "";
+  refreshLocationOptions();
+  byId("feature-location").value = loc?.id || "";
+  refreshAreaOptions();
+  byId("feature-area").value = feature?.areaId || "";
   byId("feature-name").value = feature?.name || "";
   byId("feature-type").value = feature?.type || "plant";
   byId("feature-notes").value = feature?.notes || "";
@@ -99,8 +126,13 @@ async function handleDelete(id) {
 async function handleSubmit(e) {
   e.preventDefault();
   const id = byId("feature-id").value;
+  const areaId = byId("feature-area").value;
+  if (!areaId) {
+    alert("Select an area for this feature.");
+    return;
+  }
   const data = {
-    customerId: byId("feature-customer").value,
+    areaId,
     name: byId("feature-name").value.trim(),
     type: byId("feature-type").value,
     notes: byId("feature-notes").value.trim(),
@@ -120,14 +152,16 @@ export async function refreshYardFeaturesView() {
 export function initYardFeaturesView() {
   if (!listenersBound) {
     byId("add-feature-btn").addEventListener("click", () => {
-      if (!getCustomers().length) {
-        alert("Add a customer first.");
+      if (!getAreas().length) {
+        alert("Add an area first.");
         return;
       }
       openForm();
     });
     byId("cancel-feature-btn").addEventListener("click", closeForm);
     byId("feature-form").addEventListener("submit", handleSubmit);
+    byId("feature-customer").addEventListener("change", refreshLocationOptions);
+    byId("feature-location").addEventListener("change", refreshAreaOptions);
     listenersBound = true;
   }
   return refreshYardFeaturesView();

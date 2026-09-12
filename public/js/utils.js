@@ -22,12 +22,3 @@ export function formatDateDisplay(dateStr) {
 export function byId(id) {
   return document.getElementById(id);
 }
-
-export const YARD_AREA_LABELS = {
-  front: "Front Yard",
-  back: "Back Yard",
-  side: "Side Yard",
-  driveway: "Driveway",
-  whole: "Whole Property",
-  other: "Other",
-};

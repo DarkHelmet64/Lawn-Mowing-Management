@@ -61,16 +61,11 @@
                 <option value="spray">Spray Application</option>
               </select>
             </label>
-            <label>Yard Area
-              <select id="event-yard-area">
-                <option value="">Not specified</option>
-                <option value="front">Front Yard</option>
-                <option value="back">Back Yard</option>
-                <option value="side">Side Yard</option>
-                <option value="driveway">Driveway</option>
-                <option value="whole">Whole Property</option>
-                <option value="other">Other</option>
-              </select>
+            <label>Location
+              <select id="event-location"></select>
+            </label>
+            <label>Area
+              <select id="event-area"></select>
             </label>
             <label>Plant / Object
               <select id="event-feature"></select>
@@ -102,8 +97,8 @@
             </div>
 
             <div id="event-spray-fields" class="hidden">
-              <label>Location
-                <select id="event-spray-location">
+              <label>Surface
+                <select id="event-spray-surface">
                   <option value="driveway">Driveway</option>
                   <option value="walkway">Walkway / Sidewalk</option>
                   <option value="flowerbed">Flowerbed</option>
@@ -231,6 +226,78 @@
         </div>
 
         <div class="view-header">
+          <h3>Locations</h3>
+          <button id="add-location-btn" class="primary-btn">+ Add Location</button>
+        </div>
+        <p class="hint-text">A customer's property/properties - most customers have just one, but a customer with a rental or second property can have more.</p>
+        <div id="location-form-card" class="card hidden">
+          <h3 id="location-form-title">Add Location</h3>
+          <form id="location-form">
+            <input type="hidden" id="location-id" />
+            <label>Customer
+              <select id="location-customer" required></select>
+            </label>
+            <label>Label
+              <input type="text" id="location-label" placeholder="e.g. Main Property, Rental House" required />
+            </label>
+            <label>Address
+              <input type="text" id="location-address" placeholder="123 Main St, Dayton, OH" />
+            </label>
+            <label>Notes
+              <textarea id="location-notes" rows="2"></textarea>
+            </label>
+            <div class="form-actions">
+              <button type="submit" class="primary-btn">Save</button>
+              <button type="button" id="cancel-location-btn" class="ghost-btn">Cancel</button>
+            </div>
+          </form>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr><th>Label</th><th>Customer</th><th>Address</th><th>Notes</th><th></th></tr>
+            </thead>
+            <tbody id="location-table-body"></tbody>
+          </table>
+        </div>
+
+        <div class="view-header">
+          <h3>Areas</h3>
+          <button id="add-area-btn" class="primary-btn">+ Add Area</button>
+        </div>
+        <p class="hint-text">Parts of a location, like "Front Yard" or "Back Yard" - define whatever areas make sense for each property.</p>
+        <div id="area-form-card" class="card hidden">
+          <h3 id="area-form-title">Add Area</h3>
+          <form id="area-form">
+            <input type="hidden" id="area-id" />
+            <label>Customer
+              <select id="area-customer" required></select>
+            </label>
+            <label>Location
+              <select id="area-location" required></select>
+            </label>
+            <label>Name
+              <input type="text" id="area-name" placeholder="e.g. Front Yard, Back Yard" required />
+            </label>
+            <label>Notes
+              <textarea id="area-notes" rows="2"></textarea>
+            </label>
+            <div class="form-actions">
+              <button type="submit" class="primary-btn">Save</button>
+              <button type="button" id="cancel-area-btn" class="ghost-btn">Cancel</button>
+            </div>
+          </form>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr><th>Name</th><th>Location</th><th>Notes</th><th></th></tr>
+            </thead>
+            <tbody id="area-table-body"></tbody>
+          </table>
+        </div>
+
+        <div class="view-header">
           <h3>Equipment</h3>
           <button id="add-equipment-btn" class="primary-btn">+ Add Equipment</button>
         </div>
@@ -328,13 +395,19 @@
           <h3>Yard Features</h3>
           <button id="add-feature-btn" class="primary-btn">+ Add Feature</button>
         </div>
-        <p class="hint-text">Plants, trees, or other objects on a customer's property worth tracking (e.g. "Rose bushes by mailbox"), so you can reference them when logging events.</p>
+        <p class="hint-text">Plants, trees, or other objects worth tracking within a specific area (e.g. "Rose bushes by mailbox" in the Front Yard), so you can reference them when logging events.</p>
         <div id="feature-form-card" class="card hidden">
           <h3 id="feature-form-title">Add Yard Feature</h3>
           <form id="feature-form">
             <input type="hidden" id="feature-id" />
             <label>Customer
               <select id="feature-customer" required></select>
+            </label>
+            <label>Location
+              <select id="feature-location" required></select>
+            </label>
+            <label>Area
+              <select id="feature-area" required></select>
             </label>
             <label>Name
               <input type="text" id="feature-name" placeholder="e.g. Rose bushes by mailbox" required />
@@ -360,7 +433,7 @@
         <div class="table-wrap">
           <table class="data-table">
             <thead>
-              <tr><th>Name</th><th>Customer</th><th>Type</th><th>Notes</th><th></th></tr>
+              <tr><th>Name</th><th>Area / Location</th><th>Type</th><th>Notes</th><th></th></tr>
             </thead>
             <tbody id="feature-table-body"></tbody>
           </table>
@@ -382,16 +455,11 @@
             <label>Date
               <input type="date" id="visit-date" required />
             </label>
-            <label>Yard Area
-              <select id="visit-yard-area">
-                <option value="">Not specified</option>
-                <option value="front">Front Yard</option>
-                <option value="back">Back Yard</option>
-                <option value="side">Side Yard</option>
-                <option value="driveway">Driveway</option>
-                <option value="whole">Whole Property</option>
-                <option value="other">Other</option>
-              </select>
+            <label>Location
+              <select id="visit-location"></select>
+            </label>
+            <label>Area
+              <select id="visit-area"></select>
             </label>
             <label>Plant / Object
               <select id="visit-feature"></select>
@@ -435,7 +503,7 @@
         <div class="table-wrap">
           <table class="data-table">
             <thead>
-              <tr><th>Date</th><th>Customer</th><th>Mowed</th><th>Trimmed</th><th>Edged</th><th>Pruned</th><th>Bushes</th><th>Pattern</th><th>Area</th><th>Feature</th><th>Equipment</th><th></th></tr>
+              <tr><th>Date</th><th>Customer</th><th>Mowed</th><th>Trimmed</th><th>Edged</th><th>Pruned</th><th>Bushes</th><th>Pattern</th><th>Location</th><th>Area</th><th>Feature</th><th>Equipment</th><th></th></tr>
             </thead>
             <tbody id="visit-table-body"></tbody>
           </table>
@@ -457,16 +525,11 @@
             <label>Date
               <input type="date" id="spray-date" required />
             </label>
-            <label>Yard Area
-              <select id="spray-yard-area">
-                <option value="">Not specified</option>
-                <option value="front">Front Yard</option>
-                <option value="back">Back Yard</option>
-                <option value="side">Side Yard</option>
-                <option value="driveway">Driveway</option>
-                <option value="whole">Whole Property</option>
-                <option value="other">Other</option>
-              </select>
+            <label>Location
+              <select id="spray-location"></select>
+            </label>
+            <label>Area
+              <select id="spray-area"></select>
             </label>
             <label>Plant / Object
               <select id="spray-feature"></select>
@@ -474,8 +537,8 @@
             <label>Equipment Used
               <select id="spray-equipment"></select>
             </label>
-            <label>Location
-              <select id="spray-location">
+            <label>Surface
+              <select id="spray-surface">
                 <option value="driveway">Driveway</option>
                 <option value="walkway">Walkway / Sidewalk</option>
                 <option value="flowerbed">Flowerbed</option>
@@ -507,7 +570,7 @@
         <div class="table-wrap">
           <table class="data-table">
             <thead>
-              <tr><th>Date</th><th>Customer</th><th>Location</th><th>Target</th><th>Product</th><th>Area</th><th>Feature</th><th>Equipment</th><th></th></tr>
+              <tr><th>Date</th><th>Customer</th><th>Surface</th><th>Target</th><th>Product</th><th>Location</th><th>Area</th><th>Feature</th><th>Equipment</th><th></th></tr>
             </thead>
             <tbody id="spray-table-body"></tbody>
           </table>
