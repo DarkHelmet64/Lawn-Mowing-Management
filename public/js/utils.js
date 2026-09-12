@@ -22,3 +22,14 @@ export function formatDateDisplay(dateStr) {
 export function byId(id) {
   return document.getElementById(id);
 }
+
+// Formats a US phone number as (XXX) XXX-XXXX. A leading "1" country code
+// is dropped. Anything that isn't 10 digits after that (extensions,
+// international numbers, partial input) is returned unchanged rather than
+// forced into a shape that would misrepresent it.
+export function formatPhoneNumber(raw = "") {
+  let digits = String(raw).replace(/\D/g, "");
+  if (digits.length === 11 && digits.startsWith("1")) digits = digits.slice(1);
+  if (digits.length !== 10) return raw;
+  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+}
