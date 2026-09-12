@@ -114,9 +114,24 @@ export function populateBladeSpeedSelect(selectEl, equipmentId, currentValue = n
   });
 }
 
+function populateTypeFilterOptions() {
+  const select = byId("equipment-filter-type");
+  const current = select.value;
+  select.innerHTML = '<option value="">All Types</option>';
+  for (const [value, label] of Object.entries(EQUIPMENT_TYPE_LABELS)) {
+    const opt = document.createElement("option");
+    opt.value = value;
+    opt.textContent = label;
+    select.appendChild(opt);
+  }
+  if (current) select.value = current;
+}
+
 function renderTable() {
+  const typeFilter = byId("equipment-filter-type").value;
   const body = byId("equipment-table-body");
   body.innerHTML = cache
+    .filter((e) => !typeFilter || e.type === typeFilter)
     .map(
       (e) => `
       <tr>
@@ -156,6 +171,7 @@ function populateDatalist(datalistId, values) {
 
 function openForm(equipment = null) {
   byId("equipment-form-card").classList.remove("hidden");
+  byId("equipment-filter-row").classList.add("hidden");
   byId("equipment-form-title").textContent = equipment ? "Edit Equipment" : "Add Equipment";
   byId("equipment-id").value = equipment?.id || "";
   byId("equipment-name").value = equipment?.name || "";
@@ -178,6 +194,7 @@ function openForm(equipment = null) {
 
 function closeForm() {
   byId("equipment-form-card").classList.add("hidden");
+  byId("equipment-filter-row").classList.remove("hidden");
   byId("equipment-form").reset();
 }
 
@@ -217,6 +234,7 @@ async function handleSubmit(e) {
 
 export async function refreshEquipmentView() {
   await loadEquipment();
+  populateTypeFilterOptions();
   renderTable();
   document.dispatchEvent(new CustomEvent("equipment:changed"));
 }
@@ -228,6 +246,7 @@ export function initEquipmentView() {
     byId("equipment-form").addEventListener("submit", handleSubmit);
     byId("delete-equipment-btn").addEventListener("click", handleDelete);
     byId("equipment-type").addEventListener("change", updateMowerFieldsVisibility);
+    byId("equipment-filter-type").addEventListener("change", renderTable);
     listenersBound = true;
   }
   return refreshEquipmentView();

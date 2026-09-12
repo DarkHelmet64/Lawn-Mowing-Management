@@ -67,6 +67,7 @@ function renderTable() {
 
 function openForm(task = null) {
   byId("task-form-card").classList.remove("hidden");
+  byId("task-filter-row").classList.add("hidden");
   populateEquipmentSelect(byId("task-equipment"), { includeNone: false });
   byId("task-id").value = task?.id || "";
   byId("task-equipment").value = task?.equipmentId || "";
@@ -79,6 +80,7 @@ function openForm(task = null) {
 
 function closeForm() {
   byId("task-form-card").classList.add("hidden");
+  byId("task-filter-row").classList.remove("hidden");
   byId("task-form").reset();
 }
 
