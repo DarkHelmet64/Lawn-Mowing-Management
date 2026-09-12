@@ -75,15 +75,6 @@
                 <option value="chemical">Chemical Application</option>
               </select>
             </label>
-            <label>Areas</label>
-            <div id="event-area-list" class="checkbox-row"></div>
-            <label>Plant / Object
-              <select id="event-feature"></select>
-            </label>
-            <label>Equipment Used
-              <select id="event-equipment"></select>
-            </label>
-
             <div id="event-yardwork-fields">
               <div class="checkbox-row">
                 <label class="checkbox-label"><input type="checkbox" id="event-mowed" checked /> Mowed</label>
@@ -122,14 +113,29 @@
               </div>
             </div>
 
+            <label>Areas</label>
+            <div id="event-area-list" class="checkbox-row"></div>
+            <label>Equipment Used
+              <select id="event-equipment"></select>
+            </label>
+
+            <label>Add Another Event Type
+              <select id="event-category-2"></select>
+            </label>
             <div id="event-extra-yardwork-fields" class="hidden">
               <div class="checkbox-row">
                 <label class="checkbox-label"><input type="checkbox" id="event-pruned" /> Pruned</label>
                 <label class="checkbox-label"><input type="checkbox" id="event-trimmed-bushes" /> Trimmed Bushes</label>
                 <label class="checkbox-label"><input type="checkbox" id="event-mulched" /> Mulched</label>
               </div>
+              <label>Plant / Object
+                <select id="event-feature"></select>
+              </label>
             </div>
 
+            <label>Add Another Event Type
+              <select id="event-category-3" disabled></select>
+            </label>
             <div id="event-chemical-fields" class="hidden">
               <label>Target
                 <select id="event-spray-target">
@@ -144,10 +150,6 @@
                 <input type="text" id="event-spray-product" placeholder="e.g. Roundup, Ortho GroundClear" />
               </label>
             </div>
-
-            <label>Add Another Event Type
-              <select id="event-category-2"></select>
-            </label>
 
             <label>Notes
               <textarea id="event-notes" rows="2"></textarea>

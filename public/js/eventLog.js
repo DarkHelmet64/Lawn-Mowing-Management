@@ -26,27 +26,43 @@ function secondaryCategory() {
   return byId("event-category-2").value;
 }
 
-// At most two event types can be active at once: the primary dropdown, plus
-// an optional second one from "Add Another Event Type".
-function activeCategories() {
-  return [primaryCategory(), secondaryCategory()].filter(Boolean);
+function tertiaryCategory() {
+  return byId("event-category-3").value;
 }
 
-// The second dropdown only offers the two types not already chosen as primary.
-function populateSecondCategoryOptions() {
-  const select = byId("event-category-2");
-  const current = select.value;
-  const primary = primaryCategory();
-  select.innerHTML = '<option value="">None</option>';
+// All three event types can be active at once: the primary dropdown, plus up
+// to two "Add Another Event Type" picks.
+function activeCategories() {
+  return [primaryCategory(), secondaryCategory(), tertiaryCategory()].filter(Boolean);
+}
+
+function populateCategoryOptions(selectEl, excludeKeys) {
+  const current = selectEl.value;
+  selectEl.innerHTML = '<option value="">None</option>';
   for (const key of EVENT_TYPE_KEYS) {
-    if (key === primary) continue;
+    if (excludeKeys.includes(key)) continue;
     const opt = document.createElement("option");
     opt.value = key;
     opt.textContent = EVENT_TYPE_LABELS[key];
-    select.appendChild(opt);
+    selectEl.appendChild(opt);
   }
-  if (current && [...select.options].some((o) => o.value === current)) {
-    select.value = current;
+  if (current && [...selectEl.options].some((o) => o.value === current)) {
+    selectEl.value = current;
+  }
+}
+
+// The second dropdown offers the two types not already chosen as primary.
+// The third only makes sense once a second has been picked, and then offers
+// whichever single type is left.
+function refreshCategoryChoices() {
+  populateCategoryOptions(byId("event-category-2"), [primaryCategory()]);
+  const third = byId("event-category-3");
+  if (secondaryCategory()) {
+    third.disabled = false;
+    populateCategoryOptions(third, [primaryCategory(), secondaryCategory()]);
+  } else {
+    third.disabled = true;
+    third.innerHTML = '<option value="">None</option>';
   }
 }
 
@@ -56,11 +72,34 @@ function applyYardworkDefaults() {
   byId("event-edged").checked = true;
 }
 
+const FIELD_GROUP_BY_TYPE = {
+  yardwork: "event-yardwork-fields",
+  extra_yardwork: "event-extra-yardwork-fields",
+  chemical: "event-chemical-fields",
+};
+
+// Each event type's own fields travel with wherever that type is currently
+// selected - if Extra Yard Work is picked in the "Add Another" slot, its
+// fields move to sit right after that slot's dropdown instead of staying in
+// a fixed position.
+function positionCategoryFields() {
+  const anchorForType = {};
+  if (primaryCategory()) anchorForType[primaryCategory()] = byId("event-category").closest("label");
+  if (secondaryCategory()) anchorForType[secondaryCategory()] = byId("event-category-2").closest("label");
+  if (tertiaryCategory()) anchorForType[tertiaryCategory()] = byId("event-category-3").closest("label");
+
+  for (const [type, groupId] of Object.entries(FIELD_GROUP_BY_TYPE)) {
+    const anchor = anchorForType[type];
+    if (anchor) anchor.after(byId(groupId));
+  }
+}
+
 function checkedAreaIds() {
   return Array.from(document.querySelectorAll("#event-area-list .event-area-checkbox:checked")).map((cb) => cb.value);
 }
 
 function updateFieldVisibility() {
+  positionCategoryFields();
   const types = activeCategories();
   byId("event-yardwork-fields").classList.toggle("hidden", !types.includes("yardwork"));
   byId("event-extra-yardwork-fields").classList.toggle("hidden", !types.includes("extra_yardwork"));
@@ -139,8 +178,9 @@ function openForm() {
   byId("event-customer").value = getCustomers()[0]?.id || "";
   byId("event-date").value = todayStr();
   byId("event-category").value = "yardwork";
-  populateSecondCategoryOptions();
   byId("event-category-2").value = "";
+  byId("event-category-3").value = "";
+  refreshCategoryChoices();
   byId("event-equipment").innerHTML = "";
   applyYardworkDefaults();
   byId("event-pruned").checked = false;
@@ -171,13 +211,13 @@ async function handleSubmit(e) {
   const timeOfDay = byId("event-time-of-day").value || null;
   const notes = byId("event-notes").value.trim();
   const locationId = byId("event-location").value || null;
-  const featureId = byId("event-feature").value || null;
   const equipmentId = byId("event-equipment").value || null;
   const types = activeCategories();
 
   const yardworkOn = types.includes("yardwork");
   const extraOn = types.includes("extra_yardwork");
   const chemicalOn = types.includes("chemical");
+  const featureId = extraOn ? byId("event-feature").value || null : null;
 
   let mowFields = null;
   if (yardworkOn || extraOn) {
@@ -259,13 +299,19 @@ export function initEventLogView() {
   });
   byId("cancel-event-btn").addEventListener("click", closeForm);
   byId("event-category").addEventListener("change", () => {
-    populateSecondCategoryOptions();
+    refreshCategoryChoices();
     if (primaryCategory() === "yardwork") applyYardworkDefaults();
     updateFieldVisibility();
     refreshAreaOptions();
   });
   byId("event-category-2").addEventListener("change", () => {
+    refreshCategoryChoices();
     if (secondaryCategory() === "yardwork") applyYardworkDefaults();
+    updateFieldVisibility();
+    refreshAreaOptions();
+  });
+  byId("event-category-3").addEventListener("change", () => {
+    if (tertiaryCategory() === "yardwork") applyYardworkDefaults();
     updateFieldVisibility();
     refreshAreaOptions();
   });
