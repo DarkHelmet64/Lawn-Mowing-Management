@@ -9,6 +9,7 @@ import {
   setDoc,
   query,
   orderBy,
+  where,
   writeBatch,
   serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
@@ -18,9 +19,15 @@ function colRef(name) {
   return collection(db, name);
 }
 
-export async function listAll(name, { orderByField, direction = "desc" } = {}) {
+// `where`, if given, is a [field, op, value] triple applied as a Firestore
+// range/equality filter server-side, so large collections (e.g. a growing
+// weatherDaily) don't need to be pulled in full just to be filtered in JS.
+export async function listAll(name, { orderByField, direction = "desc", where: whereClause } = {}) {
   const base = colRef(name);
-  const q = orderByField ? query(base, orderBy(orderByField, direction)) : base;
+  const constraints = [];
+  if (whereClause) constraints.push(where(...whereClause));
+  if (orderByField) constraints.push(orderBy(orderByField, direction));
+  const q = constraints.length ? query(base, ...constraints) : base;
   const snap = await getDocs(q);
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }

@@ -49,34 +49,48 @@ export async function fetchHistorical(startDate, endDate) {
   return parseDaily(await res.json());
 }
 
-// Fetches weather since seasonStartDate through today, merges the archive
-// and forecast sources (forecast wins on overlapping recent dates), caches
-// the results in Firestore, and returns the merged daily records.
+// Fetches weather since seasonStartDate through today and caches the
+// result in Firestore, returning the merged daily records. Once a day's
+// weather is cached it never changes, so on every call this only re-fetches
+// and re-writes the last 10 days (which the forecast API can still revise)
+// plus any older days genuinely missing from the cache (e.g. the very
+// first run, or after the app sat unused for a while) - not the whole
+// season every time.
 export async function syncWeather(seasonStartDate) {
   const today = todayStr();
   const recentCutoff = addDaysStr(today, -9);
   const archiveEnd = addDaysStr(recentCutoff, -1);
 
+  const cached = await loadCachedWeather(seasonStartDate);
+  const cachedDates = new Set(cached.map((d) => d.date));
+
+  let needsBackfill = false;
+  if (seasonStartDate <= archiveEnd) {
+    for (let d = seasonStartDate; d <= archiveEnd; d = addDaysStr(d, 1)) {
+      if (!cachedDates.has(d)) {
+        needsBackfill = true;
+        break;
+      }
+    }
+  }
+
   const [historical, recent] = await Promise.all([
-    seasonStartDate <= archiveEnd ? fetchHistorical(seasonStartDate, archiveEnd) : Promise.resolve([]),
+    needsBackfill ? fetchHistorical(seasonStartDate, archiveEnd) : Promise.resolve([]),
     fetchRecent(10),
   ]);
 
-  const merged = new Map();
-  for (const d of historical) merged.set(d.date, d);
-  for (const d of recent) merged.set(d.date, d);
+  const freshlyFetched = [...historical, ...recent];
+  if (freshlyFetched.length) await batchSet("weatherDaily", freshlyFetched, "date");
 
-  const days = Array.from(merged.values())
+  const merged = new Map(cached.map((d) => [d.date, d]));
+  for (const d of freshlyFetched) merged.set(d.date, d);
+
+  return Array.from(merged.values())
     .filter((d) => d.date >= seasonStartDate && d.date <= today)
     .sort((a, b) => (a.date < b.date ? -1 : 1));
-
-  await batchSet("weatherDaily", days, "date");
-  return days;
 }
 
 export async function loadCachedWeather(seasonStartDate) {
-  const all = await listAll("weatherDaily");
-  return all
-    .filter((d) => d.date >= seasonStartDate)
-    .sort((a, b) => (a.date < b.date ? -1 : 1));
+  const days = await listAll("weatherDaily", { where: ["date", ">=", seasonStartDate] });
+  return days.sort((a, b) => (a.date < b.date ? -1 : 1));
 }
