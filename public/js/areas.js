@@ -1,11 +1,12 @@
 import { listAll, createDoc, updateDocById, deleteDocById } from "./db.js";
 import { byId, escapeHtml } from "./utils.js";
 import { getCustomers, getCustomerName, populateCustomerSelect } from "./customers.js";
-import { getLocations, getLocationsForCustomer, getLocationLabel, populateLocationSelect } from "./locations.js";
+import { getLocations, populateLocationSelect } from "./locations.js";
 
 const COLLECTION = "areas";
 let cache = [];
 let listenersBound = false;
+let expandedLocationIds = new Set();
 
 export async function loadAreas() {
   cache = await listAll(COLLECTION, { orderByField: "name", direction: "asc" });
@@ -45,33 +46,64 @@ export function populateAreaSelect(selectEl, locationId, { includeNone = true } 
   }
 }
 
-function locationContext(locationId) {
-  const loc = getLocations().find((l) => l.id === locationId);
-  if (!loc) return "";
-  return `${loc.label} (${getCustomerName(loc.customerId)})`;
+function sortedLocations() {
+  return [...getLocations()].sort((a, b) => {
+    const ca = getCustomerName(a.customerId);
+    const cb = getCustomerName(b.customerId);
+    if (ca !== cb) return ca < cb ? -1 : 1;
+    return a.label < b.label ? -1 : a.label > b.label ? 1 : 0;
+  });
 }
 
-function renderTable() {
-  const body = byId("area-table-body");
-  body.innerHTML = cache
-    .map(
-      (a) => `
-      <tr>
-        <td>${escapeHtml(a.name)}</td>
-        <td>${escapeHtml(locationContext(a.locationId))}</td>
-        <td>${escapeHtml(a.notes || "")}</td>
-        <td class="row-actions">
-          <button class="link-btn" data-edit="${a.id}">Edit</button>
-          <button class="link-btn danger" data-delete="${a.id}">Delete</button>
-        </td>
-      </tr>`
-    )
-    .join("");
+function toggleLocation(locationId) {
+  if (expandedLocationIds.has(locationId)) expandedLocationIds.delete(locationId);
+  else expandedLocationIds.add(locationId);
+  renderTree();
+}
 
-  body.querySelectorAll("[data-edit]").forEach((btn) =>
+function renderTree() {
+  const container = byId("area-tree");
+  const locations = sortedLocations();
+
+  container.innerHTML =
+    locations
+      .map((loc) => {
+        const areasForLoc = getAreasForLocation(loc.id);
+        const expanded = expandedLocationIds.has(loc.id);
+        const rows = areasForLoc.length
+          ? areasForLoc
+              .map(
+                (a) => `
+                <div class="tree-row">
+                  <span class="tree-row-name">${escapeHtml(a.name)}</span>
+                  <span class="tree-row-notes">${escapeHtml(a.notes || "")}</span>
+                  <span class="row-actions">
+                    <button class="link-btn" data-edit="${a.id}">Edit</button>
+                    <button class="link-btn danger" data-delete="${a.id}">Delete</button>
+                  </span>
+                </div>`
+              )
+              .join("")
+          : `<p class="hint-text tree-empty">No areas yet.</p>`;
+        return `
+          <div class="tree-group">
+            <button type="button" class="tree-header" data-toggle-location="${loc.id}">
+              <span class="tree-toggle-icon">${expanded ? "▾" : "▸"}</span>
+              <span class="tree-title">${escapeHtml(loc.label)} <span class="hint-text">(${escapeHtml(getCustomerName(loc.customerId))})</span></span>
+              <span class="badge badge-inactive">${areasForLoc.length} area${areasForLoc.length === 1 ? "" : "s"}</span>
+            </button>
+            <div class="tree-body ${expanded ? "" : "hidden"}">${rows}</div>
+          </div>`;
+      })
+      .join("") || `<p class="hint-text">Add a location first.</p>`;
+
+  container.querySelectorAll("[data-toggle-location]").forEach((btn) =>
+    btn.addEventListener("click", () => toggleLocation(btn.dataset.toggleLocation))
+  );
+  container.querySelectorAll("[data-edit]").forEach((btn) =>
     btn.addEventListener("click", () => openForm(cache.find((a) => a.id === btn.dataset.edit)))
   );
-  body.querySelectorAll("[data-delete]").forEach((btn) =>
+  container.querySelectorAll("[data-delete]").forEach((btn) =>
     btn.addEventListener("click", () => handleDelete(btn.dataset.delete))
   );
 }
@@ -119,13 +151,14 @@ async function handleSubmit(e) {
   };
   if (id) await updateDocById(COLLECTION, id, data);
   else await createDoc(COLLECTION, data);
+  expandedLocationIds.add(locationId);
   closeForm();
   await refreshAreasView();
 }
 
 export async function refreshAreasView() {
   await loadAreas();
-  renderTable();
+  renderTree();
   document.dispatchEvent(new CustomEvent("areas:changed"));
 }
 
@@ -141,6 +174,7 @@ export function initAreasView() {
     byId("cancel-area-btn").addEventListener("click", closeForm);
     byId("area-form").addEventListener("submit", handleSubmit);
     byId("area-customer").addEventListener("change", refreshLocationOptions);
+    document.addEventListener("locations:changed", () => renderTree());
     listenersBound = true;
   }
   return refreshAreasView();

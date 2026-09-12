@@ -340,6 +340,89 @@ form {
   gap: 8px;
 }
 
+.tree {
+  margin-bottom: 24px;
+}
+
+.tree-group {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+
+.tree-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  background: none;
+  border: none;
+  text-align: left;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.tree-header:hover {
+  background: var(--bg);
+}
+
+.tree-toggle-icon {
+  width: 12px;
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.tree-title {
+  flex: 1;
+  font-weight: 600;
+}
+
+.tree-title .hint-text {
+  font-weight: 400;
+  margin-left: 4px;
+}
+
+.tree-body {
+  border-top: 1px solid var(--border);
+  padding: 4px 14px 10px 36px;
+}
+
+.tree-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  flex-wrap: wrap;
+}
+
+.tree-row:last-child {
+  border-bottom: none;
+}
+
+.tree-row-name {
+  font-weight: 600;
+  min-width: 120px;
+}
+
+.tree-row-notes {
+  flex: 1;
+  color: var(--text-muted);
+}
+
+.tree-empty {
+  padding: 8px 0;
+  margin: 0;
+}
+
 .badge {
   padding: 2px 8px;
   border-radius: 999px;
