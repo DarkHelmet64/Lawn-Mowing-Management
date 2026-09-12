@@ -2,6 +2,7 @@ import { listAll, createDoc, updateDocById, deleteDocById } from "./db.js";
 import { byId, escapeHtml } from "./utils.js";
 import { getCustomers, getCustomerName, populateCustomerSelect } from "./customers.js";
 import { getLocations, populateLocationSelect } from "./locations.js";
+import { EVENT_TYPE_KEYS } from "./eventTypes.js";
 
 const COLLECTION = "areas";
 let cache = [];
@@ -30,6 +31,13 @@ export function getAreasForLocation(locationId) {
 
 export function getAreaName(id) {
   return cache.find((a) => a.id === id)?.name || null;
+}
+
+// Areas created before this field existed have no eventTypes at all, so
+// treat that as "applies everywhere" rather than making them vanish from
+// every event type's area list.
+export function areaAppliesToEventTypes(area, types) {
+  return !area.eventTypes || area.eventTypes.some((t) => types.includes(t));
 }
 
 // Populates a <select> with the areas belonging to locationId only.
@@ -126,6 +134,9 @@ function openForm(area = null) {
   byId("area-location").value = area?.locationId || "";
   byId("area-name").value = area?.name || "";
   byId("area-notes").value = area?.notes || "";
+  for (const t of EVENT_TYPE_KEYS) {
+    byId(`area-event-type-${t}`).checked = !area?.eventTypes || area.eventTypes.includes(t);
+  }
   byId("delete-area-btn").classList.toggle("hidden", !area);
   byId("area-quick-add").classList.toggle("hidden", !!area);
 }
@@ -154,13 +165,14 @@ async function handleSubmit(e) {
   }
   const notes = byId("area-notes").value.trim();
   const customName = byId("area-name").value.trim();
+  const eventTypes = EVENT_TYPE_KEYS.filter((t) => byId(`area-event-type-${t}`).checked);
 
   if (id) {
     if (!customName) {
       alert("Enter a name for this area.");
       return;
     }
-    await updateDocById(COLLECTION, id, { locationId, name: customName, notes });
+    await updateDocById(COLLECTION, id, { locationId, name: customName, notes, eventTypes });
     expandedLocationIds.add(locationId);
     closeForm();
     await refreshAreasView();
@@ -180,7 +192,7 @@ async function handleSubmit(e) {
     return;
   }
   for (const name of newNames) {
-    await createDoc(COLLECTION, { locationId, name, notes });
+    await createDoc(COLLECTION, { locationId, name, notes, eventTypes });
   }
   expandedLocationIds.add(locationId);
   closeForm();

@@ -129,13 +129,6 @@ export async function refreshSprayLogView() {
 
 export function initSprayLogView() {
   if (!listenersBound) {
-    byId("add-spray-btn").addEventListener("click", () => {
-      if (!getCustomers().length) {
-        alert("Add a customer first.");
-        return;
-      }
-      openForm();
-    });
     byId("cancel-spray-btn").addEventListener("click", closeForm);
     byId("spray-form").addEventListener("submit", handleSubmit);
     byId("spray-customer").addEventListener("change", refreshLocationOptions);

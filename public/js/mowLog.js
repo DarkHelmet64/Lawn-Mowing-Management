@@ -64,6 +64,7 @@ function renderTable() {
         <td>${v.edged ? "✓" : ""}</td>
         <td>${v.pruned ? "✓" : ""}</td>
         <td>${v.trimmedBushes ? "✓" : ""}</td>
+        <td>${v.mulched ? "✓" : ""}</td>
         <td>${PATTERN_LABELS[v.pattern] || v.pattern || ""}</td>
         <td>${v.deckHeight != null ? `${v.deckHeight}"` : ""}</td>
         <td>${escapeHtml(v.groundSpeed || "")}</td>
@@ -116,6 +117,7 @@ function openForm(visit = null) {
   byId("visit-edged").checked = visit?.edged ?? false;
   byId("visit-pruned").checked = visit?.pruned ?? false;
   byId("visit-trimmed-bushes").checked = visit?.trimmedBushes ?? false;
+  byId("visit-mulched").checked = visit?.mulched ?? false;
   byId("visit-pattern").value = visit?.pattern || "parallel";
   populateDeckHeightSelect(byId("visit-height"), visit?.equipmentId || "", visit?.deckHeight ?? null);
   populateGroundSpeedSelect(byId("visit-ground-speed"), visit?.equipmentId || "", visit?.groundSpeed ?? null);
@@ -155,6 +157,7 @@ async function handleSubmit(e) {
     edged: byId("visit-edged").checked,
     pruned: byId("visit-pruned").checked,
     trimmedBushes: byId("visit-trimmed-bushes").checked,
+    mulched: byId("visit-mulched").checked,
     pattern: byId("visit-pattern").value,
     deckHeight: byId("visit-height").value ? Number(byId("visit-height").value) : null,
     groundSpeed: byId("visit-ground-speed").value || null,
@@ -181,13 +184,6 @@ export async function refreshMowLogView() {
 
 export function initMowLogView() {
   if (!listenersBound) {
-    byId("add-visit-btn").addEventListener("click", () => {
-      if (!getCustomers().length) {
-        alert("Add a customer first.");
-        return;
-      }
-      openForm();
-    });
     byId("cancel-visit-btn").addEventListener("click", closeForm);
     byId("visit-form").addEventListener("submit", handleSubmit);
     byId("visit-filter-customer").addEventListener("change", renderTable);
