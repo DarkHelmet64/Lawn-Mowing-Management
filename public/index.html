@@ -94,6 +94,32 @@
               <label>Deck Height
                 <select id="event-height"></select>
               </label>
+              <label>Ground Speed
+                <select id="event-ground-speed"></select>
+              </label>
+              <label>Blade Speed
+                <select id="event-blade-speed"></select>
+              </label>
+              <label>Time of Day
+                <select id="event-time-of-day">
+                  <option value="">Not specified</option>
+                  <option value="morning">Morning</option>
+                  <option value="midday">Midday</option>
+                  <option value="afternoon">Afternoon</option>
+                  <option value="evening">Evening</option>
+                  <option value="other">Other</option>
+                </select>
+              </label>
+              <label>Grass Condition
+                <select id="event-grass-condition">
+                  <option value="">Not specified</option>
+                  <option value="dry">Dry</option>
+                  <option value="wet_dew">Wet (dew)</option>
+                  <option value="wet_rain">Wet (rain)</option>
+                  <option value="damp">Damp</option>
+                  <option value="other">Other</option>
+                </select>
+              </label>
             </div>
 
             <div id="event-spray-fields" class="hidden">
@@ -318,9 +344,15 @@
                 <option value="other">Other</option>
               </select>
             </label>
-            <div id="equipment-deck-height-row">
+            <div id="equipment-mower-fields">
               <label>Deck Height Settings (in, comma-separated)
                 <input type="text" id="equipment-deck-heights" placeholder="e.g. 2, 2.5, 3, 3.5, 4" />
+              </label>
+              <label>Ground Speed Settings (comma-separated)
+                <input type="text" id="equipment-ground-speeds" placeholder="e.g. 1, 2, 3, 4, 5" />
+              </label>
+              <label>Blade Speed Settings (comma-separated)
+                <input type="text" id="equipment-blade-speeds" placeholder="e.g. Low, High" />
               </label>
             </div>
             <label>Notes
@@ -338,7 +370,7 @@
         <div class="table-wrap">
           <table class="data-table">
             <thead>
-              <tr><th>Name</th><th>Type</th><th>Deck Height</th><th>Status</th><th></th></tr>
+              <tr><th>Name</th><th>Type</th><th>Deck Height</th><th>Ground Speed</th><th>Blade Speed</th><th>Status</th><th></th></tr>
             </thead>
             <tbody id="equipment-table-body"></tbody>
           </table>
@@ -486,6 +518,32 @@
             <label>Deck Height
               <select id="visit-height"></select>
             </label>
+            <label>Ground Speed
+              <select id="visit-ground-speed"></select>
+            </label>
+            <label>Blade Speed
+              <select id="visit-blade-speed"></select>
+            </label>
+            <label>Time of Day
+              <select id="visit-time-of-day">
+                <option value="">Not specified</option>
+                <option value="morning">Morning</option>
+                <option value="midday">Midday</option>
+                <option value="afternoon">Afternoon</option>
+                <option value="evening">Evening</option>
+                <option value="other">Other</option>
+              </select>
+            </label>
+            <label>Grass Condition
+              <select id="visit-grass-condition">
+                <option value="">Not specified</option>
+                <option value="dry">Dry</option>
+                <option value="wet_dew">Wet (dew)</option>
+                <option value="wet_rain">Wet (rain)</option>
+                <option value="damp">Damp</option>
+                <option value="other">Other</option>
+              </select>
+            </label>
             <label>Notes
               <textarea id="visit-notes" rows="2"></textarea>
             </label>
@@ -503,7 +561,7 @@
         <div class="table-wrap">
           <table class="data-table">
             <thead>
-              <tr><th>Date</th><th>Customer</th><th>Mowed</th><th>Trimmed</th><th>Edged</th><th>Pruned</th><th>Bushes</th><th>Pattern</th><th>Location</th><th>Area</th><th>Feature</th><th>Equipment</th><th></th></tr>
+              <tr><th>Date</th><th>Customer</th><th>Mowed</th><th>Trimmed</th><th>Edged</th><th>Pruned</th><th>Bushes</th><th>Pattern</th><th>Deck Height</th><th>Ground Speed</th><th>Blade Speed</th><th>Time of Day</th><th>Grass Condition</th><th>Location</th><th>Area</th><th>Feature</th><th>Equipment</th><th></th></tr>
             </thead>
             <tbody id="visit-table-body"></tbody>
           </table>

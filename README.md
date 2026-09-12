@@ -26,8 +26,11 @@ API in the browser and cached in Firestore.
   used.
 - **Yard Work Log** — per-visit record of what was done (mowed, trimmed,
   edged, pruned, bushes trimmed), the mowing pattern used (parallel,
-  perpendicular, diagonal left, diagonal right, other), deck height,
-  location/area, plant/object, equipment used, and notes.
+  perpendicular, diagonal left, diagonal right, other), deck height, ground
+  speed, and blade speed (each limited to whatever settings you've defined
+  for the mower used), the time of day and grass condition (e.g. "morning
+  mow with wet dew grass" or "afternoon mow with dry grass"), location/area,
+  plant/object, equipment used, and notes.
 - **Spray Log** — records whether you sprayed weeds (or other targets) on
   a driveway, walkway, flowerbed, or the lawn itself, which product,
   equipment, location/area, and plant/object it applied to, and notes.
@@ -38,11 +41,13 @@ API in the browser and cached in Firestore.
   trees, shrubs, or other objects worth tracking within a specific area,
   like "rose bushes by the mailbox" in the Front Yard); an **equipment**
   registry (mowers, trimmers, edgers, blowers, sprayers - mowers store
-  their available deck height settings, e.g. 2", 2.5", 3"; picking that
-  mower elsewhere turns the deck height field into a select limited to its
-  settings); and equipment maintenance tasks (blade sharpening, oil
-  changes, etc., tied to a specific piece of equipment). All of this lives
-  in Settings since it's set-up/upkeep rather than day-to-day logging.
+  their available deck height, ground speed, and blade speed settings, e.g.
+  deck heights of 2", 2.5", 3", ground speeds of 1-5, blade speeds of
+  Low/High; picking that mower elsewhere turns each of those fields into a
+  select limited to its settings); and equipment maintenance tasks (blade
+  sharpening, oil changes, etc., tied to a specific piece of equipment).
+  All of this lives in Settings since it's set-up/upkeep rather than
+  day-to-day logging.
 - **Weather & Growth Potential** — daily high/low temps and precipitation
   for Dayton, OH, a turfgrass Growth Potential (GP) score (0-100%, how fast
   the grass is growing today), and a weekly rainfall chart.
@@ -181,10 +186,10 @@ Yard at the Smiths' rental property" instead of just "pruned."
 | `locations` | A customer's properties/addresses (usually one per customer) |
 | `areas` | Subdivisions of a location (Front Yard, Back Yard, etc.) |
 | `yardFeatures` | Plants/trees/shrubs/objects worth tracking, one per area |
-| `mowVisits` | Yard-work visit log entries (mow/trim/edge/prune/bush-trim flags, pattern, deck height, location, area, equipment, feature) |
+| `mowVisits` | Yard-work visit log entries (mow/trim/edge/prune/bush-trim flags, pattern, deck height, ground speed, blade speed, time of day, grass condition, location, area, equipment, feature) |
 | `sprayApplications` | Weed/insect/fungus/fertilizer spray log entries (surface, target, product, location, area, equipment, feature) |
 | `maintenanceTasks` | Equipment maintenance log entries, tied to an equipment record |
-| `equipment` | Mowers, trimmers, edgers, blowers, sprayers - mowers carry a list of deck height settings |
+| `equipment` | Mowers, trimmers, edgers, blowers, sprayers - mowers carry lists of deck height, ground speed, and blade speed settings |
 | `weatherDaily` | Cached daily weather + Growth Potential inputs, keyed by date |
 | `settings` | App settings (grass type, mow threshold in GP-days) |
 
