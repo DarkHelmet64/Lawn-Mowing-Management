@@ -78,8 +78,7 @@ function renderTree() {
                   <span class="tree-row-name">${escapeHtml(a.name)}</span>
                   <span class="tree-row-notes">${escapeHtml(a.notes || "")}</span>
                   <span class="row-actions">
-                    <button class="link-btn" data-edit="${a.id}">Edit</button>
-                    <button class="link-btn danger" data-delete="${a.id}">Delete</button>
+                    <button class="link-btn" data-edit="${a.id}">✏️ Edit</button>
                   </span>
                 </div>`
               )
@@ -103,9 +102,6 @@ function renderTree() {
   container.querySelectorAll("[data-edit]").forEach((btn) =>
     btn.addEventListener("click", () => openForm(cache.find((a) => a.id === btn.dataset.edit)))
   );
-  container.querySelectorAll("[data-delete]").forEach((btn) =>
-    btn.addEventListener("click", () => handleDelete(btn.dataset.delete))
-  );
 }
 
 function refreshLocationOptions() {
@@ -123,6 +119,7 @@ function openForm(area = null) {
   byId("area-location").value = area?.locationId || "";
   byId("area-name").value = area?.name || "";
   byId("area-notes").value = area?.notes || "";
+  byId("delete-area-btn").classList.toggle("hidden", !area);
 }
 
 function closeForm() {
@@ -130,9 +127,12 @@ function closeForm() {
   byId("area-form").reset();
 }
 
-async function handleDelete(id) {
+async function handleDelete() {
+  const id = byId("area-id").value;
+  if (!id) return;
   if (!confirm("Delete this area? Yard features under it will be orphaned, not deleted.")) return;
   await deleteDocById(COLLECTION, id);
+  closeForm();
   await refreshAreasView();
 }
 
@@ -173,6 +173,7 @@ export function initAreasView() {
     });
     byId("cancel-area-btn").addEventListener("click", closeForm);
     byId("area-form").addEventListener("submit", handleSubmit);
+    byId("delete-area-btn").addEventListener("click", handleDelete);
     byId("area-customer").addEventListener("change", refreshLocationOptions);
     document.addEventListener("locations:changed", () => renderTree());
     listenersBound = true;

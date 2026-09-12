@@ -62,8 +62,7 @@ function renderTable() {
         <td>${escapeHtml(contactsSummary(l.contacts))}</td>
         <td>${escapeHtml(l.notes || "")}</td>
         <td class="row-actions">
-          <button class="link-btn" data-edit="${l.id}">Edit</button>
-          <button class="link-btn danger" data-delete="${l.id}">Delete</button>
+          <button class="link-btn" data-edit="${l.id}">✏️ Edit</button>
         </td>
       </tr>`
     )
@@ -71,9 +70,6 @@ function renderTable() {
 
   body.querySelectorAll("[data-edit]").forEach((btn) =>
     btn.addEventListener("click", () => openForm(cache.find((l) => l.id === btn.dataset.edit)))
-  );
-  body.querySelectorAll("[data-delete]").forEach((btn) =>
-    btn.addEventListener("click", () => handleDelete(btn.dataset.delete))
   );
 }
 
@@ -135,6 +131,7 @@ function openForm(location = null) {
   byId("location-address").disabled = sameAsCustomer;
   byId("location-address-status").textContent = "";
   renderContactRows(location?.contacts || []);
+  byId("delete-location-btn").classList.toggle("hidden", !location);
 }
 
 function closeForm() {
@@ -144,9 +141,12 @@ function closeForm() {
   byId("location-address-status").textContent = "";
 }
 
-async function handleDelete(id) {
+async function handleDelete() {
+  const id = byId("location-id").value;
+  if (!id) return;
   if (!confirm("Delete this location? Areas and yard features under it will be orphaned, not deleted.")) return;
   await deleteDocById(COLLECTION, id);
+  closeForm();
   await refreshLocationsView();
 }
 
@@ -192,6 +192,7 @@ export function initLocationsView() {
     });
     byId("cancel-location-btn").addEventListener("click", closeForm);
     byId("location-form").addEventListener("submit", handleSubmit);
+    byId("delete-location-btn").addEventListener("click", handleDelete);
     byId("location-same-as-customer").addEventListener("change", () => {
       const checked = byId("location-same-as-customer").checked;
       byId("location-address").disabled = checked;

@@ -13,6 +13,7 @@ const TASK_LABELS = {
   air_filter: "Air Filter",
   spark_plug: "Spark Plug",
   belt_cable: "Belt / Cable",
+  tire_check: "Check Tire Tread and Pressure",
   general_service: "General Service",
   other: "Other",
 };
@@ -38,8 +39,7 @@ function renderTable() {
         <td>${t.hours ?? ""}</td>
         <td>${escapeHtml(t.notes || "")}</td>
         <td class="row-actions">
-          <button class="link-btn" data-edit="${t.id}">Edit</button>
-          <button class="link-btn danger" data-delete="${t.id}">Delete</button>
+          <button class="link-btn" data-edit="${t.id}">✏️ Edit</button>
         </td>
       </tr>`
     )
@@ -47,9 +47,6 @@ function renderTable() {
 
   body.querySelectorAll("[data-edit]").forEach((btn) =>
     btn.addEventListener("click", () => openForm(cache.find((t) => t.id === btn.dataset.edit)))
-  );
-  body.querySelectorAll("[data-delete]").forEach((btn) =>
-    btn.addEventListener("click", () => handleDelete(btn.dataset.delete))
   );
 }
 
@@ -62,6 +59,7 @@ function openForm(task = null) {
   byId("task-date").value = task?.date || todayStr();
   byId("task-hours").value = task?.hours ?? "";
   byId("task-notes").value = task?.notes || "";
+  byId("delete-task-btn").classList.toggle("hidden", !task);
 }
 
 function closeForm() {
@@ -69,9 +67,12 @@ function closeForm() {
   byId("task-form").reset();
 }
 
-async function handleDelete(id) {
+async function handleDelete() {
+  const id = byId("task-id").value;
+  if (!id) return;
   if (!confirm("Delete this maintenance record?")) return;
   await deleteDocById(COLLECTION, id);
+  closeForm();
   await refreshMaintenanceView();
 }
 
@@ -107,6 +108,7 @@ export function initMaintenanceView() {
     });
     byId("cancel-task-btn").addEventListener("click", closeForm);
     byId("task-form").addEventListener("submit", handleSubmit);
+    byId("delete-task-btn").addEventListener("click", handleDelete);
     listenersBound = true;
   }
   return refreshMaintenanceView();

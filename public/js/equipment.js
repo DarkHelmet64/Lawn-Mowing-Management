@@ -127,8 +127,7 @@ function renderTable() {
         <td>${e.type === "mower" && e.bladeSpeeds?.length ? escapeHtml(e.bladeSpeeds.join(", ")) : ""}</td>
         <td><span class="badge ${e.active === false ? "badge-inactive" : "badge-active"}">${e.active === false ? "Inactive" : "Active"}</span></td>
         <td class="row-actions">
-          <button class="link-btn" data-edit="${e.id}">Edit</button>
-          <button class="link-btn danger" data-delete="${e.id}">Delete</button>
+          <button class="link-btn" data-edit="${e.id}">✏️ Edit</button>
         </td>
       </tr>`
     )
@@ -136,9 +135,6 @@ function renderTable() {
 
   body.querySelectorAll("[data-edit]").forEach((btn) =>
     btn.addEventListener("click", () => openForm(cache.find((e) => e.id === btn.dataset.edit)))
-  );
-  body.querySelectorAll("[data-delete]").forEach((btn) =>
-    btn.addEventListener("click", () => handleDelete(btn.dataset.delete))
   );
 }
 
@@ -159,6 +155,7 @@ function openForm(equipment = null) {
   byId("equipment-notes").value = equipment?.notes || "";
   byId("equipment-active").checked = equipment?.active !== false;
   updateMowerFieldsVisibility();
+  byId("delete-equipment-btn").classList.toggle("hidden", !equipment);
 }
 
 function closeForm() {
@@ -166,9 +163,12 @@ function closeForm() {
   byId("equipment-form").reset();
 }
 
-async function handleDelete(id) {
+async function handleDelete() {
+  const id = byId("equipment-id").value;
+  if (!id) return;
   if (!confirm("Delete this equipment record? This does not delete visits or tasks that reference it.")) return;
   await deleteDocById(COLLECTION, id);
+  closeForm();
   await refreshEquipmentView();
 }
 
@@ -203,6 +203,7 @@ export function initEquipmentView() {
     byId("add-equipment-btn").addEventListener("click", () => openForm());
     byId("cancel-equipment-btn").addEventListener("click", closeForm);
     byId("equipment-form").addEventListener("submit", handleSubmit);
+    byId("delete-equipment-btn").addEventListener("click", handleDelete);
     byId("equipment-type").addEventListener("change", updateMowerFieldsVisibility);
     listenersBound = true;
   }
