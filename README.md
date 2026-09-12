@@ -32,8 +32,10 @@ API in the browser and cached in Firestore.
   driveways, walkways, flowerbeds, or the lawn itself, which product,
   equipment, yard area, and plant/object it applied to, and notes.
 - **Settings** — customer records, an **equipment** registry (mowers,
-  trimmers, edgers, blowers, sprayers - mowers track a deck height that
-  auto-fills when you pick that mower elsewhere), equipment maintenance
+  trimmers, edgers, blowers, sprayers - mowers store their available deck
+  height settings, e.g. 2", 2.5", 3"; picking that mower elsewhere turns
+  the deck height field into a select limited to its settings), equipment
+  maintenance
   tasks (blade sharpening, oil changes, etc., now tied to a specific piece
   of equipment), and **yard features** (plants, trees, shrubs, or other
   objects on a customer's property worth tracking, like "rose bushes by
@@ -163,7 +165,7 @@ of just "pruned."
 | `mowVisits` | Yard-work visit log entries (mow/trim/edge/prune/bush-trim flags, pattern, deck height, yard area, equipment, feature) |
 | `sprayApplications` | Weed/insect/fungus/fertilizer spray log entries (location, target, product, yard area, equipment, feature) |
 | `maintenanceTasks` | Equipment maintenance log entries, tied to an equipment record |
-| `equipment` | Mowers, trimmers, edgers, blowers, sprayers - mowers carry a deck height |
+| `equipment` | Mowers, trimmers, edgers, blowers, sprayers - mowers carry a list of deck height settings |
 | `yardFeatures` | Plants/trees/shrubs/objects worth tracking, one per customer |
 | `weatherDaily` | Cached daily weather + Growth Potential inputs, keyed by date |
 | `settings` | App settings (grass type, mow threshold in GP-days) |

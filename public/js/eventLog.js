@@ -1,7 +1,7 @@
 import { createDoc } from "./db.js";
 import { byId, todayStr } from "./utils.js";
 import { getCustomers, populateCustomerSelect } from "./customers.js";
-import { populateEquipmentSelect, suggestedDeckHeight } from "./equipment.js";
+import { populateEquipmentSelect, populateDeckHeightSelect } from "./equipment.js";
 import { populateYardFeatureSelect } from "./yardFeatures.js";
 import { loadVisits } from "./mowLog.js";
 import { loadSprays } from "./sprayLog.js";
@@ -31,7 +31,7 @@ function openForm() {
   byId("event-pruned").checked = false;
   byId("event-trimmed-bushes").checked = false;
   byId("event-pattern").value = "parallel";
-  byId("event-height").value = "";
+  populateDeckHeightSelect(byId("event-height"), "");
   byId("event-spray-location").value = "driveway";
   byId("event-spray-target").value = "weeds";
   byId("event-spray-product").value = "";
@@ -113,8 +113,7 @@ export function initEventLogView() {
   byId("event-category").addEventListener("change", updateCategoryVisibility);
   byId("event-customer").addEventListener("change", refreshFeatureOptions);
   byId("event-equipment").addEventListener("change", () => {
-    const suggested = suggestedDeckHeight(byId("event-equipment").value);
-    if (suggested != null) byId("event-height").value = suggested;
+    populateDeckHeightSelect(byId("event-height"), byId("event-equipment").value);
   });
   byId("log-event-form").addEventListener("submit", handleSubmit);
 }

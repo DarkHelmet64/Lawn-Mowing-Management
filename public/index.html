@@ -96,8 +96,8 @@
                   <option value="other">Other</option>
                 </select>
               </label>
-              <label>Deck Height (in)
-                <input type="number" id="event-height" step="0.25" min="0" placeholder="e.g. 3.5" />
+              <label>Deck Height
+                <select id="event-height"></select>
               </label>
             </div>
 
@@ -252,8 +252,8 @@
               </select>
             </label>
             <div id="equipment-deck-height-row">
-              <label>Deck Height (in)
-                <input type="number" id="equipment-deck-height" step="0.25" min="0" placeholder="e.g. 3.5" />
+              <label>Deck Height Settings (in, comma-separated)
+                <input type="text" id="equipment-deck-heights" placeholder="e.g. 2, 2.5, 3, 3.5, 4" />
               </label>
             </div>
             <label>Notes
@@ -415,8 +415,8 @@
                 <option value="other">Other</option>
               </select>
             </label>
-            <label>Deck Height (in)
-              <input type="number" id="visit-height" step="0.25" min="0" placeholder="e.g. 3.5" />
+            <label>Deck Height
+              <select id="visit-height"></select>
             </label>
             <label>Notes
               <textarea id="visit-notes" rows="2"></textarea>
