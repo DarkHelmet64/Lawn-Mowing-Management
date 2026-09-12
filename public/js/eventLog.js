@@ -12,19 +12,85 @@ import { getAreasForLocation, areaAppliesToEventTypes } from "./areas.js";
 import { getYardFeatures } from "./yardFeatures.js";
 import { loadVisits } from "./mowLog.js";
 import { loadSprays } from "./sprayLog.js";
-import { EVENT_TYPE_KEYS } from "./eventTypes.js";
+import { EVENT_TYPE_LABELS, EVENT_TYPE_KEYS } from "./eventTypes.js";
 
-function typeToggleBtn(type) {
-  return byId(`event-type-${type}`);
+// Areas with these exact names are the default pick whenever Yard Work is
+// the active event type - see applyYardworkDefaults().
+const DEFAULT_YARDWORK_AREA_NAMES = new Set(["Front Yard", "Back Yard"]);
+
+function primaryCategory() {
+  return byId("event-category").value;
 }
 
-function activeEventTypes() {
-  return EVENT_TYPE_KEYS.filter((t) => typeToggleBtn(t).classList.contains("active"));
+function secondaryCategory() {
+  return byId("event-category-2").value;
 }
 
-function setActiveEventTypes(types) {
-  for (const t of EVENT_TYPE_KEYS) {
-    typeToggleBtn(t).classList.toggle("active", types.includes(t));
+function tertiaryCategory() {
+  return byId("event-category-3").value;
+}
+
+// All three event types can be active at once: the primary dropdown, plus up
+// to two "Add Another Event Type" picks.
+function activeCategories() {
+  return [primaryCategory(), secondaryCategory(), tertiaryCategory()].filter(Boolean);
+}
+
+function populateCategoryOptions(selectEl, excludeKeys) {
+  const current = selectEl.value;
+  selectEl.innerHTML = '<option value="">None</option>';
+  for (const key of EVENT_TYPE_KEYS) {
+    if (excludeKeys.includes(key)) continue;
+    const opt = document.createElement("option");
+    opt.value = key;
+    opt.textContent = EVENT_TYPE_LABELS[key];
+    selectEl.appendChild(opt);
+  }
+  if (current && [...selectEl.options].some((o) => o.value === current)) {
+    selectEl.value = current;
+  }
+}
+
+// The second dropdown offers the two types not already chosen as primary.
+// The third only makes sense once a second has been picked, and then offers
+// whichever single type is left.
+function refreshCategoryChoices() {
+  populateCategoryOptions(byId("event-category-2"), [primaryCategory()]);
+  const third = byId("event-category-3");
+  if (secondaryCategory()) {
+    third.disabled = false;
+    populateCategoryOptions(third, [primaryCategory(), secondaryCategory()]);
+  } else {
+    third.disabled = true;
+    third.innerHTML = '<option value="">None</option>';
+  }
+}
+
+function applyYardworkDefaults() {
+  byId("event-mowed").checked = true;
+  byId("event-trimmed").checked = true;
+  byId("event-edged").checked = true;
+}
+
+const FIELD_GROUP_BY_TYPE = {
+  yardwork: "event-yardwork-fields",
+  extra_yardwork: "event-extra-yardwork-fields",
+  chemical: "event-chemical-fields",
+};
+
+// Each event type's own fields travel with wherever that type is currently
+// selected - if Extra Yard Work is picked in the "Add Another" slot, its
+// fields move to sit right after that slot's dropdown instead of staying in
+// a fixed position.
+function positionCategoryFields() {
+  const anchorForType = {};
+  if (primaryCategory()) anchorForType[primaryCategory()] = byId("event-category").closest("label");
+  if (secondaryCategory()) anchorForType[secondaryCategory()] = byId("event-category-2").closest("label");
+  if (tertiaryCategory()) anchorForType[tertiaryCategory()] = byId("event-category-3").closest("label");
+
+  for (const [type, groupId] of Object.entries(FIELD_GROUP_BY_TYPE)) {
+    const anchor = anchorForType[type];
+    if (anchor) anchor.after(byId(groupId));
   }
 }
 
@@ -33,10 +99,21 @@ function checkedAreaIds() {
 }
 
 function updateFieldVisibility() {
-  const types = activeEventTypes();
+  positionCategoryFields();
+  const types = activeCategories();
   byId("event-yardwork-fields").classList.toggle("hidden", !types.includes("yardwork"));
   byId("event-extra-yardwork-fields").classList.toggle("hidden", !types.includes("extra_yardwork"));
   byId("event-chemical-fields").classList.toggle("hidden", !types.includes("chemical"));
+  updateMowedFieldsVisibility();
+}
+
+// Mow Pattern/Deck Height/Ground Speed/Blade Speed/Grass Condition (and the
+// Equipment Used filter) only apply when Mowed itself is checked - trimming
+// or edging alone doesn't need a mow pattern or deck height.
+function updateMowedFieldsVisibility() {
+  const mowed = activeCategories().includes("yardwork") && byId("event-mowed").checked;
+  byId("event-mowed-fields").classList.toggle("hidden", !mowed);
+  populateEquipmentSelect(byId("event-equipment"), { typeFilter: mowed ? "mower" : null });
 }
 
 function refreshLocationOptions() {
@@ -48,24 +125,28 @@ function refreshLocationOptions() {
 }
 
 // Areas are scoped to the selected location and to whichever event types
-// are currently toggled on - an area only shows up here if it's configured
-// (in Settings) to populate under at least one of those event types.
+// are currently active - an area only shows up here if it's configured (in
+// Settings) to populate under at least one of those event types. Whenever
+// Yard Work is active, Front Yard/Back Yard (if present) are the default
+// picks; other event types keep whatever was already checked.
 function refreshAreaOptions() {
   const locationId = byId("event-location").value;
-  const types = activeEventTypes();
+  const types = activeCategories();
+  const yardworkActive = types.includes("yardwork");
   const previouslyChecked = new Set(checkedAreaIds());
   const areas = getAreasForLocation(locationId).filter((a) => areaAppliesToEventTypes(a, types));
   const container = byId("event-area-list");
 
   container.innerHTML = areas.length
     ? areas
-        .map(
-          (a) => `
+        .map((a) => {
+          const checked = yardworkActive ? DEFAULT_YARDWORK_AREA_NAMES.has(a.name) : previouslyChecked.has(a.id);
+          return `
       <label class="checkbox-label">
-        <input type="checkbox" class="event-area-checkbox" value="${a.id}" ${previouslyChecked.has(a.id) ? "checked" : ""} />
+        <input type="checkbox" class="event-area-checkbox" value="${a.id}" ${checked ? "checked" : ""} />
         ${escapeHtml(a.name)}
-      </label>`
-        )
+      </label>`;
+        })
         .join("")
     : `<p class="hint-text">No areas set up for this event type at this location.</p>`;
 
@@ -74,7 +155,7 @@ function refreshAreaOptions() {
 }
 
 // The Plant/Object dropdown covers the union of features across every
-// currently-checked area, since Areas is now a multi-select.
+// currently-checked area, since Areas is a multi-select.
 function refreshFeatureOptions() {
   const areaIds = new Set(checkedAreaIds());
   const select = byId("event-feature");
@@ -94,14 +175,14 @@ function refreshFeatureOptions() {
 function openForm() {
   byId("log-event-form-card").classList.remove("hidden");
   populateCustomerSelect(byId("event-customer"));
-  populateEquipmentSelect(byId("event-equipment"));
   byId("event-customer").value = getCustomers()[0]?.id || "";
   byId("event-date").value = todayStr();
-  setActiveEventTypes(["yardwork"]);
-  byId("event-equipment").value = "";
-  byId("event-mowed").checked = true;
-  byId("event-trimmed").checked = true;
-  byId("event-edged").checked = false;
+  byId("event-category").value = "yardwork";
+  byId("event-category-2").value = "";
+  byId("event-category-3").value = "";
+  refreshCategoryChoices();
+  byId("event-equipment").innerHTML = "";
+  applyYardworkDefaults();
   byId("event-pruned").checked = false;
   byId("event-trimmed-bushes").checked = false;
   byId("event-mulched").checked = false;
@@ -127,20 +208,16 @@ async function handleSubmit(e) {
   e.preventDefault();
   const customerId = byId("event-customer").value;
   const date = byId("event-date").value;
+  const timeOfDay = byId("event-time-of-day").value || null;
   const notes = byId("event-notes").value.trim();
   const locationId = byId("event-location").value || null;
-  const featureId = byId("event-feature").value || null;
   const equipmentId = byId("event-equipment").value || null;
-  const types = activeEventTypes();
-
-  if (!types.length) {
-    alert("Select at least one event type.");
-    return;
-  }
+  const types = activeCategories();
 
   const yardworkOn = types.includes("yardwork");
   const extraOn = types.includes("extra_yardwork");
   const chemicalOn = types.includes("chemical");
+  const featureId = extraOn ? byId("event-feature").value || null : null;
 
   let mowFields = null;
   if (yardworkOn || extraOn) {
@@ -155,7 +232,7 @@ async function handleSubmit(e) {
       deckHeight: yardworkOn && byId("event-height").value ? Number(byId("event-height").value) : null,
       groundSpeed: yardworkOn ? byId("event-ground-speed").value || null : null,
       bladeSpeed: yardworkOn ? byId("event-blade-speed").value || null : null,
-      timeOfDay: yardworkOn ? byId("event-time-of-day").value || null : null,
+      timeOfDay,
       grassCondition: yardworkOn ? byId("event-grass-condition").value || null : null,
     };
     if (
@@ -193,6 +270,7 @@ async function handleSubmit(e) {
       await createDoc("sprayApplications", {
         customerId,
         date,
+        timeOfDay,
         target: byId("event-spray-target").value,
         product: sprayProduct,
         locationId,
@@ -220,13 +298,24 @@ export function initEventLogView() {
     openForm();
   });
   byId("cancel-event-btn").addEventListener("click", closeForm);
-  for (const t of EVENT_TYPE_KEYS) {
-    typeToggleBtn(t).addEventListener("click", () => {
-      typeToggleBtn(t).classList.toggle("active");
-      updateFieldVisibility();
-      refreshAreaOptions();
-    });
-  }
+  byId("event-category").addEventListener("change", () => {
+    refreshCategoryChoices();
+    if (primaryCategory() === "yardwork") applyYardworkDefaults();
+    updateFieldVisibility();
+    refreshAreaOptions();
+  });
+  byId("event-category-2").addEventListener("change", () => {
+    refreshCategoryChoices();
+    if (secondaryCategory() === "yardwork") applyYardworkDefaults();
+    updateFieldVisibility();
+    refreshAreaOptions();
+  });
+  byId("event-category-3").addEventListener("change", () => {
+    if (tertiaryCategory() === "yardwork") applyYardworkDefaults();
+    updateFieldVisibility();
+    refreshAreaOptions();
+  });
+  byId("event-mowed").addEventListener("change", updateMowedFieldsVisibility);
   byId("event-customer").addEventListener("change", refreshLocationOptions);
   byId("event-location").addEventListener("change", refreshAreaOptions);
   byId("event-equipment").addEventListener("change", () => {
