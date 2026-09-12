@@ -4,7 +4,7 @@ import { byId } from "./utils.js";
 import { loadCustomers, initCustomersView, refreshCustomersView } from "./customers.js";
 import { loadVisits, initMowLogView, refreshMowLogView } from "./mowLog.js";
 import { loadSprays, initSprayLogView, refreshSprayLogView } from "./sprayLog.js";
-import { loadTasks, initMaintenanceView } from "./maintenance.js";
+import { loadTasks, initMaintenanceView, refreshMaintenanceView } from "./maintenance.js";
 import { initWeatherView } from "./weatherView.js";
 import { refreshDashboard } from "./dashboard.js";
 import { initEventLogView } from "./eventLog.js";
@@ -34,9 +34,12 @@ async function showApp() {
 function initView(view) {
   if (initializedViews.has(view)) {
     if (view === "dashboard") refreshDashboard();
-    if (view === "customers") refreshCustomersView();
     if (view === "mow-log") refreshMowLogView();
     if (view === "spray-log") refreshSprayLogView();
+    if (view === "settings") {
+      refreshCustomersView();
+      refreshMaintenanceView();
+    }
     return;
   }
   initializedViews.add(view);
@@ -44,16 +47,14 @@ function initView(view) {
     case "dashboard":
       refreshDashboard();
       break;
-    case "customers":
-      initCustomersView();
-      break;
     case "mow-log":
       initMowLogView();
       break;
     case "spray-log":
       initSprayLogView();
       break;
-    case "maintenance":
+    case "settings":
+      initCustomersView();
       initMaintenanceView();
       break;
     case "weather":

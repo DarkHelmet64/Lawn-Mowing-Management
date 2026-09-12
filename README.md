@@ -16,21 +16,21 @@ API in the browser and cached in Firestore.
 
 ## Features
 
-- **Customers** — name, address, contact info, service frequency, active/inactive.
 - **Log an Event (Dashboard button)** — one quick-entry form covering every
   event type: mowing, trimming, edging, pruning, and bush trimming as a
   single yard-work visit, or a spray application, without leaving the
   Dashboard.
 - **Yard Work Log** — per-visit record of what was done (mowed, trimmed,
-  edged, pruned, bushes trimmed), the mowing pattern used (stripes,
-  diagonal, checkerboard, waves, circular, diamond, etc.), deck height, and
+  edged, pruned, bushes trimmed), the mowing pattern used (parallel,
+  perpendicular, diagonal left, diagonal right, other), deck height, and
   notes.
 - **Spray Log** — records whether you sprayed weeds (or other targets) in
   driveways, walkways, flowerbeds, or the lawn itself, which product you
   used, and notes.
-- **Equipment Maintenance** — logs tasks like blade sharpening, blade
-  replacement, oil changes, air filters, spark plugs, belts/cables, per
-  piece of equipment.
+- **Settings** — customer records (name, address, contact info, service
+  frequency, active/inactive) and equipment maintenance tasks (blade
+  sharpening, oil changes, air filters, spark plugs, belts/cables, etc.)
+  live here, since they're set-up/upkeep tasks rather than day-to-day logging.
 - **Weather & Growth Potential** — daily high/low temps and precipitation
   for Dayton, OH, a turfgrass Growth Potential (GP) score (0-100%, how fast
   the grass is growing today), and a weekly rainfall chart.

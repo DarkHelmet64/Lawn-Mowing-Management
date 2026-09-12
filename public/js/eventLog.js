@@ -21,7 +21,7 @@ function openForm() {
   byId("event-edged").checked = false;
   byId("event-pruned").checked = false;
   byId("event-trimmed-bushes").checked = false;
-  byId("event-pattern").value = "stripes";
+  byId("event-pattern").value = "parallel";
   byId("event-height").value = "";
   byId("event-spray-location").value = "driveway";
   byId("event-spray-target").value = "weeds";

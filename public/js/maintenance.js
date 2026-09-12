@@ -3,6 +3,7 @@ import { byId, escapeHtml, todayStr, formatDateDisplay } from "./utils.js";
 
 const COLLECTION = "maintenanceTasks";
 let cache = [];
+let listenersBound = false;
 
 const TASK_LABELS = {
   blade_sharpen: "Blade Sharpening",
@@ -69,7 +70,7 @@ function closeForm() {
 async function handleDelete(id) {
   if (!confirm("Delete this maintenance record?")) return;
   await deleteDocById(COLLECTION, id);
-  await refresh();
+  await refreshMaintenanceView();
 }
 
 async function handleSubmit(e) {
@@ -85,18 +86,20 @@ async function handleSubmit(e) {
   if (id) await updateDocById(COLLECTION, id, data);
   else await createDoc(COLLECTION, data);
   closeForm();
-  await refresh();
+  await refreshMaintenanceView();
 }
 
-async function refresh() {
+export async function refreshMaintenanceView() {
   await loadTasks();
   renderTable();
 }
 
 export function initMaintenanceView() {
-  byId("add-task-btn").addEventListener("click", () => openForm());
-  byId("cancel-task-btn").addEventListener("click", closeForm);
-  byId("task-form").addEventListener("submit", handleSubmit);
-
-  refresh();
+  if (!listenersBound) {
+    byId("add-task-btn").addEventListener("click", () => openForm());
+    byId("cancel-task-btn").addEventListener("click", closeForm);
+    byId("task-form").addEventListener("submit", handleSubmit);
+    listenersBound = true;
+  }
+  return refreshMaintenanceView();
 }

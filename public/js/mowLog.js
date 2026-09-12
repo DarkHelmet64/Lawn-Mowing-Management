@@ -7,13 +7,10 @@ let cache = [];
 let listenersBound = false;
 
 const PATTERN_LABELS = {
-  stripes: "Straight Stripes",
-  diagonal: "Diagonal Stripes",
-  checkerboard: "Checkerboard",
-  waves: "Waves",
-  circular: "Circular",
-  diamond: "Diamond",
-  none: "No Pattern",
+  parallel: "Parallel",
+  perpendicular: "Perpendicular",
+  diagonal_left: "Diagonal Left",
+  diagonal_right: "Diagonal Right",
   other: "Other",
 };
 
@@ -69,7 +66,7 @@ function openForm(visit = null) {
   byId("visit-edged").checked = visit?.edged ?? false;
   byId("visit-pruned").checked = visit?.pruned ?? false;
   byId("visit-trimmed-bushes").checked = visit?.trimmedBushes ?? false;
-  byId("visit-pattern").value = visit?.pattern || "stripes";
+  byId("visit-pattern").value = visit?.pattern || "parallel";
   byId("visit-height").value = visit?.deckHeight ?? "";
   byId("visit-notes").value = visit?.notes || "";
 }

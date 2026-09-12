@@ -32,11 +32,10 @@
       <h1>🌱 Lawn Mowing Management</h1>
       <nav id="main-nav">
         <button data-view="dashboard" class="nav-btn active">Dashboard</button>
-        <button data-view="customers" class="nav-btn">Customers</button>
         <button data-view="mow-log" class="nav-btn">Yard Work</button>
         <button data-view="spray-log" class="nav-btn">Spray Log</button>
-        <button data-view="maintenance" class="nav-btn">Equipment</button>
         <button data-view="weather" class="nav-btn">Weather &amp; Growth</button>
+        <button data-view="settings" class="nav-btn">⚙ Settings</button>
       </nav>
       <button id="logout-btn" class="ghost-btn">Sign Out</button>
     </header>
@@ -73,13 +72,10 @@
               </div>
               <label>Mow Pattern
                 <select id="event-pattern">
-                  <option value="stripes">Straight Stripes</option>
-                  <option value="diagonal">Diagonal Stripes</option>
-                  <option value="checkerboard">Checkerboard</option>
-                  <option value="waves">Waves</option>
-                  <option value="circular">Circular</option>
-                  <option value="diamond">Diamond</option>
-                  <option value="none">No Pattern</option>
+                  <option value="parallel">Parallel</option>
+                  <option value="perpendicular">Perpendicular</option>
+                  <option value="diagonal_left">Diagonal Left</option>
+                  <option value="diagonal_right">Diagonal Right</option>
                   <option value="other">Other</option>
                 </select>
               </label>
@@ -165,9 +161,11 @@
         </div>
       </section>
 
-      <section id="view-customers" class="view">
+      <section id="view-settings" class="view">
+        <h2>Settings</h2>
+
         <div class="view-header">
-          <h2>Customers</h2>
+          <h3>Customers</h3>
           <button id="add-customer-btn" class="primary-btn">+ Add Customer</button>
         </div>
         <div id="customer-form-card" class="card hidden">
@@ -214,6 +212,53 @@
             <tbody id="customer-table-body"></tbody>
           </table>
         </div>
+
+        <div class="view-header">
+          <h3>Equipment Maintenance</h3>
+          <button id="add-task-btn" class="primary-btn">+ Log Task</button>
+        </div>
+        <div id="task-form-card" class="card hidden">
+          <h3>Log Maintenance Task</h3>
+          <form id="task-form">
+            <input type="hidden" id="task-id" />
+            <label>Equipment
+              <input type="text" id="task-equipment" placeholder="e.g. Toro TimeMaster" required />
+            </label>
+            <label>Task Type
+              <select id="task-type">
+                <option value="blade_sharpen">Blade Sharpening</option>
+                <option value="blade_replace">Blade Replacement</option>
+                <option value="oil_change">Oil Change</option>
+                <option value="air_filter">Air Filter</option>
+                <option value="spark_plug">Spark Plug</option>
+                <option value="belt_cable">Belt / Cable</option>
+                <option value="general_service">General Service</option>
+                <option value="other">Other</option>
+              </select>
+            </label>
+            <label>Date
+              <input type="date" id="task-date" required />
+            </label>
+            <label>Engine / Blade Hours (optional)
+              <input type="number" id="task-hours" step="0.1" min="0" />
+            </label>
+            <label>Notes
+              <textarea id="task-notes" rows="2"></textarea>
+            </label>
+            <div class="form-actions">
+              <button type="submit" class="primary-btn">Save</button>
+              <button type="button" id="cancel-task-btn" class="ghost-btn">Cancel</button>
+            </div>
+          </form>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr><th>Date</th><th>Equipment</th><th>Task</th><th>Hours</th><th>Notes</th><th></th></tr>
+            </thead>
+            <tbody id="task-table-body"></tbody>
+          </table>
+        </div>
       </section>
 
       <section id="view-mow-log" class="view">
@@ -240,13 +285,10 @@
             </div>
             <label>Mow Pattern
               <select id="visit-pattern">
-                <option value="stripes">Straight Stripes</option>
-                <option value="diagonal">Diagonal Stripes</option>
-                <option value="checkerboard">Checkerboard</option>
-                <option value="waves">Waves</option>
-                <option value="circular">Circular</option>
-                <option value="diamond">Diamond</option>
-                <option value="none">No Pattern</option>
+                <option value="parallel">Parallel</option>
+                <option value="perpendicular">Perpendicular</option>
+                <option value="diagonal_left">Diagonal Left</option>
+                <option value="diagonal_right">Diagonal Right</option>
                 <option value="other">Other</option>
               </select>
             </label>
@@ -328,55 +370,6 @@
               <tr><th>Date</th><th>Customer</th><th>Location</th><th>Target</th><th>Product</th><th></th></tr>
             </thead>
             <tbody id="spray-table-body"></tbody>
-          </table>
-        </div>
-      </section>
-
-      <section id="view-maintenance" class="view">
-        <div class="view-header">
-          <h2>Equipment Maintenance</h2>
-          <button id="add-task-btn" class="primary-btn">+ Log Task</button>
-        </div>
-        <div id="task-form-card" class="card hidden">
-          <h3>Log Maintenance Task</h3>
-          <form id="task-form">
-            <input type="hidden" id="task-id" />
-            <label>Equipment
-              <input type="text" id="task-equipment" placeholder="e.g. Toro TimeMaster" required />
-            </label>
-            <label>Task Type
-              <select id="task-type">
-                <option value="blade_sharpen">Blade Sharpening</option>
-                <option value="blade_replace">Blade Replacement</option>
-                <option value="oil_change">Oil Change</option>
-                <option value="air_filter">Air Filter</option>
-                <option value="spark_plug">Spark Plug</option>
-                <option value="belt_cable">Belt / Cable</option>
-                <option value="general_service">General Service</option>
-                <option value="other">Other</option>
-              </select>
-            </label>
-            <label>Date
-              <input type="date" id="task-date" required />
-            </label>
-            <label>Engine / Blade Hours (optional)
-              <input type="number" id="task-hours" step="0.1" min="0" />
-            </label>
-            <label>Notes
-              <textarea id="task-notes" rows="2"></textarea>
-            </label>
-            <div class="form-actions">
-              <button type="submit" class="primary-btn">Save</button>
-              <button type="button" id="cancel-task-btn" class="ghost-btn">Cancel</button>
-            </div>
-          </form>
-        </div>
-        <div class="table-wrap">
-          <table class="data-table">
-            <thead>
-              <tr><th>Date</th><th>Equipment</th><th>Task</th><th>Hours</th><th>Notes</th><th></th></tr>
-            </thead>
-            <tbody id="task-table-body"></tbody>
           </table>
         </div>
       </section>

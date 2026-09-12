@@ -293,6 +293,7 @@ form {
 
 .table-wrap {
   overflow-x: auto;
+  margin-bottom: 24px;
 }
 
 .data-table {
