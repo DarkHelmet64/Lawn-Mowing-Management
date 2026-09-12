@@ -400,6 +400,10 @@ form {
   text-transform: uppercase;
 }
 
+.th-short {
+  display: none;
+}
+
 .row-actions {
   display: flex;
   gap: 8px;
@@ -555,5 +559,13 @@ form {
 
   main {
     padding: 14px;
+  }
+
+  .th-full {
+    display: none;
+  }
+
+  .th-short {
+    display: inline;
   }
 }
