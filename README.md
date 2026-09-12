@@ -53,8 +53,7 @@ API in the browser and cached in Firestore.
   the grass is growing today), and a weekly rainfall chart.
 - **Ready to Mow** — per customer, tracks accumulated Growth Potential
   since their last mow and flags the lawn "ready to mow" once it crosses a
-  threshold you tune by observation. Shown on both the Dashboard and the
-  Customers table.
+  threshold you tune by observation. Shown on the Dashboard.
 - **Dashboard** — today's Growth Potential, 7-day average, last 7 days of
   rainfall, how many customers are ready to mow right now, and recent
   activity at a glance.

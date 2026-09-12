@@ -1,15 +1,8 @@
 import { listAll, createDoc, updateDocById, deleteDocById } from "./db.js";
-import { byId, escapeHtml, formatDateDisplay } from "./utils.js";
-import { getVisits } from "./mowLog.js";
-import { refreshWeatherView } from "./weatherView.js";
-import { profileFor } from "./growthPotential.js";
-import { computeMowStatus } from "./mowReadiness.js";
-import { getSettings } from "./settings.js";
+import { byId, escapeHtml } from "./utils.js";
 
 const COLLECTION = "customers";
 let cache = [];
-let mowStatus = new Map();
-let mowStatusReady = false;
 let listenersBound = false;
 
 export async function loadCustomers() {
@@ -43,21 +36,6 @@ export function populateCustomerSelect(selectEl, { includeAll = false } = {}) {
   if (current) selectEl.value = current;
 }
 
-function mowStatusCell(customerId) {
-  if (!mowStatusReady) {
-    return `<td>–</td><td><span class="badge badge-inactive">Loading…</span></td>`;
-  }
-  const status = mowStatus.get(customerId);
-  if (!status || !status.lastMowDate) {
-    return `<td>–</td><td><span class="badge badge-inactive">No mow history</span></td>`;
-  }
-  const lastMowCell = `${formatDateDisplay(status.lastMowDate)} (${status.daysSinceMow}d ago)`;
-  const badge = status.ready
-    ? `<span class="badge badge-ready">Ready to mow</span>`
-    : `<span class="badge badge-waiting">~${status.estimatedDaysUntilReady}d until ready</span>`;
-  return `<td>${lastMowCell}</td><td>${badge}</td>`;
-}
-
 function renderTable() {
   const body = byId("customer-table-body");
   body.innerHTML = cache
@@ -65,13 +43,8 @@ function renderTable() {
       (c) => `
       <tr>
         <td>${escapeHtml(c.name)}</td>
-        <td>${escapeHtml(c.address || "")}</td>
-        <td>${escapeHtml(c.frequency || "")}</td>
-        <td><span class="badge ${c.active === false ? "badge-inactive" : "badge-active"}">${c.active === false ? "Inactive" : "Active"}</span></td>
-        ${mowStatusCell(c.id)}
         <td class="row-actions">
-          <button class="link-btn" data-edit="${c.id}">Edit</button>
-          <button class="link-btn danger" data-delete="${c.id}">Delete</button>
+          <button class="link-btn" data-edit="${c.id}">✏️ Edit</button>
         </td>
       </tr>`
     )
@@ -80,20 +53,6 @@ function renderTable() {
   body.querySelectorAll("[data-edit]").forEach((btn) =>
     btn.addEventListener("click", () => openForm(cache.find((c) => c.id === btn.dataset.edit)))
   );
-  body.querySelectorAll("[data-delete]").forEach((btn) =>
-    btn.addEventListener("click", () => handleDelete(btn.dataset.delete))
-  );
-}
-
-async function refreshMowStatus() {
-  const settings = await getSettings();
-  const { days } = await refreshWeatherView();
-  mowStatus = computeMowStatus(cache, getVisits(), days, {
-    grassProfile: profileFor(settings.grassType),
-    mowThresholdGPDays: settings.mowThresholdGPDays,
-  });
-  mowStatusReady = true;
-  renderTable();
 }
 
 function openForm(customer = null) {
@@ -107,6 +66,7 @@ function openForm(customer = null) {
   byId("customer-frequency").value = customer?.frequency || "weekly";
   byId("customer-notes").value = customer?.notes || "";
   byId("customer-active").checked = customer?.active !== false;
+  byId("delete-customer-btn").classList.toggle("hidden", !customer);
 }
 
 function closeForm() {
@@ -114,9 +74,12 @@ function closeForm() {
   byId("customer-form").reset();
 }
 
-async function handleDelete(id) {
+async function handleDelete() {
+  const id = byId("customer-id").value;
+  if (!id) return;
   if (!confirm("Delete this customer? This does not delete their visit history.")) return;
   await deleteDocById(COLLECTION, id);
+  closeForm();
   await refreshCustomersView();
 }
 
@@ -142,7 +105,6 @@ export async function refreshCustomersView() {
   await loadCustomers();
   renderTable();
   document.dispatchEvent(new CustomEvent("customers:changed"));
-  refreshMowStatus().catch((err) => console.error("Failed to refresh mow status", err));
 }
 
 export function initCustomersView() {
@@ -150,6 +112,7 @@ export function initCustomersView() {
     byId("add-customer-btn").addEventListener("click", () => openForm());
     byId("cancel-customer-btn").addEventListener("click", closeForm);
     byId("customer-form").addEventListener("submit", handleSubmit);
+    byId("delete-customer-btn").addEventListener("click", handleDelete);
     listenersBound = true;
   }
   return refreshCustomersView();

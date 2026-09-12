@@ -140,6 +140,20 @@ button {
   color: var(--danger);
 }
 
+.danger-btn {
+  background: transparent;
+  border: 1px solid var(--danger);
+  color: var(--danger);
+  padding: 9px 14px;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.danger-btn:hover {
+  background: var(--danger);
+  color: #ffffff;
+}
+
 .error-text {
   color: var(--danger);
   font-size: 13px;
