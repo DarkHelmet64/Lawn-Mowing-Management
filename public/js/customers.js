@@ -1,5 +1,5 @@
 import { listAll, createDoc, updateDocById, deleteDocById } from "./db.js";
-import { byId, escapeHtml } from "./utils.js";
+import { byId, escapeHtml, formatPhoneNumber } from "./utils.js";
 
 const COLLECTION = "customers";
 let cache = [];
@@ -89,7 +89,7 @@ async function handleSubmit(e) {
   const data = {
     name: byId("customer-name").value.trim(),
     address: byId("customer-address").value.trim(),
-    phone: byId("customer-phone").value.trim(),
+    phone: formatPhoneNumber(byId("customer-phone").value.trim()),
     email: byId("customer-email").value.trim(),
     frequency: byId("customer-frequency").value,
     notes: byId("customer-notes").value.trim(),
@@ -113,6 +113,9 @@ export function initCustomersView() {
     byId("cancel-customer-btn").addEventListener("click", closeForm);
     byId("customer-form").addEventListener("submit", handleSubmit);
     byId("delete-customer-btn").addEventListener("click", handleDelete);
+    byId("customer-phone").addEventListener("blur", () => {
+      byId("customer-phone").value = formatPhoneNumber(byId("customer-phone").value.trim());
+    });
     listenersBound = true;
   }
   return refreshCustomersView();
