@@ -69,8 +69,7 @@ function renderTable() {
         <td>${FEATURE_TYPE_LABELS[f.type] || f.type}</td>
         <td>${escapeHtml(f.notes || "")}</td>
         <td class="row-actions">
-          <button class="link-btn" data-edit="${f.id}">Edit</button>
-          <button class="link-btn danger" data-delete="${f.id}">Delete</button>
+          <button class="link-btn" data-edit="${f.id}">✏️ Edit</button>
         </td>
       </tr>`
     )
@@ -78,9 +77,6 @@ function renderTable() {
 
   body.querySelectorAll("[data-edit]").forEach((btn) =>
     btn.addEventListener("click", () => openForm(cache.find((f) => f.id === btn.dataset.edit)))
-  );
-  body.querySelectorAll("[data-delete]").forEach((btn) =>
-    btn.addEventListener("click", () => handleDelete(btn.dataset.delete))
   );
 }
 
@@ -110,6 +106,7 @@ function openForm(feature = null) {
   byId("feature-name").value = feature?.name || "";
   byId("feature-type").value = feature?.type || "plant";
   byId("feature-notes").value = feature?.notes || "";
+  byId("delete-feature-btn").classList.toggle("hidden", !feature);
 }
 
 function closeForm() {
@@ -117,9 +114,12 @@ function closeForm() {
   byId("feature-form").reset();
 }
 
-async function handleDelete(id) {
+async function handleDelete() {
+  const id = byId("feature-id").value;
+  if (!id) return;
   if (!confirm("Delete this yard feature?")) return;
   await deleteDocById(COLLECTION, id);
+  closeForm();
   await refreshYardFeaturesView();
 }
 
@@ -160,6 +160,7 @@ export function initYardFeaturesView() {
     });
     byId("cancel-feature-btn").addEventListener("click", closeForm);
     byId("feature-form").addEventListener("submit", handleSubmit);
+    byId("delete-feature-btn").addEventListener("click", handleDelete);
     byId("feature-customer").addEventListener("change", refreshLocationOptions);
     byId("feature-location").addEventListener("change", refreshAreaOptions);
     listenersBound = true;

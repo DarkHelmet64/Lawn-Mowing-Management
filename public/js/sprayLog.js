@@ -10,14 +10,6 @@ const COLLECTION = "sprayApplications";
 let cache = [];
 let listenersBound = false;
 
-const SURFACE_LABELS = {
-  driveway: "Driveway",
-  walkway: "Walkway / Sidewalk",
-  flowerbed: "Flowerbed",
-  lawn: "Lawn",
-  other: "Other",
-};
-
 const TARGET_LABELS = {
   weeds: "Weeds",
   insects: "Insects",
@@ -43,7 +35,6 @@ function renderTable() {
       <tr>
         <td>${formatDateDisplay(s.date)}</td>
         <td>${escapeHtml(getCustomerName(s.customerId))}</td>
-        <td>${SURFACE_LABELS[s.surface] || s.surface}</td>
         <td>${TARGET_LABELS[s.target] || s.target}</td>
         <td>${escapeHtml(s.product || "")}</td>
         <td>${escapeHtml(getLocationLabel(s.locationId) || "")}</td>
@@ -87,7 +78,6 @@ function openForm(spray = null) {
   byId("spray-id").value = spray?.id || "";
   byId("spray-customer").value = spray?.customerId || getCustomers()[0]?.id || "";
   byId("spray-date").value = spray?.date || todayStr();
-  byId("spray-surface").value = spray?.surface || "driveway";
   byId("spray-target").value = spray?.target || "weeds";
   byId("spray-product").value = spray?.product || "";
   byId("spray-equipment").value = spray?.equipmentId || "";
@@ -118,7 +108,6 @@ async function handleSubmit(e) {
   const data = {
     customerId: byId("spray-customer").value,
     date: byId("spray-date").value,
-    surface: byId("spray-surface").value,
     target: byId("spray-target").value,
     product: byId("spray-product").value.trim(),
     locationId: byId("spray-location").value || null,

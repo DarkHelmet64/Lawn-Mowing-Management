@@ -11,6 +11,7 @@ export const EQUIPMENT_TYPE_LABELS = {
   edger: "Edger",
   blower: "Blower",
   sprayer: "Sprayer",
+  blades: "Blades",
   other: "Other",
 };
 
@@ -126,8 +127,7 @@ function renderTable() {
         <td>${e.type === "mower" && e.bladeSpeeds?.length ? escapeHtml(e.bladeSpeeds.join(", ")) : ""}</td>
         <td><span class="badge ${e.active === false ? "badge-inactive" : "badge-active"}">${e.active === false ? "Inactive" : "Active"}</span></td>
         <td class="row-actions">
-          <button class="link-btn" data-edit="${e.id}">Edit</button>
-          <button class="link-btn danger" data-delete="${e.id}">Delete</button>
+          <button class="link-btn" data-edit="${e.id}">✏️ Edit</button>
         </td>
       </tr>`
     )
@@ -136,14 +136,22 @@ function renderTable() {
   body.querySelectorAll("[data-edit]").forEach((btn) =>
     btn.addEventListener("click", () => openForm(cache.find((e) => e.id === btn.dataset.edit)))
   );
-  body.querySelectorAll("[data-delete]").forEach((btn) =>
-    btn.addEventListener("click", () => handleDelete(btn.dataset.delete))
-  );
 }
 
 function updateMowerFieldsVisibility() {
   const isMower = byId("equipment-type").value === "mower";
   byId("equipment-mower-fields").classList.toggle("hidden", !isMower);
+}
+
+// Feeds the Brand/Purchased From datalists from whatever values have
+// already been used across other equipment records, so those fields work
+// as a "pick from what I've used before, or type something new" combo.
+function uniqueSortedValues(field) {
+  return [...new Set(cache.map((e) => e[field]).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+}
+
+function populateDatalist(datalistId, values) {
+  byId(datalistId).innerHTML = values.map((v) => `<option value="${escapeHtml(v)}"></option>`).join("");
 }
 
 function openForm(equipment = null) {
@@ -155,9 +163,17 @@ function openForm(equipment = null) {
   byId("equipment-deck-heights").value = equipment?.deckHeights?.join(", ") || "";
   byId("equipment-ground-speeds").value = equipment?.groundSpeeds?.join(", ") || "";
   byId("equipment-blade-speeds").value = equipment?.bladeSpeeds?.join(", ") || "";
+  populateDatalist("equipment-brand-options", uniqueSortedValues("brand"));
+  populateDatalist("equipment-purchased-from-options", uniqueSortedValues("purchasedFrom"));
+  byId("equipment-brand").value = equipment?.brand || "";
+  byId("equipment-model-number").value = equipment?.modelNumber || "";
+  byId("equipment-serial-number").value = equipment?.serialNumber || "";
+  byId("equipment-purchase-date").value = equipment?.purchaseDate || "";
+  byId("equipment-purchased-from").value = equipment?.purchasedFrom || "";
   byId("equipment-notes").value = equipment?.notes || "";
   byId("equipment-active").checked = equipment?.active !== false;
   updateMowerFieldsVisibility();
+  byId("delete-equipment-btn").classList.toggle("hidden", !equipment);
 }
 
 function closeForm() {
@@ -165,9 +181,12 @@ function closeForm() {
   byId("equipment-form").reset();
 }
 
-async function handleDelete(id) {
+async function handleDelete() {
+  const id = byId("equipment-id").value;
+  if (!id) return;
   if (!confirm("Delete this equipment record? This does not delete visits or tasks that reference it.")) return;
   await deleteDocById(COLLECTION, id);
+  closeForm();
   await refreshEquipmentView();
 }
 
@@ -182,6 +201,11 @@ async function handleSubmit(e) {
     deckHeights: isMower ? parseNumberList(byId("equipment-deck-heights").value) : [],
     groundSpeeds: isMower ? parseTextList(byId("equipment-ground-speeds").value) : [],
     bladeSpeeds: isMower ? parseTextList(byId("equipment-blade-speeds").value) : [],
+    brand: byId("equipment-brand").value.trim(),
+    modelNumber: byId("equipment-model-number").value.trim(),
+    serialNumber: byId("equipment-serial-number").value.trim(),
+    purchaseDate: byId("equipment-purchase-date").value || null,
+    purchasedFrom: byId("equipment-purchased-from").value.trim(),
     notes: byId("equipment-notes").value.trim(),
     active: byId("equipment-active").checked,
   };
@@ -202,6 +226,7 @@ export function initEquipmentView() {
     byId("add-equipment-btn").addEventListener("click", () => openForm());
     byId("cancel-equipment-btn").addEventListener("click", closeForm);
     byId("equipment-form").addEventListener("submit", handleSubmit);
+    byId("delete-equipment-btn").addEventListener("click", handleDelete);
     byId("equipment-type").addEventListener("change", updateMowerFieldsVisibility);
     listenersBound = true;
   }

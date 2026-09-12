@@ -1,5 +1,6 @@
 import { listAll, createDoc, updateDocById, deleteDocById } from "./db.js";
 import { byId, escapeHtml, formatPhoneNumber } from "./utils.js";
+import { wireAddressValidation } from "./addressValidation.js";
 
 const COLLECTION = "customers";
 let cache = [];
@@ -61,6 +62,8 @@ function openForm(customer = null) {
   byId("customer-id").value = customer?.id || "";
   byId("customer-name").value = customer?.name || "";
   byId("customer-address").value = customer?.address || "";
+  byId("customer-address-status").textContent = "";
+  byId("customer-contact-name").value = customer?.contactName || "";
   byId("customer-phone").value = customer?.phone || "";
   byId("customer-email").value = customer?.email || "";
   byId("customer-frequency").value = customer?.frequency || "weekly";
@@ -72,6 +75,7 @@ function openForm(customer = null) {
 function closeForm() {
   byId("customer-form-card").classList.add("hidden");
   byId("customer-form").reset();
+  byId("customer-address-status").textContent = "";
 }
 
 async function handleDelete() {
@@ -89,6 +93,7 @@ async function handleSubmit(e) {
   const data = {
     name: byId("customer-name").value.trim(),
     address: byId("customer-address").value.trim(),
+    contactName: byId("customer-contact-name").value.trim(),
     phone: formatPhoneNumber(byId("customer-phone").value.trim()),
     email: byId("customer-email").value.trim(),
     frequency: byId("customer-frequency").value,
@@ -115,6 +120,11 @@ export function initCustomersView() {
     byId("delete-customer-btn").addEventListener("click", handleDelete);
     byId("customer-phone").addEventListener("blur", () => {
       byId("customer-phone").value = formatPhoneNumber(byId("customer-phone").value.trim());
+    });
+    wireAddressValidation({
+      inputId: "customer-address",
+      buttonId: "customer-address-validate-btn",
+      statusId: "customer-address-status",
     });
     listenersBound = true;
   }

@@ -123,15 +123,6 @@
             </div>
 
             <div id="event-spray-fields" class="hidden">
-              <label>Surface
-                <select id="event-spray-surface">
-                  <option value="driveway">Driveway</option>
-                  <option value="walkway">Walkway / Sidewalk</option>
-                  <option value="flowerbed">Flowerbed</option>
-                  <option value="lawn">Lawn</option>
-                  <option value="other">Other</option>
-                </select>
-              </label>
               <label>Target
                 <select id="event-spray-target">
                   <option value="weeds">Weeds</option>
@@ -214,14 +205,24 @@
               <input type="text" id="customer-name" required />
             </label>
             <label>Address
-              <input type="text" id="customer-address" placeholder="123 Main St, Dayton, OH" />
+              <div class="input-with-button">
+                <input type="text" id="customer-address" placeholder="123 Main St, Dayton, OH" />
+                <button type="button" id="customer-address-validate-btn" class="ghost-btn">Validate</button>
+              </div>
             </label>
-            <label>Phone
-              <input type="tel" id="customer-phone" />
-            </label>
-            <label>Email
-              <input type="email" id="customer-email" />
-            </label>
+            <p id="customer-address-status" class="address-status"></p>
+            <div class="subsection">
+              <div class="subsection-header"><span>Primary Contact</span></div>
+              <label>Contact Name
+                <input type="text" id="customer-contact-name" placeholder="Defaults to customer name" />
+              </label>
+              <label>Phone
+                <input type="tel" id="customer-phone" />
+              </label>
+              <label>Email
+                <input type="email" id="customer-email" />
+              </label>
+            </div>
             <label>Service Frequency
               <select id="customer-frequency">
                 <option value="weekly">Weekly</option>
@@ -271,21 +272,34 @@
               <input type="checkbox" id="location-same-as-customer" /> Same as customer address
             </label>
             <label>Address
-              <input type="text" id="location-address" placeholder="123 Main St, Dayton, OH" />
+              <div class="input-with-button">
+                <input type="text" id="location-address" placeholder="123 Main St, Dayton, OH" />
+                <button type="button" id="location-address-validate-btn" class="ghost-btn">Validate</button>
+              </div>
             </label>
+            <p id="location-address-status" class="address-status"></p>
             <label>Notes
               <textarea id="location-notes" rows="2"></textarea>
             </label>
+            <div class="subsection">
+              <div class="subsection-header">
+                <span>Additional Contacts</span>
+                <button type="button" id="add-location-contact-btn" class="link-btn">+ Add Contact</button>
+              </div>
+              <p class="hint-text">People to reach for this property besides the customer - a tenant, property manager, etc.</p>
+              <div id="location-contacts-list"></div>
+            </div>
             <div class="form-actions">
               <button type="submit" class="primary-btn">Save</button>
               <button type="button" id="cancel-location-btn" class="ghost-btn">Cancel</button>
+              <button type="button" id="delete-location-btn" class="danger-btn hidden">Delete Location</button>
             </div>
           </form>
         </div>
         <div class="table-wrap">
           <table class="data-table">
             <thead>
-              <tr><th>Label</th><th>Customer</th><th>Address</th><th>Notes</th><th></th></tr>
+              <tr><th>Label</th><th>Customer</th><th>Address</th><th></th></tr>
             </thead>
             <tbody id="location-table-body"></tbody>
           </table>
@@ -306,8 +320,17 @@
             <label>Location
               <select id="area-location" required></select>
             </label>
+            <div id="area-quick-add" class="subsection">
+              <div class="subsection-header"><span>Quick Add Common Areas</span></div>
+              <div class="checkbox-row">
+                <label class="checkbox-label"><input type="checkbox" id="area-quick-front" /> Front Yard</label>
+                <label class="checkbox-label"><input type="checkbox" id="area-quick-back" /> Back Yard</label>
+                <label class="checkbox-label"><input type="checkbox" id="area-quick-flowerbed" /> Flower Bed</label>
+                <label class="checkbox-label"><input type="checkbox" id="area-quick-driveway" /> Driveway/Sidewalk</label>
+              </div>
+            </div>
             <label>Name
-              <input type="text" id="area-name" placeholder="e.g. Front Yard, Back Yard" required />
+              <input type="text" id="area-name" placeholder="e.g. Side Yard, Driveway" />
             </label>
             <label>Notes
               <textarea id="area-notes" rows="2"></textarea>
@@ -315,17 +338,11 @@
             <div class="form-actions">
               <button type="submit" class="primary-btn">Save</button>
               <button type="button" id="cancel-area-btn" class="ghost-btn">Cancel</button>
+              <button type="button" id="delete-area-btn" class="danger-btn hidden">Delete Area</button>
             </div>
           </form>
         </div>
-        <div class="table-wrap">
-          <table class="data-table">
-            <thead>
-              <tr><th>Name</th><th>Location</th><th>Notes</th><th></th></tr>
-            </thead>
-            <tbody id="area-table-body"></tbody>
-          </table>
-        </div>
+        <div id="area-tree" class="tree"></div>
 
         <div class="view-header">
           <h3>Equipment</h3>
@@ -345,6 +362,7 @@
                 <option value="edger">Edger</option>
                 <option value="blower">Blower</option>
                 <option value="sprayer">Sprayer</option>
+                <option value="blades">Blades</option>
                 <option value="other">Other</option>
               </select>
             </label>
@@ -359,6 +377,26 @@
                 <input type="text" id="equipment-blade-speeds" placeholder="e.g. Low, High" />
               </label>
             </div>
+            <div class="subsection">
+              <div class="subsection-header"><span>Purchase Details</span></div>
+              <label>Brand
+                <input type="text" id="equipment-brand" list="equipment-brand-options" placeholder="e.g. Toro, Stihl, Honda" />
+                <datalist id="equipment-brand-options"></datalist>
+              </label>
+              <label>Model Number
+                <input type="text" id="equipment-model-number" />
+              </label>
+              <label>Serial Number
+                <input type="text" id="equipment-serial-number" />
+              </label>
+              <label>Purchase Date
+                <input type="date" id="equipment-purchase-date" />
+              </label>
+              <label>Purchased From
+                <input type="text" id="equipment-purchased-from" list="equipment-purchased-from-options" placeholder="e.g. Home Depot, Local Dealer" />
+                <datalist id="equipment-purchased-from-options"></datalist>
+              </label>
+            </div>
             <label>Notes
               <textarea id="equipment-notes" rows="2"></textarea>
             </label>
@@ -368,6 +406,7 @@
             <div class="form-actions">
               <button type="submit" class="primary-btn">Save</button>
               <button type="button" id="cancel-equipment-btn" class="ghost-btn">Cancel</button>
+              <button type="button" id="delete-equipment-btn" class="danger-btn hidden">Delete Equipment</button>
             </div>
           </form>
         </div>
@@ -399,6 +438,7 @@
                 <option value="air_filter">Air Filter</option>
                 <option value="spark_plug">Spark Plug</option>
                 <option value="belt_cable">Belt / Cable</option>
+                <option value="tire_check">Check Tire Tread and Pressure</option>
                 <option value="general_service">General Service</option>
                 <option value="other">Other</option>
               </select>
@@ -415,8 +455,14 @@
             <div class="form-actions">
               <button type="submit" class="primary-btn">Save</button>
               <button type="button" id="cancel-task-btn" class="ghost-btn">Cancel</button>
+              <button type="button" id="delete-task-btn" class="danger-btn hidden">Delete Task</button>
             </div>
           </form>
+        </div>
+        <div class="filter-row">
+          <label>Filter by equipment type
+            <select id="task-filter-type"><option value="">All Types</option></select>
+          </label>
         </div>
         <div class="table-wrap">
           <table class="data-table">
@@ -463,6 +509,7 @@
             <div class="form-actions">
               <button type="submit" class="primary-btn">Save</button>
               <button type="button" id="cancel-feature-btn" class="ghost-btn">Cancel</button>
+              <button type="button" id="delete-feature-btn" class="danger-btn hidden">Delete Feature</button>
             </div>
           </form>
         </div>
@@ -599,15 +646,6 @@
             <label>Equipment Used
               <select id="spray-equipment"></select>
             </label>
-            <label>Surface
-              <select id="spray-surface">
-                <option value="driveway">Driveway</option>
-                <option value="walkway">Walkway / Sidewalk</option>
-                <option value="flowerbed">Flowerbed</option>
-                <option value="lawn">Lawn</option>
-                <option value="other">Other</option>
-              </select>
-            </label>
             <label>Target
               <select id="spray-target">
                 <option value="weeds">Weeds</option>
@@ -632,7 +670,7 @@
         <div class="table-wrap">
           <table class="data-table">
             <thead>
-              <tr><th>Date</th><th>Customer</th><th>Surface</th><th>Target</th><th>Product</th><th>Location</th><th>Area</th><th>Feature</th><th>Equipment</th><th></th></tr>
+              <tr><th>Date</th><th>Customer</th><th>Target</th><th>Product</th><th>Location</th><th>Area</th><th>Feature</th><th>Equipment</th><th></th></tr>
             </thead>
             <tbody id="spray-table-body"></tbody>
           </table>
