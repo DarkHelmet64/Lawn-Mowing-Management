@@ -1,7 +1,7 @@
 import { listAll, createDoc, updateDocById, deleteDocById } from "./db.js";
 import { byId, escapeHtml, todayStr, formatDateDisplay, YARD_AREA_LABELS } from "./utils.js";
 import { getCustomers, getCustomerName, populateCustomerSelect } from "./customers.js";
-import { populateEquipmentSelect, getEquipmentName, suggestedDeckHeight } from "./equipment.js";
+import { populateEquipmentSelect, getEquipmentName, populateDeckHeightSelect } from "./equipment.js";
 import { populateYardFeatureSelect, getYardFeatureName } from "./yardFeatures.js";
 
 const COLLECTION = "mowVisits";
@@ -77,7 +77,7 @@ function openForm(visit = null) {
   byId("visit-pruned").checked = visit?.pruned ?? false;
   byId("visit-trimmed-bushes").checked = visit?.trimmedBushes ?? false;
   byId("visit-pattern").value = visit?.pattern || "parallel";
-  byId("visit-height").value = visit?.deckHeight ?? "";
+  populateDeckHeightSelect(byId("visit-height"), visit?.equipmentId || "", visit?.deckHeight ?? null);
   byId("visit-yard-area").value = visit?.yardArea || "";
   byId("visit-equipment").value = visit?.equipmentId || "";
   byId("visit-notes").value = visit?.notes || "";
@@ -140,8 +140,7 @@ export function initMowLogView() {
     byId("visit-filter-customer").addEventListener("change", renderTable);
     byId("visit-customer").addEventListener("change", refreshFeatureOptions);
     byId("visit-equipment").addEventListener("change", () => {
-      const suggested = suggestedDeckHeight(byId("visit-equipment").value);
-      if (suggested != null) byId("visit-height").value = suggested;
+      populateDeckHeightSelect(byId("visit-height"), byId("visit-equipment").value);
     });
     document.addEventListener("customers:changed", () => {
       populateCustomerSelect(byId("visit-filter-customer"), { includeAll: true });

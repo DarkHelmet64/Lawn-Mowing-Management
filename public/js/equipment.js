@@ -31,11 +31,12 @@ export function getEquipmentName(id) {
   return getEquipmentById(id)?.name || null;
 }
 
-// Returns the equipment's stored deck height if it's a mower with one set,
-// otherwise null - used to auto-fill a visit's deck height field.
-export function suggestedDeckHeight(equipmentId) {
-  const eq = getEquipmentById(equipmentId);
-  return eq && eq.type === "mower" && eq.deckHeight != null ? eq.deckHeight : null;
+function parseDeckHeights(raw) {
+  const values = raw
+    .split(",")
+    .map((s) => Number(s.trim()))
+    .filter((n) => !Number.isNaN(n));
+  return [...new Set(values)].sort((a, b) => a - b);
 }
 
 export function populateEquipmentSelect(selectEl, { includeNone = true } = {}) {
@@ -56,6 +57,32 @@ export function populateEquipmentSelect(selectEl, { includeNone = true } = {}) {
   if (current) selectEl.value = current;
 }
 
+// Populates a deck-height <select> with the chosen mower's configured
+// height settings. currentValue (if given) is preserved as an option even
+// if it's not one of the mower's current settings, so editing an older
+// visit doesn't silently lose its recorded height.
+export function populateDeckHeightSelect(selectEl, equipmentId, currentValue = null) {
+  const eq = getEquipmentById(equipmentId);
+  const isMower = eq?.type === "mower";
+  const heights = new Set(isMower ? eq.deckHeights || [] : []);
+  if (currentValue != null) heights.add(currentValue);
+  const sorted = [...heights].sort((a, b) => a - b);
+
+  selectEl.innerHTML = "";
+  const blank = document.createElement("option");
+  blank.value = "";
+  blank.textContent = !eq ? "Select equipment first" : !isMower ? "Not applicable" : sorted.length ? "Select height" : "No heights configured";
+  selectEl.appendChild(blank);
+  for (const h of sorted) {
+    const opt = document.createElement("option");
+    opt.value = String(h);
+    opt.textContent = `${h}"`;
+    selectEl.appendChild(opt);
+  }
+  selectEl.value = currentValue != null ? String(currentValue) : "";
+  selectEl.disabled = !isMower;
+}
+
 function renderTable() {
   const body = byId("equipment-table-body");
   body.innerHTML = cache
@@ -64,7 +91,7 @@ function renderTable() {
       <tr>
         <td>${escapeHtml(e.name)}</td>
         <td>${EQUIPMENT_TYPE_LABELS[e.type] || e.type}</td>
-        <td>${e.type === "mower" && e.deckHeight != null ? e.deckHeight : ""}</td>
+        <td>${e.type === "mower" && e.deckHeights?.length ? e.deckHeights.map((h) => `${h}"`).join(", ") : ""}</td>
         <td><span class="badge ${e.active === false ? "badge-inactive" : "badge-active"}">${e.active === false ? "Inactive" : "Active"}</span></td>
         <td class="row-actions">
           <button class="link-btn" data-edit="${e.id}">Edit</button>
@@ -93,7 +120,7 @@ function openForm(equipment = null) {
   byId("equipment-id").value = equipment?.id || "";
   byId("equipment-name").value = equipment?.name || "";
   byId("equipment-type").value = equipment?.type || "mower";
-  byId("equipment-deck-height").value = equipment?.deckHeight ?? "";
+  byId("equipment-deck-heights").value = equipment?.deckHeights?.join(", ") || "";
   byId("equipment-notes").value = equipment?.notes || "";
   byId("equipment-active").checked = equipment?.active !== false;
   updateDeckHeightVisibility();
@@ -117,7 +144,7 @@ async function handleSubmit(e) {
   const data = {
     name: byId("equipment-name").value.trim(),
     type,
-    deckHeight: type === "mower" && byId("equipment-deck-height").value ? Number(byId("equipment-deck-height").value) : null,
+    deckHeights: type === "mower" ? parseDeckHeights(byId("equipment-deck-heights").value) : [],
     notes: byId("equipment-notes").value.trim(),
     active: byId("equipment-active").checked,
   };
