@@ -137,10 +137,6 @@ function renderTable() {
       <tr>
         <td>${escapeHtml(e.name)}</td>
         <td>${EQUIPMENT_TYPE_LABELS[e.type] || e.type}</td>
-        <td>${e.type === "mower" && e.deckHeights?.length ? e.deckHeights.map((h) => `${h}"`).join(", ") : ""}</td>
-        <td>${e.type === "mower" && e.groundSpeeds?.length ? escapeHtml(e.groundSpeeds.join(", ")) : ""}</td>
-        <td>${e.type === "mower" && e.bladeSpeeds?.length ? escapeHtml(e.bladeSpeeds.join(", ")) : ""}</td>
-        <td><span class="badge ${e.active === false ? "badge-inactive" : "badge-active"}">${e.active === false ? "Inactive" : "Active"}</span></td>
         <td class="row-actions">
           <button class="link-btn" data-edit="${e.id}">✏️ Edit</button>
         </td>
