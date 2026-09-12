@@ -1,6 +1,6 @@
 import { listAll, createDoc, updateDocById, deleteDocById } from "./db.js";
 import { byId, escapeHtml, todayStr, formatDateDisplay } from "./utils.js";
-import { getEquipment, getEquipmentName, populateEquipmentSelect } from "./equipment.js";
+import { getEquipment, getEquipmentById, getEquipmentName, populateEquipmentSelect, EQUIPMENT_TYPE_LABELS } from "./equipment.js";
 
 const COLLECTION = "maintenanceTasks";
 let cache = [];
@@ -13,6 +13,7 @@ const TASK_LABELS = {
   air_filter: "Air Filter",
   spark_plug: "Spark Plug",
   belt_cable: "Belt / Cable",
+  tire_check: "Check Tire Tread and Pressure",
   general_service: "General Service",
   other: "Other",
 };
@@ -26,9 +27,24 @@ export function getTasks() {
   return cache;
 }
 
+function populateTypeFilterOptions() {
+  const select = byId("task-filter-type");
+  const current = select.value;
+  select.innerHTML = '<option value="">All Types</option>';
+  for (const [value, label] of Object.entries(EQUIPMENT_TYPE_LABELS)) {
+    const opt = document.createElement("option");
+    opt.value = value;
+    opt.textContent = label;
+    select.appendChild(opt);
+  }
+  if (current) select.value = current;
+}
+
 function renderTable() {
+  const typeFilter = byId("task-filter-type").value;
   const body = byId("task-table-body");
   body.innerHTML = cache
+    .filter((t) => !typeFilter || getEquipmentById(t.equipmentId)?.type === typeFilter)
     .map(
       (t) => `
       <tr>
@@ -38,8 +54,7 @@ function renderTable() {
         <td>${t.hours ?? ""}</td>
         <td>${escapeHtml(t.notes || "")}</td>
         <td class="row-actions">
-          <button class="link-btn" data-edit="${t.id}">Edit</button>
-          <button class="link-btn danger" data-delete="${t.id}">Delete</button>
+          <button class="link-btn" data-edit="${t.id}">✏️ Edit</button>
         </td>
       </tr>`
     )
@@ -47,9 +62,6 @@ function renderTable() {
 
   body.querySelectorAll("[data-edit]").forEach((btn) =>
     btn.addEventListener("click", () => openForm(cache.find((t) => t.id === btn.dataset.edit)))
-  );
-  body.querySelectorAll("[data-delete]").forEach((btn) =>
-    btn.addEventListener("click", () => handleDelete(btn.dataset.delete))
   );
 }
 
@@ -62,6 +74,7 @@ function openForm(task = null) {
   byId("task-date").value = task?.date || todayStr();
   byId("task-hours").value = task?.hours ?? "";
   byId("task-notes").value = task?.notes || "";
+  byId("delete-task-btn").classList.toggle("hidden", !task);
 }
 
 function closeForm() {
@@ -69,9 +82,12 @@ function closeForm() {
   byId("task-form").reset();
 }
 
-async function handleDelete(id) {
+async function handleDelete() {
+  const id = byId("task-id").value;
+  if (!id) return;
   if (!confirm("Delete this maintenance record?")) return;
   await deleteDocById(COLLECTION, id);
+  closeForm();
   await refreshMaintenanceView();
 }
 
@@ -93,6 +109,7 @@ async function handleSubmit(e) {
 
 export async function refreshMaintenanceView() {
   await loadTasks();
+  populateTypeFilterOptions();
   renderTable();
 }
 
@@ -107,6 +124,8 @@ export function initMaintenanceView() {
     });
     byId("cancel-task-btn").addEventListener("click", closeForm);
     byId("task-form").addEventListener("submit", handleSubmit);
+    byId("delete-task-btn").addEventListener("click", handleDelete);
+    byId("task-filter-type").addEventListener("change", renderTable);
     listenersBound = true;
   }
   return refreshMaintenanceView();

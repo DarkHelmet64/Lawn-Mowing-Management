@@ -1,6 +1,7 @@
 import { listAll, createDoc, updateDocById, deleteDocById } from "./db.js";
-import { byId, escapeHtml } from "./utils.js";
+import { byId, escapeHtml, formatPhoneNumber } from "./utils.js";
 import { getCustomers, getCustomerName, populateCustomerSelect } from "./customers.js";
+import { wireAddressValidation } from "./addressValidation.js";
 
 const COLLECTION = "locations";
 let cache = [];
@@ -44,6 +45,11 @@ export function populateLocationSelect(selectEl, customerId, { includeNone = tru
   }
 }
 
+function contactsSummary(contacts) {
+  if (!contacts?.length) return "";
+  return contacts.map((c) => c.name || c.phone || c.email).filter(Boolean).join(", ");
+}
+
 function renderTable() {
   const body = byId("location-table-body");
   body.innerHTML = cache
@@ -53,10 +59,10 @@ function renderTable() {
         <td>${escapeHtml(l.label)}</td>
         <td>${escapeHtml(getCustomerName(l.customerId))}</td>
         <td>${escapeHtml(l.address || "")}</td>
+        <td>${escapeHtml(contactsSummary(l.contacts))}</td>
         <td>${escapeHtml(l.notes || "")}</td>
         <td class="row-actions">
-          <button class="link-btn" data-edit="${l.id}">Edit</button>
-          <button class="link-btn danger" data-delete="${l.id}">Delete</button>
+          <button class="link-btn" data-edit="${l.id}">✏️ Edit</button>
         </td>
       </tr>`
     )
@@ -65,13 +71,49 @@ function renderTable() {
   body.querySelectorAll("[data-edit]").forEach((btn) =>
     btn.addEventListener("click", () => openForm(cache.find((l) => l.id === btn.dataset.edit)))
   );
-  body.querySelectorAll("[data-delete]").forEach((btn) =>
-    btn.addEventListener("click", () => handleDelete(btn.dataset.delete))
-  );
 }
 
 function customerAddress(customerId) {
   return getCustomers().find((c) => c.id === customerId)?.address || "";
+}
+
+function collectContactsFromDOM() {
+  return [...byId("location-contacts-list").querySelectorAll("[data-contact-row]")].map((row) => ({
+    name: row.querySelector(".contact-name").value,
+    phone: row.querySelector(".contact-phone").value,
+    email: row.querySelector(".contact-email").value,
+    notes: row.querySelector(".contact-notes").value,
+  }));
+}
+
+function renderContactRows(contacts) {
+  const list = byId("location-contacts-list");
+  list.innerHTML = contacts
+    .map(
+      (c) => `
+      <div class="contact-row" data-contact-row>
+        <input type="text" class="contact-name" placeholder="Name" value="${escapeHtml(c.name || "")}" />
+        <input type="tel" class="contact-phone" placeholder="Phone" value="${escapeHtml(c.phone || "")}" />
+        <input type="email" class="contact-email" placeholder="Email" value="${escapeHtml(c.email || "")}" />
+        <input type="text" class="contact-notes" placeholder="e.g. Tenant" value="${escapeHtml(c.notes || "")}" />
+        <button type="button" class="link-btn danger" data-remove-contact>✕</button>
+      </div>`
+    )
+    .join("");
+
+  list.querySelectorAll(".contact-phone").forEach((input) =>
+    input.addEventListener("blur", () => {
+      input.value = formatPhoneNumber(input.value.trim());
+    })
+  );
+  list.querySelectorAll("[data-remove-contact]").forEach((btn) =>
+    btn.addEventListener("click", () => {
+      const contacts = collectContactsFromDOM();
+      const row = btn.closest("[data-contact-row]");
+      contacts.splice([...list.children].indexOf(row), 1);
+      renderContactRows(contacts);
+    })
+  );
 }
 
 function openForm(location = null) {
@@ -87,28 +129,44 @@ function openForm(location = null) {
   byId("location-same-as-customer").checked = sameAsCustomer;
   byId("location-address").value = sameAsCustomer ? customerAddress(customerId) : location?.address || "";
   byId("location-address").disabled = sameAsCustomer;
+  byId("location-address-status").textContent = "";
+  renderContactRows(location?.contacts || []);
+  byId("delete-location-btn").classList.toggle("hidden", !location);
 }
 
 function closeForm() {
   byId("location-form-card").classList.add("hidden");
   byId("location-form").reset();
   byId("location-address").disabled = false;
+  byId("location-address-status").textContent = "";
 }
 
-async function handleDelete(id) {
+async function handleDelete() {
+  const id = byId("location-id").value;
+  if (!id) return;
   if (!confirm("Delete this location? Areas and yard features under it will be orphaned, not deleted.")) return;
   await deleteDocById(COLLECTION, id);
+  closeForm();
   await refreshLocationsView();
 }
 
 async function handleSubmit(e) {
   e.preventDefault();
   const id = byId("location-id").value;
+  const contacts = collectContactsFromDOM()
+    .map((c) => ({
+      name: c.name.trim(),
+      phone: formatPhoneNumber(c.phone.trim()),
+      email: c.email.trim(),
+      notes: c.notes.trim(),
+    }))
+    .filter((c) => c.name || c.phone || c.email || c.notes);
   const data = {
     customerId: byId("location-customer").value,
     label: byId("location-label").value.trim(),
     address: byId("location-address").value.trim(),
     sameAsCustomerAddress: byId("location-same-as-customer").checked,
+    contacts,
     notes: byId("location-notes").value.trim(),
   };
   if (id) await updateDocById(COLLECTION, id, data);
@@ -134,6 +192,7 @@ export function initLocationsView() {
     });
     byId("cancel-location-btn").addEventListener("click", closeForm);
     byId("location-form").addEventListener("submit", handleSubmit);
+    byId("delete-location-btn").addEventListener("click", handleDelete);
     byId("location-same-as-customer").addEventListener("change", () => {
       const checked = byId("location-same-as-customer").checked;
       byId("location-address").disabled = checked;
@@ -145,6 +204,16 @@ export function initLocationsView() {
       if (byId("location-same-as-customer").checked) {
         byId("location-address").value = customerAddress(byId("location-customer").value);
       }
+    });
+    byId("add-location-contact-btn").addEventListener("click", () => {
+      const contacts = collectContactsFromDOM();
+      contacts.push({});
+      renderContactRows(contacts);
+    });
+    wireAddressValidation({
+      inputId: "location-address",
+      buttonId: "location-address-validate-btn",
+      statusId: "location-address-status",
     });
     listenersBound = true;
   }

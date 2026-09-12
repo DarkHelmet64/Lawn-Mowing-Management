@@ -34,20 +34,29 @@ API in the browser and cached in Firestore.
 - **Spray Log** — records whether you sprayed weeds (or other targets) on
   a driveway, walkway, flowerbed, or the lawn itself, which product,
   equipment, location/area, and plant/object it applied to, and notes.
-- **Settings** — customer records; **locations** (a customer's properties -
-  most have one, but a customer with a rental or second property can have
-  more) with their own **areas** (Front Yard, Back Yard, or whatever
-  subdivisions make sense for that property); **yard features** (plants,
-  trees, shrubs, or other objects worth tracking within a specific area,
-  like "rose bushes by the mailbox" in the Front Yard); an **equipment**
-  registry (mowers, trimmers, edgers, blowers, sprayers - mowers store
-  their available deck height, ground speed, and blade speed settings, e.g.
-  deck heights of 2", 2.5", 3", ground speeds of 1-5, blade speeds of
-  Low/High; picking that mower elsewhere turns each of those fields into a
-  select limited to its settings); and equipment maintenance tasks (blade
-  sharpening, oil changes, etc., tied to a specific piece of equipment).
-  All of this lives in Settings since it's set-up/upkeep rather than
-  day-to-day logging.
+- **Settings** — customer records, each with a **primary contact** (name,
+  phone, email — the phone auto-formats to `(XXX) XXX-XXXX`) and an address
+  you can validate against real US postal data with one click; **locations**
+  (a customer's properties - most have one, but a customer with a rental or
+  second property can have more), each with its own address (or "same as
+  customer address"), validated the same way, and any **additional
+  contacts** for that property (a tenant, property manager, etc. — separate
+  from the customer's primary contact) with their own **areas** (Front
+  Yard, Back Yard, or whatever subdivisions make sense for that property);
+  **yard features** (plants, trees, shrubs, or other objects worth tracking
+  within a specific area, like "rose bushes by the mailbox" in the Front
+  Yard); an **equipment** registry (mowers, trimmers, edgers, blowers,
+  sprayers, spare blades - mowers store their available deck height, ground
+  speed, and blade speed settings, e.g. deck heights of 2", 2.5", 3",
+  ground speeds of 1-5, blade speeds of Low/High; picking that mower
+  elsewhere turns each of those fields into a select limited to its
+  settings; each piece of equipment can also record its brand, model
+  number, serial number, purchase date, and where it was purchased from -
+  Brand and Purchased From offer a dropdown of values you've used before
+  but still accept a new one); and equipment maintenance tasks (blade
+  sharpening, tire checks, oil changes, etc., tied to a specific piece of
+  equipment, filterable by equipment type). All of this lives in Settings
+  since it's set-up/upkeep rather than day-to-day logging.
 - **Weather & Growth Potential** — daily high/low temps and precipitation
   for Dayton, OH, a turfgrass Growth Potential (GP) score (0-100%, how fast
   the grass is growing today), and a weekly rainfall chart.
@@ -63,6 +72,7 @@ API in the browser and cached in Firestore.
 - Plain HTML/CSS/JavaScript (ES modules), no build step required.
 - [Firebase](https://firebase.google.com/) Hosting, Firestore, and Authentication (Email/Password).
 - [Open-Meteo](https://open-meteo.com/) forecast + historical archive APIs for weather (no API key needed).
+- [US Census Bureau Geocoder](https://geocoding.geo.census.gov/) for the "Validate" button on customer/location addresses (no API key needed; US addresses only).
 
 ## Firebase project setup
 
@@ -181,8 +191,8 @@ Yard at the Smiths' rental property" instead of just "pruned."
 
 | Collection | Purpose |
 |---|---|
-| `customers` | Customer/property records |
-| `locations` | A customer's properties/addresses (usually one per customer) |
+| `customers` | Customer records, with a primary contact (name/phone/email) and address |
+| `locations` | A customer's properties/addresses (usually one per customer), with any additional contacts for that property |
 | `areas` | Subdivisions of a location (Front Yard, Back Yard, etc.) |
 | `yardFeatures` | Plants/trees/shrubs/objects worth tracking, one per area |
 | `mowVisits` | Yard-work visit log entries (mow/trim/edge/prune/bush-trim flags, pattern, deck height, ground speed, blade speed, time of day, grass condition, location, area, equipment, feature) |

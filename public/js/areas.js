@@ -1,11 +1,18 @@
 import { listAll, createDoc, updateDocById, deleteDocById } from "./db.js";
 import { byId, escapeHtml } from "./utils.js";
 import { getCustomers, getCustomerName, populateCustomerSelect } from "./customers.js";
-import { getLocations, getLocationsForCustomer, getLocationLabel, populateLocationSelect } from "./locations.js";
+import { getLocations, populateLocationSelect } from "./locations.js";
 
 const COLLECTION = "areas";
 let cache = [];
 let listenersBound = false;
+let expandedLocationIds = new Set();
+
+const QUICK_ADD_OPTIONS = [
+  { id: "area-quick-front", name: "Front Yard" },
+  { id: "area-quick-back", name: "Back Yard" },
+  { id: "area-quick-flowerbed", name: "Flower Bed" },
+];
 
 export async function loadAreas() {
   cache = await listAll(COLLECTION, { orderByField: "name", direction: "asc" });
@@ -45,34 +52,61 @@ export function populateAreaSelect(selectEl, locationId, { includeNone = true } 
   }
 }
 
-function locationContext(locationId) {
-  const loc = getLocations().find((l) => l.id === locationId);
-  if (!loc) return "";
-  return `${loc.label} (${getCustomerName(loc.customerId)})`;
+function sortedLocations() {
+  return [...getLocations()].sort((a, b) => {
+    const ca = getCustomerName(a.customerId);
+    const cb = getCustomerName(b.customerId);
+    if (ca !== cb) return ca < cb ? -1 : 1;
+    return a.label < b.label ? -1 : a.label > b.label ? 1 : 0;
+  });
 }
 
-function renderTable() {
-  const body = byId("area-table-body");
-  body.innerHTML = cache
-    .map(
-      (a) => `
-      <tr>
-        <td>${escapeHtml(a.name)}</td>
-        <td>${escapeHtml(locationContext(a.locationId))}</td>
-        <td>${escapeHtml(a.notes || "")}</td>
-        <td class="row-actions">
-          <button class="link-btn" data-edit="${a.id}">Edit</button>
-          <button class="link-btn danger" data-delete="${a.id}">Delete</button>
-        </td>
-      </tr>`
-    )
-    .join("");
+function toggleLocation(locationId) {
+  if (expandedLocationIds.has(locationId)) expandedLocationIds.delete(locationId);
+  else expandedLocationIds.add(locationId);
+  renderTree();
+}
 
-  body.querySelectorAll("[data-edit]").forEach((btn) =>
-    btn.addEventListener("click", () => openForm(cache.find((a) => a.id === btn.dataset.edit)))
+function renderTree() {
+  const container = byId("area-tree");
+  const locations = sortedLocations();
+
+  container.innerHTML =
+    locations
+      .map((loc) => {
+        const areasForLoc = getAreasForLocation(loc.id);
+        const expanded = expandedLocationIds.has(loc.id);
+        const rows = areasForLoc.length
+          ? areasForLoc
+              .map(
+                (a) => `
+                <div class="tree-row">
+                  <span class="tree-row-name">${escapeHtml(a.name)}</span>
+                  <span class="tree-row-notes">${escapeHtml(a.notes || "")}</span>
+                  <span class="row-actions">
+                    <button class="link-btn" data-edit="${a.id}">✏️ Edit</button>
+                  </span>
+                </div>`
+              )
+              .join("")
+          : `<p class="hint-text tree-empty">No areas yet.</p>`;
+        return `
+          <div class="tree-group">
+            <button type="button" class="tree-header" data-toggle-location="${loc.id}">
+              <span class="tree-toggle-icon">${expanded ? "▾" : "▸"}</span>
+              <span class="tree-title">${escapeHtml(loc.label)} <span class="hint-text">(${escapeHtml(getCustomerName(loc.customerId))})</span></span>
+              <span class="badge badge-inactive">${areasForLoc.length} area${areasForLoc.length === 1 ? "" : "s"}</span>
+            </button>
+            <div class="tree-body ${expanded ? "" : "hidden"}">${rows}</div>
+          </div>`;
+      })
+      .join("") || `<p class="hint-text">Add a location first.</p>`;
+
+  container.querySelectorAll("[data-toggle-location]").forEach((btn) =>
+    btn.addEventListener("click", () => toggleLocation(btn.dataset.toggleLocation))
   );
-  body.querySelectorAll("[data-delete]").forEach((btn) =>
-    btn.addEventListener("click", () => handleDelete(btn.dataset.delete))
+  container.querySelectorAll("[data-edit]").forEach((btn) =>
+    btn.addEventListener("click", () => openForm(cache.find((a) => a.id === btn.dataset.edit)))
   );
 }
 
@@ -91,6 +125,8 @@ function openForm(area = null) {
   byId("area-location").value = area?.locationId || "";
   byId("area-name").value = area?.name || "";
   byId("area-notes").value = area?.notes || "";
+  byId("delete-area-btn").classList.toggle("hidden", !area);
+  byId("area-quick-add").classList.toggle("hidden", !!area);
 }
 
 function closeForm() {
@@ -98,9 +134,12 @@ function closeForm() {
   byId("area-form").reset();
 }
 
-async function handleDelete(id) {
+async function handleDelete() {
+  const id = byId("area-id").value;
+  if (!id) return;
   if (!confirm("Delete this area? Yard features under it will be orphaned, not deleted.")) return;
   await deleteDocById(COLLECTION, id);
+  closeForm();
   await refreshAreasView();
 }
 
@@ -112,20 +151,44 @@ async function handleSubmit(e) {
     alert("Select a location for this area.");
     return;
   }
-  const data = {
-    locationId,
-    name: byId("area-name").value.trim(),
-    notes: byId("area-notes").value.trim(),
-  };
-  if (id) await updateDocById(COLLECTION, id, data);
-  else await createDoc(COLLECTION, data);
+  const notes = byId("area-notes").value.trim();
+  const customName = byId("area-name").value.trim();
+
+  if (id) {
+    if (!customName) {
+      alert("Enter a name for this area.");
+      return;
+    }
+    await updateDocById(COLLECTION, id, { locationId, name: customName, notes });
+    expandedLocationIds.add(locationId);
+    closeForm();
+    await refreshAreasView();
+    return;
+  }
+
+  const names = QUICK_ADD_OPTIONS.filter((opt) => byId(opt.id).checked).map((opt) => opt.name);
+  if (customName) names.push(customName);
+  if (!names.length) {
+    alert("Enter a name or check at least one common area.");
+    return;
+  }
+  const existingNames = new Set(getAreasForLocation(locationId).map((a) => a.name.toLowerCase()));
+  const newNames = [...new Set(names)].filter((n) => !existingNames.has(n.toLowerCase()));
+  if (!newNames.length) {
+    alert("Those areas already exist for this location.");
+    return;
+  }
+  for (const name of newNames) {
+    await createDoc(COLLECTION, { locationId, name, notes });
+  }
+  expandedLocationIds.add(locationId);
   closeForm();
   await refreshAreasView();
 }
 
 export async function refreshAreasView() {
   await loadAreas();
-  renderTable();
+  renderTree();
   document.dispatchEvent(new CustomEvent("areas:changed"));
 }
 
@@ -140,7 +203,9 @@ export function initAreasView() {
     });
     byId("cancel-area-btn").addEventListener("click", closeForm);
     byId("area-form").addEventListener("submit", handleSubmit);
+    byId("delete-area-btn").addEventListener("click", handleDelete);
     byId("area-customer").addEventListener("change", refreshLocationOptions);
+    document.addEventListener("locations:changed", () => renderTree());
     listenersBound = true;
   }
   return refreshAreasView();
