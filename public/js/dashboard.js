@@ -10,6 +10,13 @@ import { renderLineChart, renderBarChart } from "./charts.js";
 import { byId, formatDateDisplay, todayStr } from "./utils.js";
 
 export async function refreshDashboard() {
+  byId("stat-customer-count").textContent = String(getCustomers().length);
+  renderRecentActivity();
+  byId("ready-to-mow-list").innerHTML = "<li>Loading…</li>";
+  refreshWeatherStats().catch((err) => console.error("Failed to refresh weather-dependent dashboard stats", err));
+}
+
+async function refreshWeatherStats() {
   const { days, series } = await refreshWeatherView();
   const settings = await getSettings();
   const today = series[series.length - 1];
@@ -19,7 +26,6 @@ export async function refreshDashboard() {
   byId("stat-today-gp").textContent = today ? `${(today.gp * 100).toFixed(0)}%` : "–";
   byId("stat-avg-gp").textContent = recent.length ? `${(avgRecentGP * 100).toFixed(0)}%` : "–";
   byId("stat-weekly-rain").textContent = `${last7DaysRainfall(days, todayStr()).toFixed(2)}"`;
-  byId("stat-customer-count").textContent = String(getCustomers().length);
 
   renderLineChart(
     byId("chart-gp"),
@@ -40,8 +46,6 @@ export async function refreshDashboard() {
   byId("stat-ready-to-mow").textContent = String(
     [...mowStatus.values()].filter((s) => s.ready).length
   );
-
-  renderRecentActivity();
 }
 
 function renderReadyToMow(mowStatus) {
