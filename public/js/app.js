@@ -7,7 +7,7 @@ import { loadSprays, initSprayLogView, refreshSprayLogView } from "./sprayLog.js
 import { loadTasks, initMaintenanceView, refreshMaintenanceView } from "./maintenance.js";
 import { loadEquipment, initEquipmentView, refreshEquipmentView } from "./equipment.js";
 import { loadYardFeatures, initYardFeaturesView, refreshYardFeaturesView } from "./yardFeatures.js";
-import { initWeatherView } from "./weatherView.js";
+import { initWeatherView, startBackgroundWeatherSync } from "./weatherView.js";
 import { refreshDashboard } from "./dashboard.js";
 import { initEventLogView } from "./eventLog.js";
 
@@ -30,7 +30,12 @@ async function showApp() {
   await Promise.all([loadCustomers(), loadVisits(), loadSprays(), loadTasks(), loadEquipment(), loadYardFeatures()]);
   initEventLogView();
   document.addEventListener("event:logged", () => refreshDashboard());
+  document.addEventListener("weather:synced", () => {
+    refreshDashboard();
+    if (initializedViews.has("settings")) refreshCustomersView();
+  });
   initView("dashboard");
+  startBackgroundWeatherSync();
 }
 
 function initView(view) {
