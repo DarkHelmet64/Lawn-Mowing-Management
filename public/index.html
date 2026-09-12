@@ -36,7 +36,7 @@
         <button data-view="mow-log" class="nav-btn">Mow / Trim / Edge</button>
         <button data-view="spray-log" class="nav-btn">Spray Log</button>
         <button data-view="maintenance" class="nav-btn">Equipment</button>
-        <button data-view="weather" class="nav-btn">Weather &amp; GDD</button>
+        <button data-view="weather" class="nav-btn">Weather &amp; Growth</button>
       </nav>
       <button id="logout-btn" class="ghost-btn">Sign Out</button>
     </header>
@@ -46,16 +46,20 @@
         <h2>Dashboard</h2>
         <div class="stat-grid">
           <div class="stat-card">
-            <span class="stat-label">Today's GDD</span>
-            <span class="stat-value" id="stat-daily-gdd">–</span>
+            <span class="stat-label">Today's Growth Potential</span>
+            <span class="stat-value" id="stat-today-gp">–</span>
           </div>
           <div class="stat-card">
-            <span class="stat-label">Season Cumulative GDD</span>
-            <span class="stat-value" id="stat-cumulative-gdd">–</span>
+            <span class="stat-label">7-Day Avg Growth Potential</span>
+            <span class="stat-value" id="stat-avg-gp">–</span>
           </div>
           <div class="stat-card">
             <span class="stat-label">Rainfall (Last 7 Days)</span>
             <span class="stat-value" id="stat-weekly-rain">–</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Ready to Mow</span>
+            <span class="stat-value" id="stat-ready-to-mow">–</span>
           </div>
           <div class="stat-card">
             <span class="stat-label">Customers</span>
@@ -64,8 +68,13 @@
         </div>
 
         <div class="card">
-          <h3>Season GDD Accumulation</h3>
-          <svg id="chart-gdd" class="chart" viewBox="0 0 600 220" preserveAspectRatio="none"></svg>
+          <h3>Ready to Mow</h3>
+          <ul id="ready-to-mow-list" class="activity-list"></ul>
+        </div>
+
+        <div class="card">
+          <h3>Growth Potential Over the Season</h3>
+          <svg id="chart-gp" class="chart" viewBox="0 0 600 220" preserveAspectRatio="none"></svg>
         </div>
 
         <div class="card">
@@ -123,7 +132,7 @@
         <div class="table-wrap">
           <table class="data-table">
             <thead>
-              <tr><th>Name</th><th>Address</th><th>Frequency</th><th>Status</th><th></th></tr>
+              <tr><th>Name</th><th>Address</th><th>Frequency</th><th>Status</th><th>Last Mowed</th><th>Mow Status</th><th></th></tr>
             </thead>
             <tbody id="customer-table-body"></tbody>
           </table>
@@ -295,23 +304,31 @@
 
       <section id="view-weather" class="view">
         <div class="view-header">
-          <h2>Weather &amp; Growing Degree Days</h2>
+          <h2>Weather &amp; Growth Potential</h2>
           <button id="refresh-weather-btn" class="primary-btn">Refresh Weather Data</button>
         </div>
         <div class="settings-row card">
-          <label>GDD Base Temp (°F)
-            <input type="number" id="gdd-base-temp" value="50" min="0" max="70" />
+          <label>Grass Type
+            <select id="grass-type">
+              <option value="cool">Cool-season (bluegrass, fescue, ryegrass)</option>
+              <option value="warm">Warm-season (bermuda, zoysia)</option>
+            </select>
           </label>
-          <label>Season Start
-            <input type="date" id="gdd-season-start" />
+          <label>Mow Threshold (GP-days)
+            <input type="number" id="mow-threshold" value="5" min="0.5" step="0.5" />
           </label>
-          <button id="save-gdd-settings-btn" class="ghost-btn">Save Settings</button>
-          <span id="gdd-settings-saved" class="hint-text hidden">Saved!</span>
+          <button id="save-gp-settings-btn" class="ghost-btn">Save Settings</button>
+          <span id="gp-settings-saved" class="hint-text hidden">Saved!</span>
         </div>
-        <p class="hint-text">Location: Dayton, OH (lat 39.7589, lon -84.1916). Data source: Open-Meteo (no API key required).</p>
+        <p class="hint-text">
+          Location: Dayton, OH (lat 39.7589, lon -84.1916). Data source: Open-Meteo (no API key required).
+          Growth Potential (GP) estimates how fast the grass is growing today, from 0-100%, based on temperature.
+          A customer's lawn is flagged "ready to mow" once their accumulated GP since the last visit crosses the threshold above -
+          tune the threshold up or down based on how it matches what you see in the yard.
+        </p>
         <div class="card">
-          <h3>Season GDD Accumulation</h3>
-          <svg id="weather-chart-gdd" class="chart" viewBox="0 0 600 240" preserveAspectRatio="none"></svg>
+          <h3>Growth Potential (%)</h3>
+          <svg id="weather-chart-gp" class="chart" viewBox="0 0 600 240" preserveAspectRatio="none"></svg>
         </div>
         <div class="card">
           <h3>Weekly Rainfall (in)</h3>
@@ -321,7 +338,7 @@
           <h3>Daily Detail (most recent 30 days)</h3>
           <table class="data-table">
             <thead>
-              <tr><th>Date</th><th>High (°F)</th><th>Low (°F)</th><th>Daily GDD</th><th>Cumulative GDD</th><th>Precip (in)</th></tr>
+              <tr><th>Date</th><th>High (°F)</th><th>Low (°F)</th><th>Growth Potential</th><th>Precip (in)</th></tr>
             </thead>
             <tbody id="weather-table-body"></tbody>
           </table>

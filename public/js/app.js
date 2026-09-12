@@ -1,7 +1,7 @@
 import { isConfigured } from "./firebase.js";
 import { watchAuth, login, logout } from "./auth.js";
 import { byId } from "./utils.js";
-import { loadCustomers, initCustomersView } from "./customers.js";
+import { loadCustomers, initCustomersView, refreshCustomersView } from "./customers.js";
 import { loadVisits, initMowLogView } from "./mowLog.js";
 import { loadSprays, initSprayLogView } from "./sprayLog.js";
 import { loadTasks, initMaintenanceView } from "./maintenance.js";
@@ -31,6 +31,7 @@ async function showApp() {
 function initView(view) {
   if (initializedViews.has(view)) {
     if (view === "dashboard") refreshDashboard();
+    if (view === "customers") refreshCustomersView();
     return;
   }
   initializedViews.add(view);
