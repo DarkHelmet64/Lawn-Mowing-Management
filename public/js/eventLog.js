@@ -57,7 +57,9 @@ function populateCategoryOptions(selectEl, excludeKeys) {
 function refreshCategoryChoices() {
   populateCategoryOptions(byId("event-category-2"), [primaryCategory()]);
   const third = byId("event-category-3");
-  if (secondaryCategory()) {
+  const thirdVisible = Boolean(secondaryCategory());
+  byId("event-category-3-field").classList.toggle("hidden", !thirdVisible);
+  if (thirdVisible) {
     third.disabled = false;
     populateCategoryOptions(third, [primaryCategory(), secondaryCategory()]);
   } else {
