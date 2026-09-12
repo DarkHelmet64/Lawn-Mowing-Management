@@ -43,21 +43,57 @@ export function growthPotentialSeries(days, profile) {
     .map((d) => ({ ...d, gp: dailyGrowthPotential(d.tmaxF, d.tminF, profile) }));
 }
 
-// Groups daily precipitation into calendar weeks starting Sunday. Dates are
-// normalized as UTC midnight so the grouping is deterministic regardless of
-// the viewer's local timezone.
+// Calendar week (Sunday start) containing a date, as a "YYYY-MM-DD" key.
+// Dates are normalized as UTC midnight so the grouping is deterministic
+// regardless of the viewer's local timezone.
+function weekStartKey(dateStr) {
+  const date = new Date(`${dateStr}T00:00:00Z`);
+  const sunday = new Date(date);
+  sunday.setUTCDate(date.getUTCDate() - date.getUTCDay());
+  return sunday.toISOString().slice(0, 10);
+}
+
+// Groups daily precipitation into calendar weeks starting Sunday.
 export function weeklyRainfall(days) {
   const weeks = new Map();
   for (const d of days) {
-    const date = new Date(`${d.date}T00:00:00Z`);
-    const sunday = new Date(date);
-    sunday.setUTCDate(date.getUTCDate() - date.getUTCDay());
-    const key = sunday.toISOString().slice(0, 10);
+    const key = weekStartKey(d.date);
     const entry = weeks.get(key) || { weekStart: key, totalPrecipIn: 0 };
     entry.totalPrecipIn += d.precipIn || 0;
     weeks.set(key, entry);
   }
   return Array.from(weeks.values()).sort((a, b) => (a.weekStart < b.weekStart ? -1 : 1));
+}
+
+// Averages a GP series (as returned by growthPotentialSeries) into calendar
+// weeks starting Sunday. Average, not sum, since GP is itself a 0-1 fraction.
+export function weeklyGrowthPotential(series) {
+  const weeks = new Map();
+  for (const d of series) {
+    const key = weekStartKey(d.date);
+    const entry = weeks.get(key) || { weekStart: key, total: 0, count: 0 };
+    entry.total += d.gp;
+    entry.count += 1;
+    weeks.set(key, entry);
+  }
+  return Array.from(weeks.values())
+    .sort((a, b) => (a.weekStart < b.weekStart ? -1 : 1))
+    .map((w) => ({ weekStart: w.weekStart, gp: w.total / w.count }));
+}
+
+// Averages a GP series into calendar months ("YYYY-MM").
+export function monthlyGrowthPotential(series) {
+  const months = new Map();
+  for (const d of series) {
+    const key = d.date.slice(0, 7);
+    const entry = months.get(key) || { month: key, total: 0, count: 0 };
+    entry.total += d.gp;
+    entry.count += 1;
+    months.set(key, entry);
+  }
+  return Array.from(months.values())
+    .sort((a, b) => (a.month < b.month ? -1 : 1))
+    .map((m) => ({ month: m.month, gp: m.total / m.count }));
 }
 
 export function last7DaysRainfall(days, todayStr) {

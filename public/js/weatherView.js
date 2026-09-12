@@ -1,25 +1,52 @@
 import { syncWeather, loadCachedWeather } from "./weather.js";
 import { getSettings, saveSettings } from "./settings.js";
-import { growthPotentialSeries, weeklyRainfall, profileFor } from "./growthPotential.js";
+import {
+  growthPotentialSeries,
+  weeklyRainfall,
+  weeklyGrowthPotential,
+  monthlyGrowthPotential,
+  profileFor,
+} from "./growthPotential.js";
 import { renderLineChart, renderBarChart } from "./charts.js";
-import { byId, formatDateDisplay } from "./utils.js";
+import { byId, formatDateDisplay, formatMonthDisplay } from "./utils.js";
 
 // Weather is always fetched from the start of the calendar year, so there's
 // enough history to compute "days since last mow" even early in the season.
 const FETCH_SINCE = `${new Date().getFullYear()}-01-01`;
 
 let lastDays = [];
+let lastSeries = [];
 let backgroundSyncStarted = false;
+
+// Growth Potential chart view - kept as in-page UI state rather than a
+// saved setting, since it's just how you're currently looking at the data.
+let gpViewMode = "weekly";
+let gpViewCount = 8;
 
 function buildSeries(settings) {
   return growthPotentialSeries(lastDays, profileFor(settings.grassType));
 }
 
+function gpChartPoints(series) {
+  if (gpViewMode === "monthly") {
+    const months = monthlyGrowthPotential(series);
+    return months.slice(-gpViewCount).map((m) => ({ label: formatMonthDisplay(m.month), value: m.gp * 100 }));
+  }
+  if (gpViewMode === "annual") {
+    const months = monthlyGrowthPotential(series);
+    return months.map((m) => ({ label: formatMonthDisplay(m.month), value: m.gp * 100 }));
+  }
+  const weeks = weeklyGrowthPotential(series);
+  return weeks.slice(-gpViewCount).map((w) => ({ label: formatDateDisplay(w.weekStart).slice(0, 5), value: w.gp * 100 }));
+}
+
+function renderGpChart() {
+  renderLineChart(byId("weather-chart-gp"), gpChartPoints(lastSeries));
+}
+
 function renderCharts(series) {
-  renderLineChart(
-    byId("weather-chart-gp"),
-    series.map((d) => ({ label: formatDateDisplay(d.date).slice(0, 5), value: d.gp * 100 }))
-  );
+  lastSeries = series;
+  renderGpChart();
 
   const weeks = weeklyRainfall(lastDays);
   renderBarChart(
@@ -97,6 +124,32 @@ export async function initWeatherView() {
   });
 
   byId("refresh-weather-btn").addEventListener("click", () => liveSyncAndRender());
+
+  const gpViewModeSelect = byId("gp-view-mode");
+  const gpViewCountInput = byId("gp-view-count");
+  const gpViewCountWrap = byId("gp-view-count-wrap");
+
+  function updateGpViewControls() {
+    gpViewCountWrap.classList.toggle("hidden", gpViewMode === "annual");
+    gpViewCountWrap.firstChild.textContent = gpViewMode === "monthly" ? "Number of Months" : "Number of Weeks";
+    gpViewCountInput.max = gpViewMode === "monthly" ? 24 : 52;
+  }
+
+  gpViewModeSelect.value = gpViewMode;
+  gpViewCountInput.value = gpViewCount;
+  updateGpViewControls();
+
+  gpViewModeSelect.addEventListener("change", () => {
+    gpViewMode = gpViewModeSelect.value;
+    updateGpViewControls();
+    renderGpChart();
+  });
+
+  gpViewCountInput.addEventListener("change", () => {
+    gpViewCount = Math.max(1, Number(gpViewCountInput.value) || 1);
+    gpViewCountInput.value = gpViewCount;
+    renderGpChart();
+  });
 
   await refreshWeatherView();
 }
