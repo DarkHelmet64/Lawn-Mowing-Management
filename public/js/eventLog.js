@@ -13,6 +13,7 @@ import { getYardFeatures } from "./yardFeatures.js";
 import { loadVisits } from "./mowLog.js";
 import { loadSprays } from "./sprayLog.js";
 import { EVENT_TYPE_LABELS, EVENT_TYPE_KEYS } from "./eventTypes.js";
+import { populateProductSelect, getProductById, adjustProductQuantity } from "./products.js";
 
 // Areas with these exact names are the default pick whenever Yard Work is
 // the active event type - see applyYardworkDefaults().
@@ -213,6 +214,13 @@ function refreshAreaOptions() {
 // The Plant/Object dropdown is specific to Extra Yard Work, so it covers the
 // union of features across whichever areas are checked in that type's own
 // Areas list.
+// Surfaces how much of the selected product is on hand right where the
+// quantity gets entered, so a low/empty product is obvious before you submit.
+function updateProductHint() {
+  const product = getProductById(byId("event-spray-product").value);
+  byId("event-spray-quantity-hint").textContent = product ? `${product.quantityOnHand} ${product.unit} on hand` : "";
+}
+
 function refreshFeatureOptions() {
   const areaIds = new Set(checkedAreaIds("extra_yardwork"));
   const select = byId("event-feature");
@@ -248,7 +256,9 @@ function openForm() {
   populateBladeSpeedSelect(byId("event-blade-speed"), "");
   byId("event-time-of-day").value = "";
   byId("event-spray-target").value = "weeds";
-  byId("event-spray-product").value = "";
+  populateProductSelect(byId("event-spray-product"));
+  byId("event-spray-quantity").value = "";
+  updateProductHint();
   byId("event-notes").value = "";
   refreshLocationOptions();
   updateFieldVisibility();
@@ -316,11 +326,17 @@ async function handleSubmit(e) {
     featureId = byId("event-feature").value || null;
   }
 
-  let sprayProduct = null;
+  let productId = null;
+  let quantityUsed = 0;
   if (chemicalOn) {
-    sprayProduct = byId("event-spray-product").value.trim();
-    if (!sprayProduct) {
-      alert("Enter the product used.");
+    productId = byId("event-spray-product").value || null;
+    quantityUsed = Number(byId("event-spray-quantity").value) || 0;
+    if (!productId) {
+      alert("Select the product used.");
+      return;
+    }
+    if (quantityUsed <= 0) {
+      alert("Enter the quantity used.");
       return;
     }
   }
@@ -377,7 +393,8 @@ async function handleSubmit(e) {
           date,
           timeOfDay,
           target: byId("event-spray-target").value,
-          product: sprayProduct,
+          productId,
+          quantityUsed,
           locationId,
           areaId,
           featureId: null,
@@ -386,6 +403,10 @@ async function handleSubmit(e) {
         });
       }
     }
+    // Each checked customer is its own real application - areas within one
+    // customer's job share the quantity entered, so usage is only
+    // multiplied by customer count, not by area count too.
+    await adjustProductQuantity(productId, -(quantityUsed * customerIds.length));
   }
 
   if (yardworkFields || extraFields) await loadVisits();
@@ -424,6 +445,7 @@ export function initEventLogView() {
   byId("event-mowed").addEventListener("change", updateMowedFieldsVisibility);
   byId("event-time-of-day").addEventListener("change", applyGrassConditionDefault);
   byId("event-location").addEventListener("change", refreshAreaOptions);
+  byId("event-spray-product").addEventListener("change", updateProductHint);
   byId("event-equipment").addEventListener("change", () => {
     populateDeckHeightSelect(byId("event-height"), byId("event-equipment").value);
     populateGroundSpeedSelect(byId("event-ground-speed"), byId("event-equipment").value);

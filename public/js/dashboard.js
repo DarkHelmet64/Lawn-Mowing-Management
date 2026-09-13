@@ -2,18 +2,35 @@ import { getCustomers, getCustomerName } from "./customers.js";
 import { getVisits } from "./mowLog.js";
 import { getSprays } from "./sprayLog.js";
 import { getTasks } from "./maintenance.js";
+import { getLowStockProducts, getProductName } from "./products.js";
 import { refreshWeatherView } from "./weatherView.js";
 import { weeklyRainfall, last7DaysRainfall, profileFor } from "./growthPotential.js";
 import { computeMowStatus } from "./mowReadiness.js";
 import { getSettings } from "./settings.js";
 import { renderLineChart, renderBarChart } from "./charts.js";
-import { byId, formatDateDisplay, todayStr } from "./utils.js";
+import { byId, escapeHtml, formatDateDisplay, todayStr } from "./utils.js";
 
 export async function refreshDashboard() {
   byId("stat-customer-count").textContent = String(getCustomers().length);
   renderRecentActivity();
+  renderLowStock();
   byId("ready-to-mow-list").innerHTML = "<li>Loading…</li>";
   refreshWeatherStats().catch((err) => console.error("Failed to refresh weather-dependent dashboard stats", err));
+}
+
+function renderLowStock() {
+  const low = getLowStockProducts().sort((a, b) => a.quantityOnHand - b.quantityOnHand);
+  byId("stat-low-stock").textContent = String(low.length);
+  byId("low-stock-list").innerHTML =
+    low
+      .map(
+        (p) => `
+      <li>
+        <strong>${escapeHtml(p.name)}</strong>
+        <span class="hint-text">${p.quantityOnHand} ${escapeHtml(p.unit)} on hand · reorder at ${p.reorderThreshold} ${escapeHtml(p.unit)}</span>
+      </li>`
+      )
+      .join("") || "<li>All products sufficiently stocked.</li>";
 }
 
 async function refreshWeatherStats() {
@@ -87,7 +104,7 @@ function renderRecentActivity() {
   const tasks = getTasks().slice(0, 3);
   const items = [
     ...visits.map((v) => ({ date: v.date, text: describeVisit(v) })),
-    ...sprays.map((s) => ({ date: s.date, text: `Sprayed ${s.product} for ${getCustomerName(s.customerId)}` })),
+    ...sprays.map((s) => ({ date: s.date, text: `Sprayed ${getProductName(s.productId) || s.product || "product"} for ${getCustomerName(s.customerId)}` })),
     ...tasks.map((t) => ({ date: t.date, text: `Maintenance: ${t.taskType.replace(/_/g, " ")}` })),
   ]
     .sort((a, b) => (a.date < b.date ? 1 : -1))
