@@ -1,5 +1,5 @@
 import { listAll, createDoc, updateDocById, deleteDocById } from "./db.js";
-import { byId, escapeHtml, formatPhoneNumber } from "./utils.js";
+import { byId, escapeHtml, formatPhoneNumber, confirmAction } from "./utils.js";
 import { wireAddressValidation } from "./addressValidation.js";
 
 const COLLECTION = "customers";
@@ -81,7 +81,7 @@ function closeForm() {
 async function handleDelete() {
   const id = byId("customer-id").value;
   if (!id) return;
-  if (!confirm("Delete this customer? This does not delete their visit history.")) return;
+  if (!(await confirmAction("Delete this customer? This does not delete their visit history."))) return;
   await deleteDocById(COLLECTION, id);
   closeForm();
   await refreshCustomersView();

@@ -1,5 +1,5 @@
 import { listAll, createDoc, updateDocById, deleteDocById } from "./db.js";
-import { byId, escapeHtml } from "./utils.js";
+import { byId, escapeHtml, confirmAction } from "./utils.js";
 import { getCustomers, getCustomerName, populateCustomerSelect } from "./customers.js";
 import { getLocations, getLocationsForCustomer, populateLocationSelect } from "./locations.js";
 import { getAreas, getAreaName, populateAreaSelect } from "./areas.js";
@@ -156,7 +156,7 @@ function closeForm() {
 async function handleDelete() {
   const id = byId("feature-id").value;
   if (!id) return;
-  if (!confirm("Delete this yard feature?")) return;
+  if (!(await confirmAction("Delete this yard feature?"))) return;
   await deleteDocById(COLLECTION, id);
   closeForm();
   await refreshYardFeaturesView();

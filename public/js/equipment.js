@@ -1,5 +1,5 @@
 import { listAll, createDoc, updateDocById, deleteDocById } from "./db.js";
-import { byId, escapeHtml } from "./utils.js";
+import { byId, escapeHtml, confirmAction } from "./utils.js";
 
 const COLLECTION = "equipment";
 let cache = [];
@@ -202,7 +202,7 @@ function closeForm() {
 async function handleDelete() {
   const id = byId("equipment-id").value;
   if (!id) return;
-  if (!confirm("Delete this equipment record? This does not delete visits or tasks that reference it.")) return;
+  if (!(await confirmAction("Delete this equipment record? This does not delete visits or tasks that reference it."))) return;
   await deleteDocById(COLLECTION, id);
   closeForm();
   await refreshEquipmentView();

@@ -31,6 +31,45 @@ export function byId(id) {
   return document.getElementById(id);
 }
 
+// A custom in-page confirmation dialog, used instead of window.confirm() for
+// delete actions - native confirm()/alert() dialogs are unreliable in some
+// mobile contexts (e.g. an installed home-screen PWA on iOS can silently
+// suppress them, making a guarded action look like it does nothing at all).
+export function confirmAction(message) {
+  const overlay = byId("confirm-dialog");
+  const okBtn = byId("confirm-ok");
+  const cancelBtn = byId("confirm-cancel");
+  byId("confirm-message").textContent = message;
+  overlay.classList.remove("hidden");
+
+  return new Promise((resolve) => {
+    function cleanup(result) {
+      overlay.classList.add("hidden");
+      okBtn.removeEventListener("click", onOk);
+      cancelBtn.removeEventListener("click", onCancel);
+      overlay.removeEventListener("click", onBackdrop);
+      document.removeEventListener("keydown", onKeydown);
+      resolve(result);
+    }
+    function onOk() {
+      cleanup(true);
+    }
+    function onCancel() {
+      cleanup(false);
+    }
+    function onBackdrop(e) {
+      if (e.target === overlay) cleanup(false);
+    }
+    function onKeydown(e) {
+      if (e.key === "Escape") cleanup(false);
+    }
+    okBtn.addEventListener("click", onOk);
+    cancelBtn.addEventListener("click", onCancel);
+    overlay.addEventListener("click", onBackdrop);
+    document.addEventListener("keydown", onKeydown);
+  });
+}
+
 // Formats a US phone number as (XXX) XXX-XXXX. A leading "1" country code
 // is dropped. Anything that isn't 10 digits after that (extensions,
 // international numbers, partial input) is returned unchanged rather than

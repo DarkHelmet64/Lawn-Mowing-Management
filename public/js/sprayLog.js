@@ -1,5 +1,5 @@
 import { listAll, createDoc, updateDocById, deleteDocById } from "./db.js";
-import { byId, escapeHtml, todayStr, formatDateDisplay } from "./utils.js";
+import { byId, escapeHtml, todayStr, formatDateDisplay, confirmAction } from "./utils.js";
 import { getCustomers, getCustomerName, populateCustomerSelect } from "./customers.js";
 import { populateEquipmentSelect, getEquipmentName } from "./equipment.js";
 import { getLocationLabel, populateLocationSelect } from "./locations.js";
@@ -19,6 +19,14 @@ const TARGET_LABELS = {
   other: "Other",
 };
 
+const TIME_OF_DAY_LABELS = {
+  morning: "Morning",
+  midday: "Midday",
+  afternoon: "Afternoon",
+  evening: "Evening",
+  other: "Other",
+};
+
 export async function loadSprays() {
   cache = await listAll(COLLECTION, { orderByField: "date", direction: "desc" });
   return cache;
@@ -35,6 +43,7 @@ function renderTable() {
       (s) => `
       <tr>
         <td>${formatDateDisplay(s.date)}</td>
+        <td>${TIME_OF_DAY_LABELS[s.timeOfDay] || ""}</td>
         <td>${escapeHtml(getCustomerName(s.customerId))}</td>
         <td>${TARGET_LABELS[s.target] || s.target}</td>
         <td>${escapeHtml(getProductName(s.productId) || s.product || "")}${s.quantityUsed ? ` (${s.quantityUsed} ${escapeHtml(getProductById(s.productId)?.unit || "")})` : ""}</td>
@@ -80,6 +89,7 @@ function openForm(spray = null) {
   byId("spray-id").value = spray?.id || "";
   byId("spray-customer").value = spray?.customerId || getCustomers()[0]?.id || "";
   byId("spray-date").value = spray?.date || todayStr();
+  byId("spray-time-of-day").value = spray?.timeOfDay || "";
   byId("spray-target").value = spray?.target || "weeds";
   byId("spray-product").value = spray?.productId || "";
   byId("spray-quantity").value = spray?.quantityUsed ?? "";
@@ -100,7 +110,7 @@ function closeForm() {
 }
 
 async function handleDelete(id) {
-  if (!confirm("Delete this spray record?")) return;
+  if (!(await confirmAction("Delete this spray record?"))) return;
   await deleteDocById(COLLECTION, id);
   await refreshSprayLogView();
 }
@@ -111,6 +121,7 @@ async function handleSubmit(e) {
   const data = {
     customerId: byId("spray-customer").value,
     date: byId("spray-date").value,
+    timeOfDay: byId("spray-time-of-day").value || null,
     target: byId("spray-target").value,
     productId: byId("spray-product").value || null,
     quantityUsed: byId("spray-quantity").value ? Number(byId("spray-quantity").value) : null,

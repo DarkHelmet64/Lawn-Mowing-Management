@@ -1,5 +1,5 @@
 import { listAll, createDoc, updateDocById, deleteDocById } from "./db.js";
-import { byId, escapeHtml } from "./utils.js";
+import { byId, escapeHtml, confirmAction } from "./utils.js";
 
 const COLLECTION = "products";
 let cache = [];
@@ -121,7 +121,7 @@ function closeForm() {
 async function handleDelete() {
   const id = byId("product-id").value;
   if (!id) return;
-  if (!confirm("Delete this product? This does not delete past purchase or usage records that reference it.")) return;
+  if (!(await confirmAction("Delete this product? This does not delete past purchase or usage records that reference it."))) return;
   await deleteDocById(COLLECTION, id);
   closeForm();
   await refreshProductsView();

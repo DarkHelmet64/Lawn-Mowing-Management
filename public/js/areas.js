@@ -1,5 +1,5 @@
 import { listAll, createDoc, updateDocById, deleteDocById } from "./db.js";
-import { byId, escapeHtml } from "./utils.js";
+import { byId, escapeHtml, confirmAction } from "./utils.js";
 import { getCustomers, getCustomerName, populateCustomerSelect } from "./customers.js";
 import { getLocations, populateLocationSelect } from "./locations.js";
 import { EVENT_TYPE_KEYS } from "./eventTypes.js";
@@ -149,7 +149,7 @@ function closeForm() {
 async function handleDelete() {
   const id = byId("area-id").value;
   if (!id) return;
-  if (!confirm("Delete this area? Yard features under it will be orphaned, not deleted.")) return;
+  if (!(await confirmAction("Delete this area? Yard features under it will be orphaned, not deleted."))) return;
   await deleteDocById(COLLECTION, id);
   closeForm();
   await refreshAreasView();

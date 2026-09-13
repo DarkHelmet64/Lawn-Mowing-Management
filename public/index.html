@@ -673,44 +673,6 @@
             <label>Date
               <input type="date" id="visit-date" required />
             </label>
-            <label>Location
-              <select id="visit-location"></select>
-            </label>
-            <label>Area
-              <select id="visit-area"></select>
-            </label>
-            <label>Plant / Object
-              <select id="visit-feature"></select>
-            </label>
-            <label>Equipment Used
-              <select id="visit-equipment"></select>
-            </label>
-            <div class="checkbox-row">
-              <label class="checkbox-label"><input type="checkbox" id="visit-mowed" checked /> Mowed</label>
-              <label class="checkbox-label"><input type="checkbox" id="visit-trimmed" checked /> Trimmed</label>
-              <label class="checkbox-label"><input type="checkbox" id="visit-edged" /> Edged</label>
-              <label class="checkbox-label"><input type="checkbox" id="visit-pruned" /> Pruned</label>
-              <label class="checkbox-label"><input type="checkbox" id="visit-trimmed-bushes" /> Trimmed Bushes</label>
-              <label class="checkbox-label"><input type="checkbox" id="visit-mulched" /> Mulched</label>
-            </div>
-            <label>Mow Pattern
-              <select id="visit-pattern">
-                <option value="parallel">Parallel</option>
-                <option value="perpendicular">Perpendicular</option>
-                <option value="diagonal_left">Diagonal Left</option>
-                <option value="diagonal_right">Diagonal Right</option>
-                <option value="other">Other</option>
-              </select>
-            </label>
-            <label>Deck Height
-              <select id="visit-height"></select>
-            </label>
-            <label>Ground Speed
-              <select id="visit-ground-speed"></select>
-            </label>
-            <label>Blade Speed
-              <select id="visit-blade-speed"></select>
-            </label>
             <label>Time of Day
               <select id="visit-time-of-day">
                 <option value="">Not specified</option>
@@ -721,16 +683,56 @@
                 <option value="other">Other</option>
               </select>
             </label>
-            <label>Grass Condition
-              <select id="visit-grass-condition">
-                <option value="">Not specified</option>
-                <option value="dry">Dry</option>
-                <option value="wet_dew">Wet (dew)</option>
-                <option value="wet_rain">Wet (rain)</option>
-                <option value="damp">Damp</option>
-                <option value="other">Other</option>
-              </select>
+            <label>Location
+              <select id="visit-location"></select>
             </label>
+            <label>Area
+              <select id="visit-area"></select>
+            </label>
+            <label>Plant / Object
+              <select id="visit-feature"></select>
+            </label>
+            <div class="checkbox-row">
+              <label class="checkbox-label"><input type="checkbox" id="visit-mowed" checked /> Mowed</label>
+              <label class="checkbox-label"><input type="checkbox" id="visit-trimmed" checked /> Trimmed</label>
+              <label class="checkbox-label"><input type="checkbox" id="visit-edged" /> Edged</label>
+              <label class="checkbox-label"><input type="checkbox" id="visit-pruned" /> Pruned</label>
+              <label class="checkbox-label"><input type="checkbox" id="visit-trimmed-bushes" /> Trimmed Bushes</label>
+              <label class="checkbox-label"><input type="checkbox" id="visit-mulched" /> Mulched</label>
+            </div>
+            <div id="visit-mowed-fields">
+              <label>Mower Used
+                <select id="visit-equipment"></select>
+              </label>
+              <label>Mow Pattern
+                <select id="visit-pattern">
+                  <option value="parallel">Parallel</option>
+                  <option value="perpendicular">Perpendicular</option>
+                  <option value="diagonal_left">Diagonal Left</option>
+                  <option value="diagonal_right">Diagonal Right</option>
+                  <option value="other">Other</option>
+                </select>
+              </label>
+              <label>Deck Height
+                <select id="visit-height"></select>
+              </label>
+              <label>Ground Speed
+                <select id="visit-ground-speed"></select>
+              </label>
+              <label>Blade Speed
+                <select id="visit-blade-speed"></select>
+              </label>
+              <label>Grass Condition
+                <select id="visit-grass-condition">
+                  <option value="">Not specified</option>
+                  <option value="dry">Dry</option>
+                  <option value="wet_dew">Wet (dew)</option>
+                  <option value="wet_rain">Wet (rain)</option>
+                  <option value="damp">Damp</option>
+                  <option value="other">Other</option>
+                </select>
+              </label>
+            </div>
             <label>Notes
               <textarea id="visit-notes" rows="2"></textarea>
             </label>
@@ -768,6 +770,16 @@
             </label>
             <label>Date
               <input type="date" id="spray-date" required />
+            </label>
+            <label>Time of Day
+              <select id="spray-time-of-day">
+                <option value="">Not specified</option>
+                <option value="morning">Morning</option>
+                <option value="midday">Midday</option>
+                <option value="afternoon">Afternoon</option>
+                <option value="evening">Evening</option>
+                <option value="other">Other</option>
+              </select>
             </label>
             <label>Location
               <select id="spray-location"></select>
@@ -808,7 +820,7 @@
         <div class="table-wrap">
           <table class="data-table">
             <thead>
-              <tr><th>Date</th><th>Customer</th><th>Target</th><th>Product</th><th>Location</th><th>Area</th><th>Feature</th><th>Equipment</th><th></th></tr>
+              <tr><th>Date</th><th>Time of Day</th><th>Customer</th><th>Target</th><th>Product</th><th>Location</th><th>Area</th><th>Feature</th><th>Equipment</th><th></th></tr>
             </thead>
             <tbody id="spray-table-body"></tbody>
           </table>
@@ -878,6 +890,16 @@
         </div>
       </section>
     </main>
+  </div>
+
+  <div id="confirm-dialog" class="confirm-overlay hidden">
+    <div class="confirm-box">
+      <p id="confirm-message"></p>
+      <div class="confirm-actions">
+        <button type="button" id="confirm-cancel" class="ghost-btn">Cancel</button>
+        <button type="button" id="confirm-ok" class="danger-btn">Delete</button>
+      </div>
+    </div>
   </div>
 
   <script type="module" src="js/app.js"></script>
