@@ -9,6 +9,8 @@ import { loadEquipment, initEquipmentView, refreshEquipmentView } from "./equipm
 import { loadLocations, initLocationsView, refreshLocationsView } from "./locations.js";
 import { loadAreas, initAreasView, refreshAreasView } from "./areas.js";
 import { loadYardFeatures, initYardFeaturesView, refreshYardFeaturesView } from "./yardFeatures.js";
+import { loadProducts, initProductsView, refreshProductsView } from "./products.js";
+import { loadPurchases, initPurchasesView, refreshPurchasesView } from "./productPurchases.js";
 import { initWeatherView, startBackgroundWeatherSync } from "./weatherView.js";
 import { refreshDashboard } from "./dashboard.js";
 import { initEventLogView } from "./eventLog.js";
@@ -38,6 +40,8 @@ async function showApp() {
     loadLocations(),
     loadAreas(),
     loadYardFeatures(),
+    loadProducts(),
+    loadPurchases(),
   ]);
   initEventLogView();
   document.addEventListener("event:logged", () => refreshDashboard());
@@ -58,6 +62,8 @@ function initView(view) {
       refreshEquipmentView();
       refreshMaintenanceView();
       refreshYardFeaturesView();
+      refreshProductsView();
+      refreshPurchasesView();
     }
     return;
   }
@@ -79,6 +85,8 @@ function initView(view) {
       initEquipmentView();
       initMaintenanceView();
       initYardFeaturesView();
+      initProductsView();
+      initPurchasesView();
       break;
     case "weather":
       initWeatherView();

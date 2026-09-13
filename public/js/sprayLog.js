@@ -5,6 +5,7 @@ import { populateEquipmentSelect, getEquipmentName } from "./equipment.js";
 import { getLocationLabel, populateLocationSelect } from "./locations.js";
 import { getAreaName, populateAreaSelect } from "./areas.js";
 import { populateYardFeatureSelect, getYardFeatureName } from "./yardFeatures.js";
+import { populateProductSelect, getProductById, getProductName } from "./products.js";
 
 const COLLECTION = "sprayApplications";
 let cache = [];
@@ -36,7 +37,7 @@ function renderTable() {
         <td>${formatDateDisplay(s.date)}</td>
         <td>${escapeHtml(getCustomerName(s.customerId))}</td>
         <td>${TARGET_LABELS[s.target] || s.target}</td>
-        <td>${escapeHtml(s.product || "")}</td>
+        <td>${escapeHtml(getProductName(s.productId) || s.product || "")}${s.quantityUsed ? ` (${s.quantityUsed} ${escapeHtml(getProductById(s.productId)?.unit || "")})` : ""}</td>
         <td>${escapeHtml(getLocationLabel(s.locationId) || "")}</td>
         <td>${escapeHtml(getAreaName(s.areaId) || "")}</td>
         <td>${escapeHtml(getYardFeatureName(s.featureId) || "")}</td>
@@ -75,11 +76,13 @@ function openForm(spray = null) {
   byId("spray-form-card").classList.remove("hidden");
   populateCustomerSelect(byId("spray-customer"));
   populateEquipmentSelect(byId("spray-equipment"));
+  populateProductSelect(byId("spray-product"));
   byId("spray-id").value = spray?.id || "";
   byId("spray-customer").value = spray?.customerId || getCustomers()[0]?.id || "";
   byId("spray-date").value = spray?.date || todayStr();
   byId("spray-target").value = spray?.target || "weeds";
-  byId("spray-product").value = spray?.product || "";
+  byId("spray-product").value = spray?.productId || "";
+  byId("spray-quantity").value = spray?.quantityUsed ?? "";
   byId("spray-equipment").value = spray?.equipmentId || "";
   byId("spray-notes").value = spray?.notes || "";
 
@@ -109,7 +112,8 @@ async function handleSubmit(e) {
     customerId: byId("spray-customer").value,
     date: byId("spray-date").value,
     target: byId("spray-target").value,
-    product: byId("spray-product").value.trim(),
+    productId: byId("spray-product").value || null,
+    quantityUsed: byId("spray-quantity").value ? Number(byId("spray-quantity").value) : null,
     locationId: byId("spray-location").value || null,
     areaId: byId("spray-area").value || null,
     featureId: byId("spray-feature").value || null,

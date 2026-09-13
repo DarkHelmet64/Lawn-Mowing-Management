@@ -49,9 +49,8 @@
         <div id="log-event-form-card" class="card hidden">
           <h3>Log an Event</h3>
           <form id="log-event-form">
-            <label>Customer
-              <select id="event-customer" required></select>
-            </label>
+            <label>Customers</label>
+            <div id="event-customer-list" class="checkbox-row"></div>
             <label>Date
               <input type="date" id="event-date" required />
             </label>
@@ -150,8 +149,12 @@
                 </select>
               </label>
               <label>Product Used
-                <input type="text" id="event-spray-product" placeholder="e.g. Roundup, Ortho GroundClear" />
+                <select id="event-spray-product"></select>
               </label>
+              <label>Quantity Used
+                <input type="number" id="event-spray-quantity" step="any" min="0" placeholder="e.g. 16" />
+              </label>
+              <p id="event-spray-quantity-hint" class="hint-text"></p>
             </div>
 
             <label>Notes
@@ -184,11 +187,20 @@
             <span class="stat-label">Customers</span>
             <span class="stat-value" id="stat-customer-count">–</span>
           </div>
+          <div class="stat-card">
+            <span class="stat-label">Low Stock Products</span>
+            <span class="stat-value" id="stat-low-stock">–</span>
+          </div>
         </div>
 
         <div class="card">
           <h3>Ready to Mow</h3>
           <ul id="ready-to-mow-list" class="activity-list"></ul>
+        </div>
+
+        <div class="card">
+          <h3>Low Stock Alerts</h3>
+          <ul id="low-stock-list" class="activity-list"></ul>
         </div>
 
         <div class="card">
@@ -560,6 +572,91 @@
             <tbody id="feature-table-body"></tbody>
           </table>
         </div>
+
+        <div class="view-header">
+          <h3>Products</h3>
+          <button id="add-product-btn" class="primary-btn">+ Add Product</button>
+        </div>
+        <p class="hint-text">Chemicals, fertilizers, or other consumables you keep on hand - tracks quantity remaining and warns you when it's time to reorder.</p>
+        <div id="product-form-card" class="card hidden">
+          <h3 id="product-form-title">Add Product</h3>
+          <form id="product-form">
+            <input type="hidden" id="product-id" />
+            <label>Name
+              <input type="text" id="product-name" placeholder="e.g. Roundup, Ortho GroundClear" required />
+            </label>
+            <label>Unit
+              <select id="product-unit"></select>
+            </label>
+            <label>Quantity on Hand
+              <input type="number" id="product-quantity" step="any" min="0" required />
+            </label>
+            <label>Low Stock Threshold
+              <input type="number" id="product-threshold" step="any" min="0" required />
+            </label>
+            <label>Notes
+              <textarea id="product-notes" rows="2"></textarea>
+            </label>
+            <label class="checkbox-label">
+              <input type="checkbox" id="product-active" checked /> Active
+            </label>
+            <div class="form-actions">
+              <button type="submit" class="primary-btn">Save</button>
+              <button type="button" id="cancel-product-btn" class="ghost-btn">Cancel</button>
+              <button type="button" id="delete-product-btn" class="danger-btn hidden">Delete Product</button>
+            </div>
+          </form>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr><th>Name</th><th>Unit</th><th>On Hand</th><th>Reorder At</th><th>Status</th><th></th></tr>
+            </thead>
+            <tbody id="product-table-body"></tbody>
+          </table>
+        </div>
+
+        <div class="view-header">
+          <h3>Product Purchases</h3>
+          <button id="add-purchase-btn" class="primary-btn">+ Record Purchase</button>
+        </div>
+        <p class="hint-text">Logging a purchase adds the quantity to that product's on-hand stock.</p>
+        <div id="purchase-form-card" class="card hidden">
+          <h3>Record Purchase</h3>
+          <form id="purchase-form">
+            <label>Product
+              <select id="purchase-product" required></select>
+            </label>
+            <label>Date
+              <input type="date" id="purchase-date" required />
+            </label>
+            <label>Quantity Purchased
+              <input type="number" id="purchase-quantity" step="any" min="0" required />
+            </label>
+            <label>Cost (optional)
+              <input type="number" id="purchase-cost" step="0.01" min="0" placeholder="e.g. 24.99" />
+            </label>
+            <label>Supplier (optional)
+              <input type="text" id="purchase-supplier" list="purchase-supplier-options" placeholder="e.g. Home Depot, SiteOne" />
+              <datalist id="purchase-supplier-options"></datalist>
+            </label>
+            <label>Notes
+              <textarea id="purchase-notes" rows="2"></textarea>
+            </label>
+            <div class="form-actions">
+              <button type="submit" class="primary-btn">Save</button>
+              <button type="button" id="cancel-purchase-btn" class="ghost-btn">Cancel</button>
+            </div>
+          </form>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr><th>Date</th><th>Product</th><th>Quantity</th><th>Cost</th><th>Supplier</th><th></th></tr>
+            </thead>
+            <tbody id="purchase-table-body"></tbody>
+          </table>
+        </div>
       </section>
 
       <section id="view-mow-log" class="view">
@@ -694,7 +791,10 @@
               </select>
             </label>
             <label>Product Used
-              <input type="text" id="spray-product" placeholder="e.g. Roundup, Ortho GroundClear" required />
+              <select id="spray-product"></select>
+            </label>
+            <label>Quantity Used
+              <input type="number" id="spray-quantity" step="any" min="0" />
             </label>
             <label>Notes
               <textarea id="spray-notes" rows="2"></textarea>
