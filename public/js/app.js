@@ -28,10 +28,14 @@ function showLogin() {
   byId("app-view").classList.add("hidden");
 }
 
+// A permission error or network hiccup loading any one collection (e.g. a
+// Firestore rule that hasn't been deployed yet for a newer collection)
+// shouldn't take the rest of the app down with it, so failures are logged
+// and swallowed here rather than left to reject a Promise.all.
 async function showApp() {
   byId("login-view").classList.add("hidden");
   byId("app-view").classList.remove("hidden");
-  await Promise.all([
+  const results = await Promise.allSettled([
     loadCustomers(),
     loadVisits(),
     loadSprays(),
@@ -43,6 +47,9 @@ async function showApp() {
     loadProducts(),
     loadPurchases(),
   ]);
+  for (const r of results) {
+    if (r.status === "rejected") console.error("Failed to load app data", r.reason);
+  }
   initEventLogView();
   document.addEventListener("event:logged", () => refreshDashboard());
   document.addEventListener("weather:synced", () => refreshDashboard());

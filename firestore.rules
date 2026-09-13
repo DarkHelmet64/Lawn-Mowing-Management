@@ -43,6 +43,14 @@ service cloud.firestore {
       allow read, write: if isOwner();
     }
 
+    match /products/{productId} {
+      allow read, write: if isOwner();
+    }
+
+    match /productPurchases/{purchaseId} {
+      allow read, write: if isOwner();
+    }
+
     match /weatherDaily/{date} {
       allow read, write: if isOwner();
     }
