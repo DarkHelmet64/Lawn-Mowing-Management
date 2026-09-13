@@ -105,10 +105,18 @@ function refreshFeatureOptions() {
   populateYardFeatureSelect(byId("visit-feature"), byId("visit-area").value);
 }
 
+// Mow Pattern/Deck Height/Ground Speed/Blade Speed/Grass Condition (and the
+// Mower Used filter) only apply when Mowed itself is checked - matches the
+// Log Event form's behavior.
+function updateMowedFieldsVisibility() {
+  const mowed = byId("visit-mowed").checked;
+  byId("visit-mowed-fields").classList.toggle("hidden", !mowed);
+  populateEquipmentSelect(byId("visit-equipment"), { typeFilter: mowed ? "mower" : null });
+}
+
 function openForm(visit = null) {
   byId("visit-form-card").classList.remove("hidden");
   populateCustomerSelect(byId("visit-customer"));
-  populateEquipmentSelect(byId("visit-equipment"));
   byId("visit-id").value = visit?.id || "";
   byId("visit-customer").value = visit?.customerId || getCustomers()[0]?.id || "";
   byId("visit-date").value = visit?.date || todayStr();
@@ -122,6 +130,7 @@ function openForm(visit = null) {
   populateDeckHeightSelect(byId("visit-height"), visit?.equipmentId || "", visit?.deckHeight ?? null);
   populateGroundSpeedSelect(byId("visit-ground-speed"), visit?.equipmentId || "", visit?.groundSpeed ?? null);
   populateBladeSpeedSelect(byId("visit-blade-speed"), visit?.equipmentId || "", visit?.bladeSpeed ?? null);
+  updateMowedFieldsVisibility();
   byId("visit-equipment").value = visit?.equipmentId || "";
   byId("visit-time-of-day").value = visit?.timeOfDay || "";
   byId("visit-grass-condition").value = visit?.grassCondition || "";
@@ -190,6 +199,7 @@ export function initMowLogView() {
     byId("visit-customer").addEventListener("change", refreshLocationOptions);
     byId("visit-location").addEventListener("change", refreshAreaOptions);
     byId("visit-area").addEventListener("change", refreshFeatureOptions);
+    byId("visit-mowed").addEventListener("change", updateMowedFieldsVisibility);
     byId("visit-equipment").addEventListener("change", () => {
       populateDeckHeightSelect(byId("visit-height"), byId("visit-equipment").value);
       populateGroundSpeedSelect(byId("visit-ground-speed"), byId("visit-equipment").value);
