@@ -1,5 +1,5 @@
 import { listAll, createDoc, updateDocById, deleteDocById } from "./db.js";
-import { byId, escapeHtml, todayStr, formatDateDisplay } from "./utils.js";
+import { byId, escapeHtml, todayStr, formatDateDisplay, confirmAction } from "./utils.js";
 import { getEquipment, getEquipmentById, getEquipmentName, populateEquipmentSelect, EQUIPMENT_TYPE_LABELS } from "./equipment.js";
 
 const COLLECTION = "maintenanceTasks";
@@ -91,7 +91,7 @@ function closeForm() {
 async function handleDelete() {
   const id = byId("task-id").value;
   if (!id) return;
-  if (!confirm("Delete this maintenance record?")) return;
+  if (!(await confirmAction("Delete this maintenance record?"))) return;
   await deleteDocById(COLLECTION, id);
   closeForm();
   await refreshMaintenanceView();

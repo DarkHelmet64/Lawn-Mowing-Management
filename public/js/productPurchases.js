@@ -1,5 +1,5 @@
 import { listAll, createDoc, deleteDocById } from "./db.js";
-import { byId, escapeHtml, todayStr, formatDateDisplay } from "./utils.js";
+import { byId, escapeHtml, todayStr, formatDateDisplay, confirmAction } from "./utils.js";
 import { getProducts, getProductById, getProductName, populateProductSelect, adjustProductQuantity, refreshProductsView } from "./products.js";
 
 const COLLECTION = "productPurchases";
@@ -64,7 +64,7 @@ function closeForm() {
 }
 
 async function handleDelete(id) {
-  if (!confirm("Delete this purchase record? This will NOT reverse the quantity it added to on-hand stock.")) return;
+  if (!(await confirmAction("Delete this purchase record? This will NOT reverse the quantity it added to on-hand stock."))) return;
   await deleteDocById(COLLECTION, id);
   await refreshPurchasesView();
 }

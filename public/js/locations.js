@@ -1,5 +1,5 @@
 import { listAll, createDoc, updateDocById, deleteDocById } from "./db.js";
-import { byId, escapeHtml, formatPhoneNumber } from "./utils.js";
+import { byId, escapeHtml, formatPhoneNumber, confirmAction } from "./utils.js";
 import { getCustomers, getCustomerName, populateCustomerSelect } from "./customers.js";
 import { wireAddressValidation } from "./addressValidation.js";
 
@@ -137,7 +137,7 @@ function closeForm() {
 async function handleDelete() {
   const id = byId("location-id").value;
   if (!id) return;
-  if (!confirm("Delete this location? Areas and yard features under it will be orphaned, not deleted.")) return;
+  if (!(await confirmAction("Delete this location? Areas and yard features under it will be orphaned, not deleted."))) return;
   await deleteDocById(COLLECTION, id);
   closeForm();
   await refreshLocationsView();

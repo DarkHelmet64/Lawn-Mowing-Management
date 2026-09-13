@@ -1,5 +1,5 @@
 import { listAll, createDoc, updateDocById, deleteDocById } from "./db.js";
-import { byId, escapeHtml, todayStr, formatDateDisplay } from "./utils.js";
+import { byId, escapeHtml, todayStr, formatDateDisplay, confirmAction } from "./utils.js";
 import { getCustomers, getCustomerName, populateCustomerSelect } from "./customers.js";
 import { populateEquipmentSelect, getEquipmentName } from "./equipment.js";
 import { getLocationLabel, populateLocationSelect } from "./locations.js";
@@ -110,7 +110,7 @@ function closeForm() {
 }
 
 async function handleDelete(id) {
-  if (!confirm("Delete this spray record?")) return;
+  if (!(await confirmAction("Delete this spray record?"))) return;
   await deleteDocById(COLLECTION, id);
   await refreshSprayLogView();
 }

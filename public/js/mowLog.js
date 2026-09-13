@@ -1,5 +1,5 @@
 import { listAll, createDoc, updateDocById, deleteDocById } from "./db.js";
-import { byId, escapeHtml, todayStr, formatDateDisplay } from "./utils.js";
+import { byId, escapeHtml, todayStr, formatDateDisplay, confirmAction } from "./utils.js";
 import { getCustomers, getCustomerName, populateCustomerSelect } from "./customers.js";
 import {
   populateEquipmentSelect,
@@ -150,7 +150,7 @@ function closeForm() {
 }
 
 async function handleDelete(id) {
-  if (!confirm("Delete this visit record?")) return;
+  if (!(await confirmAction("Delete this visit record?"))) return;
   await deleteDocById(COLLECTION, id);
   await refreshMowLogView();
 }
