@@ -96,8 +96,13 @@ function positionCategoryFields() {
   }
 }
 
-function checkedAreaIds() {
-  return Array.from(document.querySelectorAll("#event-area-list .event-area-checkbox:checked")).map((cb) => cb.value);
+// Each event type has its own Areas checklist, nested inside that type's
+// field group - so it travels with the group and only ever affects that
+// one type's records, never the others.
+function checkedAreaIds(type) {
+  return Array.from(document.querySelectorAll(`#event-area-list-${type} .event-area-checkbox:checked`)).map(
+    (cb) => cb.value
+  );
 }
 
 function updateFieldVisibility() {
@@ -135,23 +140,22 @@ function refreshLocationOptions() {
   refreshAreaOptions();
 }
 
-// Areas are scoped to the selected location and to whichever event types
-// are currently active - an area only shows up here if it's configured (in
-// Settings) to populate under at least one of those event types. Whenever
-// Yard Work is active, Front Yard/Back Yard (if present) are the default
-// picks; other event types keep whatever was already checked.
-function refreshAreaOptions() {
+// Each event type's Areas checklist is scoped to the selected location and
+// to that one type only - an area only shows up under, say, Chemical
+// Application if it's configured (in Settings) to populate under Chemical
+// Application, regardless of whether it's also checked under Yard Work.
+// Yard Work's own list defaults to Front Yard/Back Yard (if present); the
+// other types keep whatever was already checked in their own list.
+function refreshAreaOptionsForType(type) {
   const locationId = byId("event-location").value;
-  const types = activeCategories();
-  const yardworkActive = types.includes("yardwork");
-  const previouslyChecked = new Set(checkedAreaIds());
-  const areas = getAreasForLocation(locationId).filter((a) => areaAppliesToEventTypes(a, types));
-  const container = byId("event-area-list");
+  const previouslyChecked = new Set(checkedAreaIds(type));
+  const areas = getAreasForLocation(locationId).filter((a) => areaAppliesToEventTypes(a, [type]));
+  const container = byId(`event-area-list-${type}`);
 
   container.innerHTML = areas.length
     ? areas
         .map((a) => {
-          const checked = yardworkActive ? DEFAULT_YARDWORK_AREA_NAMES.has(a.name) : previouslyChecked.has(a.id);
+          const checked = type === "yardwork" ? DEFAULT_YARDWORK_AREA_NAMES.has(a.name) : previouslyChecked.has(a.id);
           return `
       <label class="checkbox-label">
         <input type="checkbox" class="event-area-checkbox" value="${a.id}" ${checked ? "checked" : ""} />
@@ -161,14 +165,21 @@ function refreshAreaOptions() {
         .join("")
     : `<p class="hint-text">No areas set up for this event type at this location.</p>`;
 
-  container.querySelectorAll(".event-area-checkbox").forEach((cb) => cb.addEventListener("change", refreshFeatureOptions));
+  if (type === "extra_yardwork") {
+    container.querySelectorAll(".event-area-checkbox").forEach((cb) => cb.addEventListener("change", refreshFeatureOptions));
+  }
+}
+
+function refreshAreaOptions() {
+  for (const type of EVENT_TYPE_KEYS) refreshAreaOptionsForType(type);
   refreshFeatureOptions();
 }
 
-// The Plant/Object dropdown covers the union of features across every
-// currently-checked area, since Areas is a multi-select.
+// The Plant/Object dropdown is specific to Extra Yard Work, so it covers the
+// union of features across whichever areas are checked in that type's own
+// Areas list.
 function refreshFeatureOptions() {
-  const areaIds = new Set(checkedAreaIds());
+  const areaIds = new Set(checkedAreaIds("extra_yardwork"));
   const select = byId("event-feature");
   const current = select.value;
   select.innerHTML = '<option value="">None / Not specific</option>';
@@ -214,6 +225,12 @@ function closeForm() {
   byId("log-event-form").reset();
 }
 
+// Each active event type is entirely independent: its own Areas checklist,
+// its own fan-out (one record per its own checked area, or a single
+// unspecified-area record if none are checked), and its own fields. Two
+// types sharing the mowVisits collection (Yard Work, Extra Yard Work) no
+// longer merge into one record even if they happen to share a checked area -
+// each contributes its own record, since the user picks their areas apart.
 async function handleSubmit(e) {
   e.preventDefault();
   const customerId = byId("event-customer").value;
@@ -227,35 +244,38 @@ async function handleSubmit(e) {
   const yardworkOn = types.includes("yardwork");
   const extraOn = types.includes("extra_yardwork");
   const chemicalOn = types.includes("chemical");
-  const featureId = extraOn ? byId("event-feature").value || null : null;
 
-  let mowFields = null;
-  if (yardworkOn || extraOn) {
-    mowFields = {
-      mowed: yardworkOn && byId("event-mowed").checked,
-      trimmed: yardworkOn && byId("event-trimmed").checked,
-      edged: yardworkOn && byId("event-edged").checked,
-      pruned: extraOn && byId("event-pruned").checked,
-      trimmedBushes: extraOn && byId("event-trimmed-bushes").checked,
-      mulched: extraOn && byId("event-mulched").checked,
-      pattern: yardworkOn ? byId("event-pattern").value : null,
-      deckHeight: yardworkOn && byId("event-height").value ? Number(byId("event-height").value) : null,
-      groundSpeed: yardworkOn ? byId("event-ground-speed").value || null : null,
-      bladeSpeed: yardworkOn ? byId("event-blade-speed").value || null : null,
-      timeOfDay,
-      grassCondition: yardworkOn ? byId("event-grass-condition").value || null : null,
+  let yardworkFields = null;
+  if (yardworkOn) {
+    yardworkFields = {
+      mowed: byId("event-mowed").checked,
+      trimmed: byId("event-trimmed").checked,
+      edged: byId("event-edged").checked,
+      pattern: byId("event-pattern").value,
+      deckHeight: byId("event-height").value ? Number(byId("event-height").value) : null,
+      groundSpeed: byId("event-ground-speed").value || null,
+      bladeSpeed: byId("event-blade-speed").value || null,
+      grassCondition: byId("event-grass-condition").value || null,
     };
-    if (
-      !mowFields.mowed &&
-      !mowFields.trimmed &&
-      !mowFields.edged &&
-      !mowFields.pruned &&
-      !mowFields.trimmedBushes &&
-      !mowFields.mulched
-    ) {
+    if (!yardworkFields.mowed && !yardworkFields.trimmed && !yardworkFields.edged) {
       alert("Select at least one yard work task.");
       return;
     }
+  }
+
+  let extraFields = null;
+  let featureId = null;
+  if (extraOn) {
+    extraFields = {
+      pruned: byId("event-pruned").checked,
+      trimmedBushes: byId("event-trimmed-bushes").checked,
+      mulched: byId("event-mulched").checked,
+    };
+    if (!extraFields.pruned && !extraFields.trimmedBushes && !extraFields.mulched) {
+      alert("Select at least one yard work task.");
+      return;
+    }
+    featureId = byId("event-feature").value || null;
   }
 
   let sprayProduct = null;
@@ -267,16 +287,46 @@ async function handleSubmit(e) {
     }
   }
 
-  // Areas are multi-select, so one form submission fans out into one record
-  // per selected area (or a single unspecified-area record if none picked).
-  const areaIds = checkedAreaIds();
-  const areaTargets = areaIds.length ? areaIds : [null];
+  const mowVisitBase = { customerId, date, timeOfDay, locationId, equipmentId, notes };
 
-  for (const areaId of areaTargets) {
-    if (mowFields) {
-      await createDoc("mowVisits", { customerId, date, ...mowFields, locationId, areaId, featureId, equipmentId, notes });
+  if (yardworkFields) {
+    const areaIds = checkedAreaIds("yardwork");
+    for (const areaId of areaIds.length ? areaIds : [null]) {
+      await createDoc("mowVisits", {
+        ...mowVisitBase,
+        ...yardworkFields,
+        pruned: false,
+        trimmedBushes: false,
+        mulched: false,
+        areaId,
+        featureId: null,
+      });
     }
-    if (chemicalOn) {
+  }
+
+  if (extraFields) {
+    const areaIds = checkedAreaIds("extra_yardwork");
+    for (const areaId of areaIds.length ? areaIds : [null]) {
+      await createDoc("mowVisits", {
+        ...mowVisitBase,
+        mowed: false,
+        trimmed: false,
+        edged: false,
+        pattern: null,
+        deckHeight: null,
+        groundSpeed: null,
+        bladeSpeed: null,
+        grassCondition: null,
+        ...extraFields,
+        areaId,
+        featureId,
+      });
+    }
+  }
+
+  if (chemicalOn) {
+    const areaIds = checkedAreaIds("chemical");
+    for (const areaId of areaIds.length ? areaIds : [null]) {
       await createDoc("sprayApplications", {
         customerId,
         date,
@@ -285,14 +335,14 @@ async function handleSubmit(e) {
         product: sprayProduct,
         locationId,
         areaId,
-        featureId,
+        featureId: null,
         equipmentId,
         notes,
       });
     }
   }
 
-  if (mowFields) await loadVisits();
+  if (yardworkFields || extraFields) await loadVisits();
   if (chemicalOn) await loadSprays();
 
   closeForm();
