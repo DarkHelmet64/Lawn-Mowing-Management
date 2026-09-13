@@ -1,6 +1,6 @@
 import { createDoc } from "./db.js";
 import { byId, escapeHtml, todayStr } from "./utils.js";
-import { getCustomers, populateCustomerSelect } from "./customers.js";
+import { getCustomers } from "./customers.js";
 import {
   populateEquipmentSelect,
   populateDeckHeightSelect,
@@ -17,6 +17,41 @@ import { EVENT_TYPE_LABELS, EVENT_TYPE_KEYS } from "./eventTypes.js";
 // Areas with these exact names are the default pick whenever Yard Work is
 // the active event type - see applyYardworkDefaults().
 const DEFAULT_YARDWORK_AREA_NAMES = new Set(["Front Yard", "Back Yard"]);
+
+// Customers are a multi-select too - Location/Areas are shared across
+// whichever customers are checked (driven by the first one checked), and
+// submitting fans out a copy of every record across all of them. This suits
+// customers who share one property (e.g. a couple listed as two records)
+// more than customers with entirely different addresses.
+function checkedCustomerIds() {
+  return Array.from(document.querySelectorAll("#event-customer-list .event-customer-checkbox:checked")).map(
+    (cb) => cb.value
+  );
+}
+
+function firstCheckedCustomerId() {
+  return checkedCustomerIds()[0] || null;
+}
+
+// Renders fresh every time the form opens (customers don't change while it's
+// open), defaulting to just the first customer checked.
+function renderCustomerList() {
+  const customers = getCustomers();
+  const container = byId("event-customer-list");
+  container.innerHTML = customers.length
+    ? customers
+        .map(
+          (c, i) => `
+      <label class="checkbox-label">
+        <input type="checkbox" class="event-customer-checkbox" value="${c.id}" ${i === 0 ? "checked" : ""} />
+        ${escapeHtml(c.name)}
+      </label>`
+        )
+        .join("")
+    : `<p class="hint-text">Add a customer first.</p>`;
+
+  container.querySelectorAll(".event-customer-checkbox").forEach((cb) => cb.addEventListener("change", refreshLocationOptions));
+}
 
 function primaryCategory() {
   return byId("event-category").value;
@@ -133,9 +168,9 @@ function applyGrassConditionDefault() {
 }
 
 function refreshLocationOptions() {
-  const customerId = byId("event-customer").value;
+  const customerId = firstCheckedCustomerId();
   populateLocationSelect(byId("event-location"), customerId);
-  const locations = getLocationsForCustomer(customerId);
+  const locations = customerId ? getLocationsForCustomer(customerId) : [];
   if (locations.length) byId("event-location").value = locations[0].id;
   refreshAreaOptions();
 }
@@ -196,8 +231,7 @@ function refreshFeatureOptions() {
 
 function openForm() {
   byId("log-event-form-card").classList.remove("hidden");
-  populateCustomerSelect(byId("event-customer"));
-  byId("event-customer").value = getCustomers()[0]?.id || "";
+  renderCustomerList();
   byId("event-date").value = todayStr();
   byId("event-category").value = "yardwork";
   byId("event-category-2").value = "";
@@ -233,7 +267,11 @@ function closeForm() {
 // each contributes its own record, since the user picks their areas apart.
 async function handleSubmit(e) {
   e.preventDefault();
-  const customerId = byId("event-customer").value;
+  const customerIds = checkedCustomerIds();
+  if (!customerIds.length) {
+    alert("Select at least one customer.");
+    return;
+  }
   const date = byId("event-date").value;
   const timeOfDay = byId("event-time-of-day").value || null;
   const notes = byId("event-notes").value.trim();
@@ -287,58 +325,66 @@ async function handleSubmit(e) {
     }
   }
 
-  const mowVisitBase = { customerId, date, timeOfDay, locationId, equipmentId, notes };
+  const eventBase = { date, timeOfDay, locationId, equipmentId, notes };
 
   if (yardworkFields) {
     const areaIds = checkedAreaIds("yardwork");
-    for (const areaId of areaIds.length ? areaIds : [null]) {
-      await createDoc("mowVisits", {
-        ...mowVisitBase,
-        ...yardworkFields,
-        pruned: false,
-        trimmedBushes: false,
-        mulched: false,
-        areaId,
-        featureId: null,
-      });
+    for (const customerId of customerIds) {
+      for (const areaId of areaIds.length ? areaIds : [null]) {
+        await createDoc("mowVisits", {
+          customerId,
+          ...eventBase,
+          ...yardworkFields,
+          pruned: false,
+          trimmedBushes: false,
+          mulched: false,
+          areaId,
+          featureId: null,
+        });
+      }
     }
   }
 
   if (extraFields) {
     const areaIds = checkedAreaIds("extra_yardwork");
-    for (const areaId of areaIds.length ? areaIds : [null]) {
-      await createDoc("mowVisits", {
-        ...mowVisitBase,
-        mowed: false,
-        trimmed: false,
-        edged: false,
-        pattern: null,
-        deckHeight: null,
-        groundSpeed: null,
-        bladeSpeed: null,
-        grassCondition: null,
-        ...extraFields,
-        areaId,
-        featureId,
-      });
+    for (const customerId of customerIds) {
+      for (const areaId of areaIds.length ? areaIds : [null]) {
+        await createDoc("mowVisits", {
+          customerId,
+          ...eventBase,
+          mowed: false,
+          trimmed: false,
+          edged: false,
+          pattern: null,
+          deckHeight: null,
+          groundSpeed: null,
+          bladeSpeed: null,
+          grassCondition: null,
+          ...extraFields,
+          areaId,
+          featureId,
+        });
+      }
     }
   }
 
   if (chemicalOn) {
     const areaIds = checkedAreaIds("chemical");
-    for (const areaId of areaIds.length ? areaIds : [null]) {
-      await createDoc("sprayApplications", {
-        customerId,
-        date,
-        timeOfDay,
-        target: byId("event-spray-target").value,
-        product: sprayProduct,
-        locationId,
-        areaId,
-        featureId: null,
-        equipmentId,
-        notes,
-      });
+    for (const customerId of customerIds) {
+      for (const areaId of areaIds.length ? areaIds : [null]) {
+        await createDoc("sprayApplications", {
+          customerId,
+          date,
+          timeOfDay,
+          target: byId("event-spray-target").value,
+          product: sprayProduct,
+          locationId,
+          areaId,
+          featureId: null,
+          equipmentId,
+          notes,
+        });
+      }
     }
   }
 
@@ -377,7 +423,6 @@ export function initEventLogView() {
   });
   byId("event-mowed").addEventListener("change", updateMowedFieldsVisibility);
   byId("event-time-of-day").addEventListener("change", applyGrassConditionDefault);
-  byId("event-customer").addEventListener("change", refreshLocationOptions);
   byId("event-location").addEventListener("change", refreshAreaOptions);
   byId("event-equipment").addEventListener("change", () => {
     populateDeckHeightSelect(byId("event-height"), byId("event-equipment").value);
