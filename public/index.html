@@ -630,6 +630,17 @@
             <label>Date
               <input type="date" id="purchase-date" required />
             </label>
+            <div class="subsection">
+              <div class="subsection-header"><span>Bought in containers? (optional)</span></div>
+              <p class="hint-text">e.g. 3 bottles at 64 fl oz each - fills in Quantity Purchased for you.</p>
+              <label>Number of Containers
+                <input type="number" id="purchase-container-count" step="any" min="0" placeholder="e.g. 3" />
+              </label>
+              <label>Container Size
+                <input type="number" id="purchase-container-size" step="any" min="0" placeholder="e.g. 64" />
+              </label>
+              <p id="purchase-container-hint" class="hint-text"></p>
+            </div>
             <label>Quantity Purchased
               <input type="number" id="purchase-quantity" step="any" min="0" required />
             </label>

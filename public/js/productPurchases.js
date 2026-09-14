@@ -23,6 +23,24 @@ function populateDatalist(datalistId, values) {
   byId(datalistId).innerHTML = values.map((v) => `<option value="${escapeHtml(v)}"></option>`).join("");
 }
 
+// Lets a purchase be entered as "N containers of size S" (e.g. 3 bottles at
+// 64 fl oz each) instead of doing the multiplication by hand - fills in
+// Quantity Purchased for you, but leaves it editable in case of a partial
+// container or other adjustment.
+function updateContainerCalculation() {
+  const unit = getProductById(byId("purchase-product").value)?.unit || "";
+  const count = Number(byId("purchase-container-count").value) || 0;
+  const size = Number(byId("purchase-container-size").value) || 0;
+  const hint = byId("purchase-container-hint");
+  if (count > 0 && size > 0) {
+    const total = Math.round(count * size * 100) / 100;
+    byId("purchase-quantity").value = total;
+    hint.textContent = `${count} × ${size} ${unit} = ${total} ${unit} total`;
+  } else {
+    hint.textContent = "";
+  }
+}
+
 function renderTable() {
   const body = byId("purchase-table-body");
   body.innerHTML =
@@ -32,7 +50,7 @@ function renderTable() {
       <tr>
         <td>${formatDateDisplay(p.date)}</td>
         <td>${escapeHtml(getProductName(p.productId) || "")}</td>
-        <td>${p.quantity} ${escapeHtml(getProductById(p.productId)?.unit || "")}</td>
+        <td>${p.quantity} ${escapeHtml(getProductById(p.productId)?.unit || "")}${p.containerCount && p.containerSize ? ` (${p.containerCount} × ${p.containerSize})` : ""}</td>
         <td>${p.cost != null ? `$${p.cost.toFixed(2)}` : ""}</td>
         <td>${escapeHtml(p.supplier || "")}</td>
         <td class="row-actions">
@@ -52,6 +70,9 @@ function openForm() {
   populateProductSelect(byId("purchase-product"), { includeNone: false });
   populateDatalist("purchase-supplier-options", uniqueSortedSuppliers());
   byId("purchase-date").value = todayStr();
+  byId("purchase-container-count").value = "";
+  byId("purchase-container-size").value = "";
+  byId("purchase-container-hint").textContent = "";
   byId("purchase-quantity").value = "";
   byId("purchase-cost").value = "";
   byId("purchase-supplier").value = "";
@@ -81,6 +102,8 @@ async function handleSubmit(e) {
     productId,
     date: byId("purchase-date").value,
     quantity,
+    containerCount: byId("purchase-container-count").value ? Number(byId("purchase-container-count").value) : null,
+    containerSize: byId("purchase-container-size").value ? Number(byId("purchase-container-size").value) : null,
     cost: byId("purchase-cost").value ? Number(byId("purchase-cost").value) : null,
     supplier: byId("purchase-supplier").value.trim(),
     notes: byId("purchase-notes").value.trim(),
@@ -108,6 +131,9 @@ export function initPurchasesView() {
     });
     byId("cancel-purchase-btn").addEventListener("click", closeForm);
     byId("purchase-form").addEventListener("submit", handleSubmit);
+    byId("purchase-container-count").addEventListener("input", updateContainerCalculation);
+    byId("purchase-container-size").addEventListener("input", updateContainerCalculation);
+    byId("purchase-product").addEventListener("change", updateContainerCalculation);
     listenersBound = true;
   }
   return refreshPurchasesView();
