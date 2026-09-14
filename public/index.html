@@ -49,6 +49,9 @@
         <div id="log-event-form-card" class="card hidden">
           <h3>Log an Event</h3>
           <form id="log-event-form">
+            <label>Group (optional)
+              <select id="event-group"></select>
+            </label>
             <label>Customers</label>
             <div id="event-customer-list" class="checkbox-row"></div>
             <label>Date
@@ -227,6 +230,7 @@
         <div class="settings-layout">
           <nav class="settings-nav">
             <button type="button" class="settings-nav-btn" data-settings-section="customers">Customers</button>
+            <button type="button" class="settings-nav-btn" data-settings-section="groups">Customer Groups</button>
             <button type="button" class="settings-nav-btn" data-settings-section="locations">Locations</button>
             <button type="button" class="settings-nav-btn" data-settings-section="areas">Areas</button>
             <button type="button" class="settings-nav-btn" data-settings-section="equipment">Equipment</button>
@@ -294,6 +298,38 @@
               <tr><th>Name</th><th></th></tr>
             </thead>
             <tbody id="customer-table-body"></tbody>
+          </table>
+        </div>
+        </div>
+
+        <div class="settings-section" data-settings-section="groups">
+        <div class="view-header">
+          <h3>Customer Groups</h3>
+          <button id="add-group-btn" class="primary-btn">+ Add Group</button>
+        </div>
+        <p class="hint-text">Group customers you mow together in one visit, e.g. neighbors on the same street - name it however makes sense (often the street name), then pick the group in Log Event to check all its customers at once.</p>
+        <div id="group-form-card" class="card hidden">
+          <h3 id="group-form-title">Add Group</h3>
+          <form id="group-form">
+            <input type="hidden" id="group-id" />
+            <label>Name
+              <input type="text" id="group-name" placeholder="e.g. Elm Street" required />
+            </label>
+            <label>Customers</label>
+            <div id="group-customer-list" class="checkbox-row"></div>
+            <div class="form-actions">
+              <button type="submit" class="primary-btn">Save</button>
+              <button type="button" id="cancel-group-btn" class="ghost-btn">Cancel</button>
+              <button type="button" id="delete-group-btn" class="danger-btn hidden">Delete Group</button>
+            </div>
+          </form>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr><th>Name</th><th>Customers</th><th></th></tr>
+            </thead>
+            <tbody id="group-table-body"></tbody>
           </table>
         </div>
         </div>

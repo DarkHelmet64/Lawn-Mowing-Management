@@ -1,6 +1,7 @@
 import { createDoc } from "./db.js";
 import { byId, escapeHtml, todayStr } from "./utils.js";
 import { getCustomers } from "./customers.js";
+import { getCustomerGroupById, populateGroupSelect } from "./customerGroups.js";
 import {
   populateEquipmentSelect,
   populateDeckHeightSelect,
@@ -53,6 +54,18 @@ function renderCustomerList() {
     : `<p class="hint-text">Add a customer first.</p>`;
 
   container.querySelectorAll(".event-customer-checkbox").forEach((cb) => cb.addEventListener("change", refreshLocationOptions));
+}
+
+// Picking a group checks exactly that group's customers (replacing whatever
+// was checked before) - a shortcut for the neighbors-mowed-together case
+// this is built for, not an additive "also check these" merge.
+function applyGroupSelection() {
+  const group = getCustomerGroupById(byId("event-group").value);
+  if (!group) return;
+  document.querySelectorAll("#event-customer-list .event-customer-checkbox").forEach((cb) => {
+    cb.checked = group.customerIds.includes(cb.value);
+  });
+  refreshLocationOptions();
 }
 
 function primaryCategory() {
@@ -252,6 +265,8 @@ function refreshFeatureOptions() {
 function openForm() {
   byId("log-event-form-card").classList.remove("hidden");
   renderCustomerList();
+  populateGroupSelect(byId("event-group"));
+  byId("event-group").value = "";
   byId("event-date").value = todayStr();
   byId("event-category").value = "yardwork";
   byId("event-category-2").value = "";
@@ -460,5 +475,6 @@ export function initEventLogView() {
   byId("event-location").addEventListener("change", refreshAreaOptions);
   byId("event-spray-product").addEventListener("change", updateProductHint);
   byId("event-equipment").addEventListener("change", applyEquipmentDefaults);
+  byId("event-group").addEventListener("change", applyGroupSelection);
   byId("log-event-form").addEventListener("submit", handleSubmit);
 }
