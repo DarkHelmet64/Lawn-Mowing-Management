@@ -4,10 +4,9 @@ import { getSprays } from "./sprayLog.js";
 import { getTasks } from "./maintenance.js";
 import { getLowStockProducts, getProductName } from "./products.js";
 import { refreshWeatherView } from "./weatherView.js";
-import { weeklyRainfall, last7DaysRainfall, profileFor } from "./growthPotential.js";
+import { last7DaysRainfall, profileFor } from "./growthPotential.js";
 import { computeMowStatus } from "./mowReadiness.js";
 import { getSettings } from "./settings.js";
-import { renderLineChart, renderBarChart } from "./charts.js";
 import { byId, escapeHtml, formatDateDisplay, todayStr } from "./utils.js";
 
 let listenersBound = false;
@@ -76,17 +75,6 @@ async function refreshWeatherStats() {
   byId("stat-today-gp").textContent = today ? `${(today.gp * 100).toFixed(0)}%` : "–";
   byId("stat-avg-gp").textContent = recent.length ? `${(avgRecentGP * 100).toFixed(0)}%` : "–";
   byId("stat-weekly-rain").textContent = `${last7DaysRainfall(days, todayStr()).toFixed(2)}"`;
-
-  renderLineChart(
-    byId("chart-gp"),
-    series.slice(-14).map((d) => ({ label: formatDateDisplay(d.date).slice(0, 5), value: d.gp * 100 }))
-  );
-
-  const weeks = weeklyRainfall(days).slice(-10);
-  renderBarChart(
-    byId("chart-rain"),
-    weeks.map((w) => ({ label: formatDateDisplay(w.weekStart).slice(0, 5), value: w.totalPrecipIn }))
-  );
 
   const mowStatus = computeMowStatus(getCustomers(), getVisits(), days, {
     grassProfile: profileFor(settings.grassType),
