@@ -13,7 +13,7 @@ import { getLocationsForCustomer, populateLocationSelect } from "./locations.js"
 import { getAreasForLocation, areaAppliesToEventTypes } from "./areas.js";
 import { getYardFeatures } from "./yardFeatures.js";
 import { loadVisits } from "./mowLog.js";
-import { loadSprays } from "./sprayLog.js";
+import { loadSprays, getLastQuantityUsedForProduct } from "./sprayLog.js";
 import { EVENT_TYPE_LABELS, EVENT_TYPE_KEYS } from "./eventTypes.js";
 import { populateProductSelect, getProductById, adjustProductQuantity } from "./products.js";
 
@@ -37,8 +37,11 @@ function firstCheckedCustomerId() {
 }
 
 // Renders fresh every time the form opens (customers don't change while it's
-// open), defaulting to just the first customer checked.
-function renderCustomerList() {
+// open). preselectFirst defaults to true for a normal fresh open; "Save &
+// Log Another" passes false so the next entry starts with nobody checked,
+// forcing a deliberate pick of who's next rather than reusing whoever
+// happens to be first alphabetically.
+function renderCustomerList(preselectFirst = true) {
   const customers = getCustomers();
   const container = byId("event-customer-list");
   container.innerHTML = customers.length
@@ -46,7 +49,7 @@ function renderCustomerList() {
         .map(
           (c, i) => `
       <label class="checkbox-label">
-        <input type="checkbox" class="event-customer-checkbox" value="${c.id}" ${i === 0 ? "checked" : ""} />
+        <input type="checkbox" class="event-customer-checkbox" value="${c.id}" ${preselectFirst && i === 0 ? "checked" : ""} />
         ${escapeHtml(c.name)}
       </label>`
         )
@@ -240,10 +243,26 @@ function refreshAreaOptions() {
 // union of features across whichever areas are checked in that type's own
 // Areas list.
 // Surfaces how much of the selected product is on hand right where the
-// quantity gets entered, so a low/empty product is obvious before you submit.
+// quantity gets entered, so a low/empty product is obvious before you
+// submit, and prefills the quantity from whatever was used last time this
+// same product was applied (any customer) - most products get reused at
+// roughly the same dose, so this is usually right and always editable.
 function updateProductHint() {
   const product = getProductById(byId("event-spray-product").value);
   byId("event-spray-quantity-hint").textContent = product ? `${product.quantityOnHand} ${product.unit} on hand` : "";
+  const lastQuantity = product ? getLastQuantityUsedForProduct(product.id) : null;
+  byId("event-spray-quantity").value = lastQuantity != null ? lastQuantity : "";
+}
+
+// Guesses Time of Day from the current clock so it's rarely left blank -
+// still fully editable, and this only runs on a fresh open (see openForm),
+// never overwriting what "Save & Log Another" is carrying forward.
+function suggestedTimeOfDay() {
+  const hour = new Date().getHours();
+  if (hour < 11) return "morning";
+  if (hour < 14) return "midday";
+  if (hour < 18) return "afternoon";
+  return "evening";
 }
 
 function refreshFeatureOptions() {
@@ -268,6 +287,7 @@ function openForm() {
   populateGroupSelect(byId("event-group"));
   byId("event-group").value = "";
   byId("event-date").value = todayStr();
+  byId("event-time-of-day").value = suggestedTimeOfDay();
   byId("event-category").value = "yardwork";
   byId("event-category-2").value = "";
   byId("event-category-3").value = "";
@@ -281,10 +301,8 @@ function openForm() {
   populateDeckHeightSelect(byId("event-height"), "");
   populateGroundSpeedSelect(byId("event-ground-speed"), "");
   populateBladeSpeedSelect(byId("event-blade-speed"), "");
-  byId("event-time-of-day").value = "";
   byId("event-spray-target").value = "weeds";
   populateProductSelect(byId("event-spray-product"));
-  byId("event-spray-quantity").value = "";
   updateProductHint();
   byId("event-notes").value = "";
   refreshLocationOptions();
@@ -297,6 +315,19 @@ function closeForm() {
   byId("log-event-form").reset();
 }
 
+// "Save & Log Another" keeps the form open for a quick repeat: date, time,
+// event type, and its checkboxes/settings all carry over untouched (most
+// consecutive visits share these), but Customers/Group reset to force a
+// deliberate pick of who's next, and Notes clear since they're specific to
+// the visit just saved.
+function resetForNextEntry() {
+  renderCustomerList(false);
+  populateGroupSelect(byId("event-group"));
+  byId("event-group").value = "";
+  byId("event-notes").value = "";
+  refreshLocationOptions();
+}
+
 // Each active event type is entirely independent: its own Areas checklist,
 // its own fan-out (one record per its own checked area, or a single
 // unspecified-area record if none are checked), and its own fields. Two
@@ -305,6 +336,7 @@ function closeForm() {
 // each contributes its own record, since the user picks their areas apart.
 async function handleSubmit(e) {
   e.preventDefault();
+  const logAnother = e.submitter?.id === "save-log-another-btn";
   const customerIds = checkedCustomerIds();
   if (!customerIds.length) {
     alert("Select at least one customer.");
@@ -440,7 +472,8 @@ async function handleSubmit(e) {
   if (yardworkFields || extraFields) await loadVisits();
   if (chemicalOn) await loadSprays();
 
-  closeForm();
+  if (logAnother) resetForNextEntry();
+  else closeForm();
   document.dispatchEvent(new CustomEvent("event:logged"));
 }
 

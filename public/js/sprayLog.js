@@ -36,6 +36,22 @@ export function getSprays() {
   return cache;
 }
 
+// The most recent quantity used for a given product, regardless of customer -
+// lets Log Event suggest last time's dose instead of a blank field. cache is
+// sorted by date only, which doesn't disambiguate same-day records, so
+// createdAt breaks ties in favor of whichever was actually entered last.
+export function getLastQuantityUsedForProduct(productId) {
+  const matches = cache.filter((s) => s.productId === productId && s.quantityUsed != null);
+  if (!matches.length) return null;
+  const latest = matches.reduce((best, s) => {
+    if (s.date !== best.date) return s.date > best.date ? s : best;
+    const sTime = s.createdAt?.toMillis ? s.createdAt.toMillis() : 0;
+    const bestTime = best.createdAt?.toMillis ? best.createdAt.toMillis() : 0;
+    return sTime > bestTime ? s : best;
+  });
+  return latest.quantityUsed;
+}
+
 function renderTable() {
   const body = byId("spray-table-body");
   body.innerHTML = cache
