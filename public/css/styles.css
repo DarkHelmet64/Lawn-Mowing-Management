@@ -601,6 +601,62 @@ form {
   }
 }
 
+.settings-nav {
+  display: none;
+}
+
+@media (min-width: 601px) {
+  .settings-layout {
+    display: flex;
+    align-items: flex-start;
+    gap: 24px;
+  }
+
+  .settings-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    width: 200px;
+    flex-shrink: 0;
+    position: sticky;
+    top: 16px;
+  }
+
+  .settings-nav-btn {
+    text-align: left;
+    background: none;
+    border: none;
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-size: 14px;
+    color: var(--text);
+    cursor: pointer;
+  }
+
+  .settings-nav-btn:hover {
+    background: var(--border);
+  }
+
+  .settings-nav-btn.active {
+    background: var(--primary);
+    color: #ffffff;
+    font-weight: 600;
+  }
+
+  .settings-sections {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .settings-section {
+    display: none;
+  }
+
+  .settings-section.active {
+    display: block;
+  }
+}
+
 .confirm-overlay {
   position: fixed;
   inset: 0;

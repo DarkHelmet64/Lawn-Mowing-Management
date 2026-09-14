@@ -166,6 +166,18 @@
             </div>
           </form>
         </div>
+        <div class="card">
+          <div class="view-header">
+            <h3>Last Mow Pattern</h3>
+            <label>Customer
+              <select id="pattern-lookup-customer"></select>
+            </label>
+          </div>
+          <div id="pattern-lookup-result">
+            <p class="hint-text">Add a customer to see their last mow pattern.</p>
+          </div>
+        </div>
+
         <div class="stat-grid">
           <div class="stat-card">
             <span class="stat-label">Today's Growth Potential</span>
@@ -204,16 +216,6 @@
         </div>
 
         <div class="card">
-          <h3>Growth Potential (Last 2 Weeks)</h3>
-          <svg id="chart-gp" class="chart" viewBox="0 0 600 220" preserveAspectRatio="none"></svg>
-        </div>
-
-        <div class="card">
-          <h3>Weekly Rainfall (in)</h3>
-          <svg id="chart-rain" class="chart" viewBox="0 0 600 220" preserveAspectRatio="none"></svg>
-        </div>
-
-        <div class="card">
           <h3>Recent Activity</h3>
           <ul id="recent-activity-list" class="activity-list"></ul>
         </div>
@@ -222,6 +224,19 @@
       <section id="view-settings" class="view">
         <h2>Settings</h2>
 
+        <div class="settings-layout">
+          <nav class="settings-nav">
+            <button type="button" class="settings-nav-btn" data-settings-section="customers">Customers</button>
+            <button type="button" class="settings-nav-btn" data-settings-section="locations">Locations</button>
+            <button type="button" class="settings-nav-btn" data-settings-section="areas">Areas</button>
+            <button type="button" class="settings-nav-btn" data-settings-section="equipment">Equipment</button>
+            <button type="button" class="settings-nav-btn" data-settings-section="maintenance">Equipment Maintenance</button>
+            <button type="button" class="settings-nav-btn" data-settings-section="features">Yard Features</button>
+            <button type="button" class="settings-nav-btn" data-settings-section="products">Products</button>
+            <button type="button" class="settings-nav-btn" data-settings-section="purchases">Product Purchases</button>
+          </nav>
+          <div class="settings-sections">
+        <div class="settings-section" data-settings-section="customers">
         <div class="view-header">
           <h3>Customers</h3>
           <button id="add-customer-btn" class="primary-btn">+ Add Customer</button>
@@ -281,7 +296,9 @@
             <tbody id="customer-table-body"></tbody>
           </table>
         </div>
+        </div>
 
+        <div class="settings-section" data-settings-section="locations">
         <div class="view-header">
           <h3>Locations</h3>
           <button id="add-location-btn" class="primary-btn">+ Add Location</button>
@@ -333,7 +350,9 @@
             <tbody id="location-table-body"></tbody>
           </table>
         </div>
+        </div>
 
+        <div class="settings-section" data-settings-section="areas">
         <div class="view-header">
           <h3>Areas</h3>
           <button id="add-area-btn" class="primary-btn">+ Add Area</button>
@@ -380,7 +399,9 @@
           </form>
         </div>
         <div id="area-tree" class="tree"></div>
+        </div>
 
+        <div class="settings-section" data-settings-section="equipment">
         <div class="view-header">
           <h3>Equipment</h3>
           <button id="add-equipment-btn" class="primary-btn">+ Add Equipment</button>
@@ -461,7 +482,9 @@
             <tbody id="equipment-table-body"></tbody>
           </table>
         </div>
+        </div>
 
+        <div class="settings-section" data-settings-section="maintenance">
         <div class="view-header">
           <h3>Equipment Maintenance</h3>
           <button id="add-task-btn" class="primary-btn">+ Log Task</button>
@@ -515,7 +538,9 @@
             <tbody id="task-table-body"></tbody>
           </table>
         </div>
+        </div>
 
+        <div class="settings-section" data-settings-section="features">
         <div class="view-header">
           <h3>Yard Features</h3>
           <button id="add-feature-btn" class="primary-btn">+ Add Feature</button>
@@ -572,7 +597,9 @@
             <tbody id="feature-table-body"></tbody>
           </table>
         </div>
+        </div>
 
+        <div class="settings-section" data-settings-section="products">
         <div class="view-header">
           <h3>Products</h3>
           <button id="add-product-btn" class="primary-btn">+ Add Product</button>
@@ -615,7 +642,9 @@
             <tbody id="product-table-body"></tbody>
           </table>
         </div>
+        </div>
 
+        <div class="settings-section" data-settings-section="purchases">
         <div class="view-header">
           <h3>Product Purchases</h3>
           <button id="add-purchase-btn" class="primary-btn">+ Record Purchase</button>
@@ -630,6 +659,17 @@
             <label>Date
               <input type="date" id="purchase-date" required />
             </label>
+            <div class="subsection">
+              <div class="subsection-header"><span>Bought in containers? (optional)</span></div>
+              <p class="hint-text">e.g. 3 bottles at 64 fl oz each - fills in Quantity Purchased for you.</p>
+              <label>Number of Containers
+                <input type="number" id="purchase-container-count" step="any" min="0" placeholder="e.g. 3" />
+              </label>
+              <label>Container Size
+                <input type="number" id="purchase-container-size" step="any" min="0" placeholder="e.g. 64" />
+              </label>
+              <p id="purchase-container-hint" class="hint-text"></p>
+            </div>
             <label>Quantity Purchased
               <input type="number" id="purchase-quantity" step="any" min="0" required />
             </label>
@@ -656,6 +696,9 @@
             </thead>
             <tbody id="purchase-table-body"></tbody>
           </table>
+        </div>
+        </div>
+          </div>
         </div>
       </section>
 

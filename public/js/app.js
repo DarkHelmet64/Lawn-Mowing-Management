@@ -12,7 +12,7 @@ import { loadYardFeatures, initYardFeaturesView, refreshYardFeaturesView } from 
 import { loadProducts, initProductsView, refreshProductsView } from "./products.js";
 import { loadPurchases, initPurchasesView, refreshPurchasesView } from "./productPurchases.js";
 import { initWeatherView, startBackgroundWeatherSync } from "./weatherView.js";
-import { refreshDashboard } from "./dashboard.js";
+import { refreshDashboard, initDashboardView } from "./dashboard.js";
 import { initEventLogView } from "./eventLog.js";
 
 const initializedViews = new Set();
@@ -77,7 +77,7 @@ function initView(view) {
   initializedViews.add(view);
   switch (view) {
     case "dashboard":
-      refreshDashboard();
+      initDashboardView();
       break;
     case "mow-log":
       initMowLogView();
@@ -94,6 +94,7 @@ function initView(view) {
       initYardFeaturesView();
       initProductsView();
       initPurchasesView();
+      setupSettingsNav();
       break;
     case "weather":
       initWeatherView();
@@ -110,6 +111,24 @@ function switchView(view) {
 
 function setupNav() {
   document.querySelectorAll(".nav-btn").forEach((btn) => btn.addEventListener("click", () => switchView(btn.dataset.view)));
+}
+
+// Tablet/desktop only (see .settings-nav in styles.css, hidden below 601px):
+// a left column of section names that shows just the one section picked in
+// the main area, instead of every Settings section stacked on top of the
+// other. Mobile is untouched - .settings-section stays plain block there,
+// so everything still shows stacked as before.
+function setupSettingsNav() {
+  const buttons = document.querySelectorAll(".settings-nav-btn");
+  const sections = document.querySelectorAll(".settings-section");
+  buttons.forEach((btn) =>
+    btn.addEventListener("click", () => {
+      buttons.forEach((b) => b.classList.toggle("active", b === btn));
+      sections.forEach((section) => section.classList.toggle("active", section.dataset.settingsSection === btn.dataset.settingsSection));
+    })
+  );
+  buttons[0]?.classList.add("active");
+  sections[0]?.classList.add("active");
 }
 
 function setupLoginForm() {
