@@ -1,5 +1,5 @@
-import { getCustomers, getCustomerName } from "./customers.js";
-import { getVisits } from "./mowLog.js";
+import { getCustomers, getCustomerName, populateCustomerSelect } from "./customers.js";
+import { getVisits, PATTERN_LABELS } from "./mowLog.js";
 import { getSprays } from "./sprayLog.js";
 import { getTasks } from "./maintenance.js";
 import { getLowStockProducts, getProductName } from "./products.js";
@@ -10,12 +10,45 @@ import { getSettings } from "./settings.js";
 import { renderLineChart, renderBarChart } from "./charts.js";
 import { byId, escapeHtml, formatDateDisplay, todayStr } from "./utils.js";
 
+let listenersBound = false;
+
+export function initDashboardView() {
+  if (!listenersBound) {
+    byId("pattern-lookup-customer").addEventListener("change", renderPatternLookup);
+    listenersBound = true;
+  }
+  return refreshDashboard();
+}
+
 export async function refreshDashboard() {
   byId("stat-customer-count").textContent = String(getCustomers().length);
   renderRecentActivity();
   renderLowStock();
+  populateCustomerSelect(byId("pattern-lookup-customer"));
+  renderPatternLookup();
   byId("ready-to-mow-list").innerHTML = "<li>Loading…</li>";
   refreshWeatherStats().catch((err) => console.error("Failed to refresh weather-dependent dashboard stats", err));
+}
+
+// The most recent mowed visit (with a pattern recorded) for whichever
+// customer is picked in the Last Mow Pattern card - visits are already
+// loaded sorted newest-first, so the first match is the latest one.
+function renderPatternLookup() {
+  const customerId = byId("pattern-lookup-customer").value;
+  const container = byId("pattern-lookup-result");
+  if (!customerId) {
+    container.innerHTML = `<p class="hint-text">Add a customer to see their last mow pattern.</p>`;
+    return;
+  }
+  const visit = getVisits().find((v) => v.customerId === customerId && v.mowed && v.pattern);
+  if (!visit) {
+    container.innerHTML = `<p class="hint-text">No mow recorded yet for ${escapeHtml(getCustomerName(customerId))}.</p>`;
+    return;
+  }
+  container.innerHTML = `
+    <span class="stat-value">${PATTERN_LABELS[visit.pattern] || visit.pattern}</span>
+    <p class="hint-text">Last mowed ${formatDateDisplay(visit.date)} for ${escapeHtml(getCustomerName(customerId))}</p>
+  `;
 }
 
 function renderLowStock() {

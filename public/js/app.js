@@ -12,7 +12,7 @@ import { loadYardFeatures, initYardFeaturesView, refreshYardFeaturesView } from 
 import { loadProducts, initProductsView, refreshProductsView } from "./products.js";
 import { loadPurchases, initPurchasesView, refreshPurchasesView } from "./productPurchases.js";
 import { initWeatherView, startBackgroundWeatherSync } from "./weatherView.js";
-import { refreshDashboard } from "./dashboard.js";
+import { refreshDashboard, initDashboardView } from "./dashboard.js";
 import { initEventLogView } from "./eventLog.js";
 
 const initializedViews = new Set();
@@ -77,7 +77,7 @@ function initView(view) {
   initializedViews.add(view);
   switch (view) {
     case "dashboard":
-      refreshDashboard();
+      initDashboardView();
       break;
     case "mow-log":
       initMowLogView();

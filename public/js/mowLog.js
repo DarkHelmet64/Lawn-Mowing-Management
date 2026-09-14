@@ -16,7 +16,7 @@ const COLLECTION = "mowVisits";
 let cache = [];
 let listenersBound = false;
 
-const PATTERN_LABELS = {
+export const PATTERN_LABELS = {
   parallel: "Parallel",
   perpendicular: "Perpendicular",
   diagonal_left: "Diagonal Left",
