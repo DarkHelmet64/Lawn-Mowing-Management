@@ -48,6 +48,23 @@ function parseTextList(raw) {
   return [...new Set(raw.split(",").map((s) => s.trim()).filter(Boolean))];
 }
 
+// Keeps a mower's "Default X" select in sync with whatever's currently
+// typed into its comma-separated settings field, preserving the chosen
+// default if it's still one of the values.
+function populateDefaultOptionsSelect(selectEl, values, currentValue = null) {
+  const current = currentValue != null ? String(currentValue) : selectEl.value;
+  selectEl.innerHTML = '<option value="">None</option>';
+  for (const v of values) {
+    const opt = document.createElement("option");
+    opt.value = String(v);
+    opt.textContent = String(v);
+    selectEl.appendChild(opt);
+  }
+  if (current && [...selectEl.options].some((o) => o.value === current)) {
+    selectEl.value = current;
+  }
+}
+
 export function populateEquipmentSelect(selectEl, { includeNone = true, typeFilter = null } = {}) {
   const current = selectEl.value;
   selectEl.innerHTML = "";
@@ -180,6 +197,9 @@ function openForm(equipment = null) {
   byId("equipment-deck-heights").value = equipment?.deckHeights?.join(", ") || "";
   byId("equipment-ground-speeds").value = equipment?.groundSpeeds?.join(", ") || "";
   byId("equipment-blade-speeds").value = equipment?.bladeSpeeds?.join(", ") || "";
+  populateDefaultOptionsSelect(byId("equipment-default-deck-height"), equipment?.deckHeights || [], equipment?.defaultDeckHeight ?? null);
+  populateDefaultOptionsSelect(byId("equipment-default-ground-speed"), equipment?.groundSpeeds || [], equipment?.defaultGroundSpeed ?? null);
+  populateDefaultOptionsSelect(byId("equipment-default-blade-speed"), equipment?.bladeSpeeds || [], equipment?.defaultBladeSpeed ?? null);
   populateDatalist("equipment-brand-options", uniqueSortedValues("brand"));
   populateDatalist("equipment-purchased-from-options", uniqueSortedValues("purchasedFrom"));
   byId("equipment-brand").value = equipment?.brand || "";
@@ -219,6 +239,9 @@ async function handleSubmit(e) {
     deckHeights: isMower ? parseNumberList(byId("equipment-deck-heights").value) : [],
     groundSpeeds: isMower ? parseTextList(byId("equipment-ground-speeds").value) : [],
     bladeSpeeds: isMower ? parseTextList(byId("equipment-blade-speeds").value) : [],
+    defaultDeckHeight: isMower && byId("equipment-default-deck-height").value ? Number(byId("equipment-default-deck-height").value) : null,
+    defaultGroundSpeed: isMower ? byId("equipment-default-ground-speed").value || null : null,
+    defaultBladeSpeed: isMower ? byId("equipment-default-blade-speed").value || null : null,
     brand: byId("equipment-brand").value.trim(),
     modelNumber: byId("equipment-model-number").value.trim(),
     serialNumber: byId("equipment-serial-number").value.trim(),
@@ -248,6 +271,15 @@ export function initEquipmentView() {
     byId("delete-equipment-btn").addEventListener("click", handleDelete);
     byId("equipment-type").addEventListener("change", updateMowerFieldsVisibility);
     byId("equipment-filter-type").addEventListener("change", renderTable);
+    byId("equipment-deck-heights").addEventListener("input", () =>
+      populateDefaultOptionsSelect(byId("equipment-default-deck-height"), parseNumberList(byId("equipment-deck-heights").value))
+    );
+    byId("equipment-ground-speeds").addEventListener("input", () =>
+      populateDefaultOptionsSelect(byId("equipment-default-ground-speed"), parseTextList(byId("equipment-ground-speeds").value))
+    );
+    byId("equipment-blade-speeds").addEventListener("input", () =>
+      populateDefaultOptionsSelect(byId("equipment-default-blade-speed"), parseTextList(byId("equipment-blade-speeds").value))
+    );
     listenersBound = true;
   }
   return refreshEquipmentView();

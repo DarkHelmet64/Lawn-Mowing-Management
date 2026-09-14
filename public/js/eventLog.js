@@ -6,6 +6,7 @@ import {
   populateDeckHeightSelect,
   populateGroundSpeedSelect,
   populateBladeSpeedSelect,
+  getEquipmentById,
 } from "./equipment.js";
 import { getLocationsForCustomer, populateLocationSelect } from "./locations.js";
 import { getAreasForLocation, areaAppliesToEventTypes } from "./areas.js";
@@ -160,6 +161,17 @@ function updateMowedFieldsVisibility() {
   if (mowed) applyGrassConditionDefault();
 }
 
+// Fills Deck Height/Ground Speed/Blade Speed from the selected mower's own
+// configured defaults (set on the equipment record itself), while still
+// leaving them editable for a one-off change on this visit.
+function applyEquipmentDefaults() {
+  const equipmentId = byId("event-equipment").value;
+  const eq = getEquipmentById(equipmentId);
+  populateDeckHeightSelect(byId("event-height"), equipmentId, eq?.defaultDeckHeight ?? null);
+  populateGroundSpeedSelect(byId("event-ground-speed"), equipmentId, eq?.defaultGroundSpeed ?? null);
+  populateBladeSpeedSelect(byId("event-blade-speed"), equipmentId, eq?.defaultBladeSpeed ?? null);
+}
+
 // Grass Condition defaults to Damp when Time of Day is Morning, or Dry
 // otherwise - but only while Grass Condition is actually visible.
 function applyGrassConditionDefault() {
@@ -262,6 +274,7 @@ function openForm() {
   byId("event-notes").value = "";
   refreshLocationOptions();
   updateFieldVisibility();
+  applyEquipmentDefaults();
 }
 
 function closeForm() {
@@ -446,10 +459,6 @@ export function initEventLogView() {
   byId("event-time-of-day").addEventListener("change", applyGrassConditionDefault);
   byId("event-location").addEventListener("change", refreshAreaOptions);
   byId("event-spray-product").addEventListener("change", updateProductHint);
-  byId("event-equipment").addEventListener("change", () => {
-    populateDeckHeightSelect(byId("event-height"), byId("event-equipment").value);
-    populateGroundSpeedSelect(byId("event-ground-speed"), byId("event-equipment").value);
-    populateBladeSpeedSelect(byId("event-blade-speed"), byId("event-equipment").value);
-  });
+  byId("event-equipment").addEventListener("change", applyEquipmentDefaults);
   byId("log-event-form").addEventListener("submit", handleSubmit);
 }
