@@ -2,6 +2,7 @@ import { isConfigured } from "./firebase.js";
 import { watchAuth, login, logout } from "./auth.js";
 import { byId } from "./utils.js";
 import { loadCustomers, initCustomersView, refreshCustomersView } from "./customers.js";
+import { loadCustomerGroups, initCustomerGroupsView, refreshCustomerGroupsView } from "./customerGroups.js";
 import { loadVisits, initMowLogView, refreshMowLogView } from "./mowLog.js";
 import { loadSprays, initSprayLogView, refreshSprayLogView } from "./sprayLog.js";
 import { loadTasks, initMaintenanceView, refreshMaintenanceView } from "./maintenance.js";
@@ -37,6 +38,7 @@ async function showApp() {
   byId("app-view").classList.remove("hidden");
   const results = await Promise.allSettled([
     loadCustomers(),
+    loadCustomerGroups(),
     loadVisits(),
     loadSprays(),
     loadTasks(),
@@ -64,6 +66,7 @@ function initView(view) {
     if (view === "spray-log") refreshSprayLogView();
     if (view === "settings") {
       refreshCustomersView();
+      refreshCustomerGroupsView();
       refreshLocationsView();
       refreshAreasView();
       refreshEquipmentView();
@@ -87,6 +90,7 @@ function initView(view) {
       break;
     case "settings":
       initCustomersView();
+      initCustomerGroupsView();
       initLocationsView();
       initAreasView();
       initEquipmentView();

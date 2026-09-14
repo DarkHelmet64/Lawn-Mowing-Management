@@ -1,17 +1,19 @@
 import { createDoc } from "./db.js";
 import { byId, escapeHtml, todayStr } from "./utils.js";
 import { getCustomers } from "./customers.js";
+import { getCustomerGroupById, populateGroupSelect } from "./customerGroups.js";
 import {
   populateEquipmentSelect,
   populateDeckHeightSelect,
   populateGroundSpeedSelect,
   populateBladeSpeedSelect,
+  getEquipmentById,
 } from "./equipment.js";
 import { getLocationsForCustomer, populateLocationSelect } from "./locations.js";
 import { getAreasForLocation, areaAppliesToEventTypes } from "./areas.js";
 import { getYardFeatures } from "./yardFeatures.js";
 import { loadVisits } from "./mowLog.js";
-import { loadSprays } from "./sprayLog.js";
+import { loadSprays, getLastQuantityUsedForProduct } from "./sprayLog.js";
 import { EVENT_TYPE_LABELS, EVENT_TYPE_KEYS } from "./eventTypes.js";
 import { populateProductSelect, getProductById, adjustProductQuantity } from "./products.js";
 
@@ -35,8 +37,11 @@ function firstCheckedCustomerId() {
 }
 
 // Renders fresh every time the form opens (customers don't change while it's
-// open), defaulting to just the first customer checked.
-function renderCustomerList() {
+// open). preselectFirst defaults to true for a normal fresh open; "Save &
+// Log Another" passes false so the next entry starts with nobody checked,
+// forcing a deliberate pick of who's next rather than reusing whoever
+// happens to be first alphabetically.
+function renderCustomerList(preselectFirst = true) {
   const customers = getCustomers();
   const container = byId("event-customer-list");
   container.innerHTML = customers.length
@@ -44,7 +49,7 @@ function renderCustomerList() {
         .map(
           (c, i) => `
       <label class="checkbox-label">
-        <input type="checkbox" class="event-customer-checkbox" value="${c.id}" ${i === 0 ? "checked" : ""} />
+        <input type="checkbox" class="event-customer-checkbox" value="${c.id}" ${preselectFirst && i === 0 ? "checked" : ""} />
         ${escapeHtml(c.name)}
       </label>`
         )
@@ -52,6 +57,18 @@ function renderCustomerList() {
     : `<p class="hint-text">Add a customer first.</p>`;
 
   container.querySelectorAll(".event-customer-checkbox").forEach((cb) => cb.addEventListener("change", refreshLocationOptions));
+}
+
+// Picking a group checks exactly that group's customers (replacing whatever
+// was checked before) - a shortcut for the neighbors-mowed-together case
+// this is built for, not an additive "also check these" merge.
+function applyGroupSelection() {
+  const group = getCustomerGroupById(byId("event-group").value);
+  if (!group) return;
+  document.querySelectorAll("#event-customer-list .event-customer-checkbox").forEach((cb) => {
+    cb.checked = group.customerIds.includes(cb.value);
+  });
+  refreshLocationOptions();
 }
 
 function primaryCategory() {
@@ -160,6 +177,17 @@ function updateMowedFieldsVisibility() {
   if (mowed) applyGrassConditionDefault();
 }
 
+// Fills Deck Height/Ground Speed/Blade Speed from the selected mower's own
+// configured defaults (set on the equipment record itself), while still
+// leaving them editable for a one-off change on this visit.
+function applyEquipmentDefaults() {
+  const equipmentId = byId("event-equipment").value;
+  const eq = getEquipmentById(equipmentId);
+  populateDeckHeightSelect(byId("event-height"), equipmentId, eq?.defaultDeckHeight ?? null);
+  populateGroundSpeedSelect(byId("event-ground-speed"), equipmentId, eq?.defaultGroundSpeed ?? null);
+  populateBladeSpeedSelect(byId("event-blade-speed"), equipmentId, eq?.defaultBladeSpeed ?? null);
+}
+
 // Grass Condition defaults to Damp when Time of Day is Morning, or Dry
 // otherwise - but only while Grass Condition is actually visible.
 function applyGrassConditionDefault() {
@@ -215,10 +243,26 @@ function refreshAreaOptions() {
 // union of features across whichever areas are checked in that type's own
 // Areas list.
 // Surfaces how much of the selected product is on hand right where the
-// quantity gets entered, so a low/empty product is obvious before you submit.
+// quantity gets entered, so a low/empty product is obvious before you
+// submit, and prefills the quantity from whatever was used last time this
+// same product was applied (any customer) - most products get reused at
+// roughly the same dose, so this is usually right and always editable.
 function updateProductHint() {
   const product = getProductById(byId("event-spray-product").value);
   byId("event-spray-quantity-hint").textContent = product ? `${product.quantityOnHand} ${product.unit} on hand` : "";
+  const lastQuantity = product ? getLastQuantityUsedForProduct(product.id) : null;
+  byId("event-spray-quantity").value = lastQuantity != null ? lastQuantity : "";
+}
+
+// Guesses Time of Day from the current clock so it's rarely left blank -
+// still fully editable, and this only runs on a fresh open (see openForm),
+// never overwriting what "Save & Log Another" is carrying forward.
+function suggestedTimeOfDay() {
+  const hour = new Date().getHours();
+  if (hour < 11) return "morning";
+  if (hour < 14) return "midday";
+  if (hour < 18) return "afternoon";
+  return "evening";
 }
 
 function refreshFeatureOptions() {
@@ -240,7 +284,10 @@ function refreshFeatureOptions() {
 function openForm() {
   byId("log-event-form-card").classList.remove("hidden");
   renderCustomerList();
+  populateGroupSelect(byId("event-group"));
+  byId("event-group").value = "";
   byId("event-date").value = todayStr();
+  byId("event-time-of-day").value = suggestedTimeOfDay();
   byId("event-category").value = "yardwork";
   byId("event-category-2").value = "";
   byId("event-category-3").value = "";
@@ -254,19 +301,31 @@ function openForm() {
   populateDeckHeightSelect(byId("event-height"), "");
   populateGroundSpeedSelect(byId("event-ground-speed"), "");
   populateBladeSpeedSelect(byId("event-blade-speed"), "");
-  byId("event-time-of-day").value = "";
   byId("event-spray-target").value = "weeds";
   populateProductSelect(byId("event-spray-product"));
-  byId("event-spray-quantity").value = "";
   updateProductHint();
   byId("event-notes").value = "";
   refreshLocationOptions();
   updateFieldVisibility();
+  applyEquipmentDefaults();
 }
 
 function closeForm() {
   byId("log-event-form-card").classList.add("hidden");
   byId("log-event-form").reset();
+}
+
+// "Save & Log Another" keeps the form open for a quick repeat: date, time,
+// event type, and its checkboxes/settings all carry over untouched (most
+// consecutive visits share these), but Customers/Group reset to force a
+// deliberate pick of who's next, and Notes clear since they're specific to
+// the visit just saved.
+function resetForNextEntry() {
+  renderCustomerList(false);
+  populateGroupSelect(byId("event-group"));
+  byId("event-group").value = "";
+  byId("event-notes").value = "";
+  refreshLocationOptions();
 }
 
 // Each active event type is entirely independent: its own Areas checklist,
@@ -277,6 +336,7 @@ function closeForm() {
 // each contributes its own record, since the user picks their areas apart.
 async function handleSubmit(e) {
   e.preventDefault();
+  const logAnother = e.submitter?.id === "save-log-another-btn";
   const customerIds = checkedCustomerIds();
   if (!customerIds.length) {
     alert("Select at least one customer.");
@@ -412,7 +472,8 @@ async function handleSubmit(e) {
   if (yardworkFields || extraFields) await loadVisits();
   if (chemicalOn) await loadSprays();
 
-  closeForm();
+  if (logAnother) resetForNextEntry();
+  else closeForm();
   document.dispatchEvent(new CustomEvent("event:logged"));
 }
 
@@ -446,10 +507,7 @@ export function initEventLogView() {
   byId("event-time-of-day").addEventListener("change", applyGrassConditionDefault);
   byId("event-location").addEventListener("change", refreshAreaOptions);
   byId("event-spray-product").addEventListener("change", updateProductHint);
-  byId("event-equipment").addEventListener("change", () => {
-    populateDeckHeightSelect(byId("event-height"), byId("event-equipment").value);
-    populateGroundSpeedSelect(byId("event-ground-speed"), byId("event-equipment").value);
-    populateBladeSpeedSelect(byId("event-blade-speed"), byId("event-equipment").value);
-  });
+  byId("event-equipment").addEventListener("change", applyEquipmentDefaults);
+  byId("event-group").addEventListener("change", applyGroupSelection);
   byId("log-event-form").addEventListener("submit", handleSubmit);
 }
