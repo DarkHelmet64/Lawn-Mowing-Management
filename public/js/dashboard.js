@@ -6,6 +6,7 @@ import { getLowStockProducts, getProductName } from "./products.js";
 import { refreshWeatherView } from "./weatherView.js";
 import { last7DaysRainfall, profileFor } from "./growthPotential.js";
 import { computeMowStatus } from "./mowReadiness.js";
+import { getTreatmentStatuses, TREATMENT_STATE_BADGE } from "./lawnTreatments.js";
 import { getSettings } from "./settings.js";
 import { byId, escapeHtml, formatDateDisplay, todayStr } from "./utils.js";
 
@@ -84,6 +85,21 @@ async function refreshWeatherStats() {
   byId("stat-ready-to-mow").textContent = String(
     [...mowStatus.values()].filter((s) => s.ready).length
   );
+  renderTreatmentStatus(days, settings);
+}
+
+function renderTreatmentStatus(days, settings) {
+  const statuses = getTreatmentStatuses(days, settings);
+  byId("treatment-status-list").innerHTML = statuses
+    .map((t) => {
+      const badge = TREATMENT_STATE_BADGE[t.state];
+      return `
+      <li>
+        <strong>${escapeHtml(t.label)}</strong> <span class="badge ${badge.cls}">${badge.label}</span>
+        <span class="hint-text">${escapeHtml(t.detail)}</span>
+      </li>`;
+    })
+    .join("");
 }
 
 function renderReadyToMow(mowStatus) {

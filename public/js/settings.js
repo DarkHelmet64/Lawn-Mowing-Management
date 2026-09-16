@@ -1,7 +1,14 @@
 import { getDocById, setDocById } from "./db.js";
 
 const DOC_ID = "growthPotential";
-const DEFAULTS = { grassType: "cool", mowThresholdGPDays: 5 };
+const DEFAULTS = {
+  grassType: "cool",
+  mowThresholdGPDays: 5,
+  crabgrassGddStart: 100,
+  crabgrassGddEnd: 300,
+  weedFeedGddStart: 400,
+  weedFeedGddEnd: 700,
+};
 
 let cached = null;
 
