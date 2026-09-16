@@ -15,9 +15,10 @@
 // Fall fertilizing for cool-season turf (this app's default grass type)
 // isn't naturally a GDD-driven decision - GDD keeps climbing all summer
 // with no signal for the fall growth flush that makes fall feeding so
-// effective. University extension guidance for that one is calendar-based
-// instead: roughly Labor Day for the first feeding, and again about six
-// weeks later for a "winterizer" feeding.
+// effective. University extension guidance for those is calendar-based
+// instead: roughly Labor Day for the early fall feeding, and again about
+// six weeks later for a "winterizer" feeding - tracked as two separate
+// treatments since they're two separate applications.
 //
 // The GDD thresholds below are reasonable general-purpose defaults for a
 // cool-season lawn - they're editable in Settings on the Weather & Growth
@@ -66,22 +67,32 @@ function monthDay(dateStr) {
 
 // Cool-season turf's most important feedings are in fall, not tied to GDD -
 // an early-September feed and a mid/late-October "winterizer" feed, per
-// standard university extension guidance.
+// standard university extension guidance. Tracked as two separate
+// treatments since they're two separate applications, roughly six weeks
+// apart.
 function fertilizerStatus(todayStr) {
   const md = monthDay(todayStr || "");
   if (md < "09-01") {
-    return { state: "upcoming", detail: "Not yet - the first fall feeding window opens around Labor Day (Sept 1)." };
+    return { state: "upcoming", detail: "Not yet - opens around Labor Day (Sept 1)." };
   }
   if (md <= "09-21") {
     return { state: "now", detail: "Early fall feeding window (Sept 1-21)." };
   }
+  return { state: "past", detail: "This year's window has passed - next opens around next Labor Day." };
+}
+
+// The winterizer feeding (higher potassium, lower nitrogen) is what really
+// sets a cool-season lawn up for winter and next spring's green-up - many
+// turf programs treat it as the single most important feeding of the year.
+function winterizerStatus(todayStr) {
+  const md = monthDay(todayStr || "");
   if (md < "10-01") {
-    return { state: "upcoming", detail: "Between windows - the late fall (\"winterizer\") feeding opens Oct 1." };
+    return { state: "upcoming", detail: "Not yet - opens Oct 1, about six weeks after the early fall feeding." };
   }
   if (md <= "11-15") {
-    return { state: "now", detail: "Late fall \"winterizer\" feeding window (Oct 1 - Nov 15)." };
+    return { state: "now", detail: "Winterizer window (Oct 1 - Nov 15) - the most important feeding of the year for cool-season turf." };
   }
-  return { state: "past", detail: "This season's feeding windows have passed - the next opens around next Labor Day." };
+  return { state: "past", detail: "This year's window has passed - next opens around next October." };
 }
 
 // days: [{date, tmaxF, tminF}], starting Jan 1 through today (see
@@ -105,9 +116,15 @@ export function getTreatmentStatuses(days, settings) {
     },
     {
       key: "fertilizer",
-      label: "Fertilizer (Fall Feeding)",
+      label: "Fertilizer (Early Fall)",
       gdd: null,
       ...fertilizerStatus(today),
+    },
+    {
+      key: "winterizer",
+      label: "Winterizing Fertilizer",
+      gdd: null,
+      ...winterizerStatus(today),
     },
   ];
 }
