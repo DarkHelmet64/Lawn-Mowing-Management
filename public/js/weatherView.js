@@ -7,8 +7,9 @@ import {
   monthlyGrowthPotential,
   profileFor,
 } from "./growthPotential.js";
+import { getTreatmentStatuses, cumulativeGDD, TREATMENT_STATE_BADGE } from "./lawnTreatments.js";
 import { renderLineChart, renderBarChart } from "./charts.js";
-import { byId, formatDateDisplay, formatMonthDisplay } from "./utils.js";
+import { byId, escapeHtml, formatDateDisplay, formatMonthDisplay } from "./utils.js";
 
 // Weather is always fetched from the start of the calendar year, so there's
 // enough history to compute "days since last mow" even early in the season.
@@ -42,6 +43,21 @@ function gpChartPoints(series) {
 
 function renderGpChart() {
   renderLineChart(byId("weather-chart-gp"), gpChartPoints(lastSeries));
+}
+
+function renderTreatmentWindows(settings) {
+  byId("stat-gdd").textContent = cumulativeGDD(lastDays).toFixed(0);
+  const statuses = getTreatmentStatuses(lastDays, settings);
+  byId("treatment-window-list").innerHTML = statuses
+    .map((t) => {
+      const badge = TREATMENT_STATE_BADGE[t.state];
+      return `
+      <li>
+        <strong>${escapeHtml(t.label)}</strong> <span class="badge ${badge.cls}">${badge.label}</span>
+        <span class="hint-text">${escapeHtml(t.detail)}</span>
+      </li>`;
+    })
+    .join("");
 }
 
 function renderCharts(series) {
@@ -78,6 +94,7 @@ export async function refreshWeatherView() {
   lastDays = await loadCachedWeather(FETCH_SINCE);
   const series = buildSeries(settings);
   renderCharts(series);
+  renderTreatmentWindows(settings);
   return { days: lastDays, series };
 }
 
@@ -93,6 +110,7 @@ async function liveSyncAndRender() {
   }
   const series = buildSeries(settings);
   renderCharts(series);
+  renderTreatmentWindows(settings);
   return { days: lastDays, series };
 }
 
@@ -112,11 +130,19 @@ export async function initWeatherView() {
   const settings = await getSettings();
   byId("grass-type").value = settings.grassType;
   byId("mow-threshold").value = settings.mowThresholdGPDays;
+  byId("crabgrass-gdd-start").value = settings.crabgrassGddStart;
+  byId("crabgrass-gdd-end").value = settings.crabgrassGddEnd;
+  byId("weedfeed-gdd-start").value = settings.weedFeedGddStart;
+  byId("weedfeed-gdd-end").value = settings.weedFeedGddEnd;
 
   byId("save-gp-settings-btn").addEventListener("click", async () => {
     await saveSettings({
       grassType: byId("grass-type").value,
       mowThresholdGPDays: Number(byId("mow-threshold").value),
+      crabgrassGddStart: Number(byId("crabgrass-gdd-start").value),
+      crabgrassGddEnd: Number(byId("crabgrass-gdd-end").value),
+      weedFeedGddStart: Number(byId("weedfeed-gdd-start").value),
+      weedFeedGddEnd: Number(byId("weedfeed-gdd-end").value),
     });
     byId("gp-settings-saved").classList.remove("hidden");
     setTimeout(() => byId("gp-settings-saved").classList.add("hidden"), 1500);

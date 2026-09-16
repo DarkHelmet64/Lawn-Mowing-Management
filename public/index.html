@@ -182,6 +182,11 @@
           </div>
         </div>
 
+        <div class="card">
+          <h3>Lawn Treatment Reminders</h3>
+          <ul id="treatment-status-list" class="activity-list"></ul>
+        </div>
+
         <div class="stat-grid">
           <div class="stat-card">
             <span class="stat-label">Today's Growth Potential</span>
@@ -931,6 +936,18 @@
           <label>Mow Threshold (GP-days)
             <input type="number" id="mow-threshold" value="5" min="0.5" step="0.5" />
           </label>
+          <label>Crabgrass Preventer - Start GDD50
+            <input type="number" id="crabgrass-gdd-start" min="0" step="10" />
+          </label>
+          <label>Crabgrass Preventer - End GDD50
+            <input type="number" id="crabgrass-gdd-end" min="0" step="10" />
+          </label>
+          <label>Weed &amp; Feed - Start GDD50
+            <input type="number" id="weedfeed-gdd-start" min="0" step="10" />
+          </label>
+          <label>Weed &amp; Feed - End GDD50
+            <input type="number" id="weedfeed-gdd-end" min="0" step="10" />
+          </label>
           <button id="save-gp-settings-btn" class="ghost-btn">Save Settings</button>
           <span id="gp-settings-saved" class="hint-text hidden">Saved!</span>
         </div>
@@ -940,6 +957,20 @@
           A customer's lawn is flagged "ready to mow" once their accumulated GP since the last visit crosses the threshold above -
           tune the threshold up or down based on how it matches what you see in the yard.
         </p>
+        <div class="card">
+          <div class="view-header">
+            <h3>Lawn Treatment Windows</h3>
+            <span class="stat-label">Growing Degree Days (GDD50) this year: <strong id="stat-gdd">–</strong></span>
+          </div>
+          <p class="hint-text">
+            Timed by Growing Degree Days (GDD50, base 50°F accumulated since Jan 1) - the standard way turf
+            professionals time preemergent herbicides, since it tracks accumulated heat instead of a fixed
+            calendar date. Fall fertilizing follows the calendar instead, since that's how cool-season lawn
+            feeding is actually timed. Adjust the GDD50 windows above if your local extension office
+            recommends different numbers.
+          </p>
+          <ul id="treatment-window-list" class="activity-list"></ul>
+        </div>
         <div class="card">
           <div class="view-header">
             <h3>Growth Potential (%)</h3>
