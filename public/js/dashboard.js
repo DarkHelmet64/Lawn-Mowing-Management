@@ -1,4 +1,5 @@
 import { getCustomers, getCustomerName, populateCustomerSelect } from "./customers.js";
+import { getGroupsForCustomer } from "./customerGroups.js";
 import { getVisits, PATTERN_LABELS } from "./mowLog.js";
 import { getSprays } from "./sprayLog.js";
 import { getTasks } from "./maintenance.js";
@@ -135,20 +136,65 @@ function describeVisit(v) {
   return `${summary} for ${getCustomerName(v.customerId)}`;
 }
 
+const UNGROUPED_LABEL = "Ungrouped";
+const RECENT_ITEMS_PER_SOURCE = 15;
+const RECENT_ITEMS_PER_GROUP = 5;
+
+// Recent Activity is sectioned by Customer Group (a customer not in any
+// group - or a maintenance task, which isn't tied to a customer at all -
+// falls into "Ungrouped"). A customer in more than one group shows up
+// under each of them, since there's no single "the" group to pick.
 function renderRecentActivity() {
-  const visits = getVisits().slice(0, 5);
-  const sprays = getSprays().slice(0, 5);
-  const tasks = getTasks().slice(0, 3);
+  const visits = getVisits().slice(0, RECENT_ITEMS_PER_SOURCE);
+  const sprays = getSprays().slice(0, RECENT_ITEMS_PER_SOURCE);
+  const tasks = getTasks().slice(0, RECENT_ITEMS_PER_SOURCE);
   const items = [
-    ...visits.map((v) => ({ date: v.date, text: describeVisit(v) })),
-    ...sprays.map((s) => ({ date: s.date, text: `Sprayed ${getProductName(s.productId) || s.product || "product"} for ${getCustomerName(s.customerId)}` })),
-    ...tasks.map((t) => ({ date: t.date, text: `Maintenance: ${t.taskType.replace(/_/g, " ")}` })),
-  ]
-    .sort((a, b) => (a.date < b.date ? 1 : -1))
-    .slice(0, 8);
+    ...visits.map((v) => ({ date: v.date, customerId: v.customerId, text: describeVisit(v) })),
+    ...sprays.map((s) => ({
+      date: s.date,
+      customerId: s.customerId,
+      text: `Sprayed ${getProductName(s.productId) || s.product || "product"} for ${getCustomerName(s.customerId)}`,
+    })),
+    ...tasks.map((t) => ({ date: t.date, customerId: null, text: `Maintenance: ${t.taskType.replace(/_/g, " ")}` })),
+  ];
+
+  const buckets = new Map();
+  function addTo(label, item) {
+    if (!buckets.has(label)) buckets.set(label, []);
+    buckets.get(label).push(item);
+  }
+  for (const item of items) {
+    const groups = item.customerId ? getGroupsForCustomer(item.customerId) : [];
+    if (groups.length) {
+      for (const g of groups) addTo(g.name, item);
+    } else {
+      addTo(UNGROUPED_LABEL, item);
+    }
+  }
+  for (const bucket of buckets.values()) {
+    bucket.sort((a, b) => (a.date < b.date ? 1 : -1));
+  }
+
+  // Named groups sort by their own most recent activity; Ungrouped always
+  // trails at the end since it's a catch-all rather than a real group.
+  const sections = [...buckets.entries()]
+    .filter(([label]) => label !== UNGROUPED_LABEL)
+    .sort((a, b) => (a[1][0].date < b[1][0].date ? 1 : -1));
+  if (buckets.has(UNGROUPED_LABEL)) sections.push([UNGROUPED_LABEL, buckets.get(UNGROUPED_LABEL)]);
 
   byId("recent-activity-list").innerHTML =
-    items
-      .map((i) => `<li><span class="activity-date">${formatDateDisplay(i.date)}</span>${i.text}</li>`)
-      .join("") || "<li>No activity yet.</li>";
+    sections
+      .map(
+        ([label, groupItems]) => `
+      <div class="activity-group">
+        <div class="subsection-header"><span>${escapeHtml(label)}</span></div>
+        <ul class="activity-list">
+          ${groupItems
+            .slice(0, RECENT_ITEMS_PER_GROUP)
+            .map((i) => `<li><span class="activity-date">${formatDateDisplay(i.date)}</span>${i.text}</li>`)
+            .join("")}
+        </ul>
+      </div>`
+      )
+      .join("") || `<p class="hint-text">No activity yet.</p>`;
 }
