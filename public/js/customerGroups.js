@@ -19,6 +19,13 @@ export function getCustomerGroupById(id) {
   return cache.find((g) => g.id === id) || null;
 }
 
+// A customer isn't restricted to one group, so this can return several -
+// callers that need to bucket a customer into "the" group (e.g. Recent
+// Activity) should show them under every group they're actually in.
+export function getGroupsForCustomer(customerId) {
+  return cache.filter((g) => g.customerIds?.includes(customerId));
+}
+
 export function populateGroupSelect(selectEl) {
   const current = selectEl.value;
   selectEl.innerHTML = '<option value="">Select a group…</option>';

@@ -169,11 +169,17 @@ function updateFieldVisibility() {
 
 // Mow Pattern/Deck Height/Ground Speed/Blade Speed/Grass Condition (and the
 // Equipment Used filter) only apply when Mowed itself is checked - trimming
-// or edging alone doesn't need a mow pattern or deck height.
+// or edging alone doesn't need a mow pattern or deck height. handleSubmit
+// reads Mower Used regardless of visibility, so whenever this group hides,
+// the selection is cleared here too - otherwise a mower picked earlier
+// would silently stay attached (and get saved) to a record it no longer
+// applies to, with no visible field left to un-pick it from.
 function updateMowedFieldsVisibility() {
   const mowed = activeCategories().includes("yardwork") && byId("event-mowed").checked;
   byId("event-mowed-fields").classList.toggle("hidden", !mowed);
+  if (!mowed) byId("event-equipment").value = "";
   populateEquipmentSelect(byId("event-equipment"), { typeFilter: mowed ? "mower" : null });
+  if (!mowed) applyEquipmentDefaults();
   if (mowed) applyGrassConditionDefault();
 }
 

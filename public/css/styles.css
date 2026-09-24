@@ -572,6 +572,10 @@ form {
   margin-right: 8px;
 }
 
+.activity-group + .activity-group {
+  margin-top: 14px;
+}
+
 .settings-row {
   display: flex;
   gap: 16px;
