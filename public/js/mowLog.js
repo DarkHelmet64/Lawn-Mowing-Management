@@ -49,6 +49,38 @@ export function getVisits() {
   return cache;
 }
 
+// The most recent mowed visit (with a pattern recorded) among the given
+// customers. cache is sorted by date only, so createdAt breaks same-day ties
+// in favor of whichever was actually logged last.
+export function getLastMowedVisit(customerIds) {
+  const ids = new Set(customerIds);
+  return cache
+    .filter((v) => ids.has(v.customerId) && v.mowed && v.pattern)
+    .reduce((best, v) => {
+      if (!best) return v;
+      if (v.date !== best.date) return v.date > best.date ? v : best;
+      return (v.createdAt?.toMillis?.() ?? 0) > (best.createdAt?.toMillis?.() ?? 0) ? v : best;
+    }, null);
+}
+
+function renderPatternLookup() {
+  const customerId = byId("pattern-lookup-customer").value;
+  const container = byId("pattern-lookup-result");
+  if (!customerId) {
+    container.innerHTML = `<p class="hint-text">Add a customer to see their last mow pattern.</p>`;
+    return;
+  }
+  const visit = getLastMowedVisit([customerId]);
+  if (!visit) {
+    container.innerHTML = `<p class="hint-text">No mow recorded yet for ${escapeHtml(getCustomerName(customerId))}.</p>`;
+    return;
+  }
+  container.innerHTML = `
+    <span class="stat-value">${PATTERN_LABELS[visit.pattern] || visit.pattern}</span>
+    <p class="hint-text">Last mowed ${formatDateDisplay(visit.date)} for ${escapeHtml(getCustomerName(customerId))}</p>
+  `;
+}
+
 function renderTable() {
   const filter = byId("visit-filter-customer").value;
   const body = byId("visit-table-body");
@@ -188,7 +220,9 @@ async function handleSubmit(e) {
 export async function refreshMowLogView() {
   await loadVisits();
   populateCustomerSelect(byId("visit-filter-customer"), { includeAll: true });
+  populateCustomerSelect(byId("pattern-lookup-customer"));
   renderTable();
+  renderPatternLookup();
 }
 
 export function initMowLogView() {
@@ -196,6 +230,7 @@ export function initMowLogView() {
     byId("cancel-visit-btn").addEventListener("click", closeForm);
     byId("visit-form").addEventListener("submit", handleSubmit);
     byId("visit-filter-customer").addEventListener("change", renderTable);
+    byId("pattern-lookup-customer").addEventListener("change", renderPatternLookup);
     byId("visit-customer").addEventListener("change", refreshLocationOptions);
     byId("visit-location").addEventListener("change", refreshAreaOptions);
     byId("visit-area").addEventListener("change", refreshFeatureOptions);
@@ -207,7 +242,9 @@ export function initMowLogView() {
     });
     document.addEventListener("customers:changed", () => {
       populateCustomerSelect(byId("visit-filter-customer"), { includeAll: true });
+      populateCustomerSelect(byId("pattern-lookup-customer"));
       renderTable();
+      renderPatternLookup();
     });
     listenersBound = true;
   }

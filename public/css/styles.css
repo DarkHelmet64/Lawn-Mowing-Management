@@ -576,6 +576,11 @@ form {
   margin-top: 14px;
 }
 
+.group-pattern {
+  font-weight: 700;
+  color: var(--primary-dark);
+}
+
 .settings-row {
   display: flex;
   gap: 16px;
