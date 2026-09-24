@@ -3,7 +3,7 @@ import { byId, escapeHtml, todayStr, formatDateDisplay, confirmAction } from "./
 import { getCustomers, getCustomerName, populateCustomerSelect } from "./customers.js";
 import { populateEquipmentSelect, getEquipmentName } from "./equipment.js";
 import { getLocationLabel, populateLocationSelect } from "./locations.js";
-import { getAreaName, populateAreaSelect } from "./areas.js";
+import { recordAreaIds, getAreaNames, renderAreaChecklist, checkedAreaIdsIn } from "./areas.js";
 import { populateYardFeatureSelect, getYardFeatureName } from "./yardFeatures.js";
 import { populateProductSelect, getProductById, getProductName } from "./products.js";
 
@@ -64,7 +64,7 @@ function renderTable() {
         <td>${TARGET_LABELS[s.target] || s.target}</td>
         <td>${escapeHtml(getProductName(s.productId) || s.product || "")}${s.quantityUsed ? ` (${s.quantityUsed} ${escapeHtml(getProductById(s.productId)?.unit || "")})` : ""}</td>
         <td>${escapeHtml(getLocationLabel(s.locationId) || "")}</td>
-        <td>${escapeHtml(getAreaName(s.areaId) || "")}</td>
+        <td>${escapeHtml(getAreaNames(recordAreaIds(s)))}</td>
         <td>${escapeHtml(getYardFeatureName(s.featureId) || "")}</td>
         <td>${escapeHtml(getEquipmentName(s.equipmentId) || "")}</td>
         <td class="row-actions">
@@ -88,13 +88,15 @@ function refreshLocationOptions() {
   refreshAreaOptions();
 }
 
-function refreshAreaOptions() {
-  populateAreaSelect(byId("spray-area"), byId("spray-location").value);
+// Re-rendering on a location change keeps whichever areas were already
+// checked (if they exist at the new location too - otherwise they drop off).
+function refreshAreaOptions(checkedIds = checkedAreaIdsIn(byId("spray-area-list"))) {
+  renderAreaChecklist(byId("spray-area-list"), byId("spray-location").value, checkedIds);
   refreshFeatureOptions();
 }
 
 function refreshFeatureOptions() {
-  populateYardFeatureSelect(byId("spray-feature"), byId("spray-area").value);
+  populateYardFeatureSelect(byId("spray-feature"), checkedAreaIdsIn(byId("spray-area-list")));
 }
 
 function openForm(spray = null) {
@@ -114,9 +116,7 @@ function openForm(spray = null) {
 
   refreshLocationOptions();
   byId("spray-location").value = spray?.locationId || "";
-  refreshAreaOptions();
-  byId("spray-area").value = spray?.areaId || "";
-  refreshFeatureOptions();
+  refreshAreaOptions(recordAreaIds(spray));
   if (spray?.featureId) byId("spray-feature").value = spray.featureId;
 }
 
@@ -142,7 +142,10 @@ async function handleSubmit(e) {
     productId: byId("spray-product").value || null,
     quantityUsed: byId("spray-quantity").value ? Number(byId("spray-quantity").value) : null,
     locationId: byId("spray-location").value || null,
-    areaId: byId("spray-area").value || null,
+    areaIds: checkedAreaIdsIn(byId("spray-area-list")),
+    // Clears the single-area field older records carry, now that areaIds
+    // is the source of truth for this record.
+    areaId: null,
     featureId: byId("spray-feature").value || null,
     equipmentId: byId("spray-equipment").value || null,
     notes: byId("spray-notes").value.trim(),
@@ -163,8 +166,8 @@ export function initSprayLogView() {
     byId("cancel-spray-btn").addEventListener("click", closeForm);
     byId("spray-form").addEventListener("submit", handleSubmit);
     byId("spray-customer").addEventListener("change", refreshLocationOptions);
-    byId("spray-location").addEventListener("change", refreshAreaOptions);
-    byId("spray-area").addEventListener("change", refreshFeatureOptions);
+    byId("spray-location").addEventListener("change", () => refreshAreaOptions());
+    byId("spray-area-list").addEventListener("change", refreshFeatureOptions);
     document.addEventListener("customers:changed", renderTable);
     listenersBound = true;
   }

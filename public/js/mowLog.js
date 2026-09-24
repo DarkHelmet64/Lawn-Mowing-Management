@@ -9,7 +9,7 @@ import {
   populateBladeSpeedSelect,
 } from "./equipment.js";
 import { getLocationLabel, populateLocationSelect } from "./locations.js";
-import { getAreaName, populateAreaSelect } from "./areas.js";
+import { recordAreaIds, getAreaNames, renderAreaChecklist, checkedAreaIdsIn } from "./areas.js";
 import { populateYardFeatureSelect, getYardFeatureName } from "./yardFeatures.js";
 
 const COLLECTION = "mowVisits";
@@ -104,7 +104,7 @@ function renderTable() {
         <td>${TIME_OF_DAY_LABELS[v.timeOfDay] || ""}</td>
         <td>${GRASS_CONDITION_LABELS[v.grassCondition] || ""}</td>
         <td>${escapeHtml(getLocationLabel(v.locationId) || "")}</td>
-        <td>${escapeHtml(getAreaName(v.areaId) || "")}</td>
+        <td>${escapeHtml(getAreaNames(recordAreaIds(v)))}</td>
         <td>${escapeHtml(getYardFeatureName(v.featureId) || "")}</td>
         <td>${escapeHtml(getEquipmentName(v.equipmentId) || "")}</td>
         <td class="row-actions">
@@ -128,13 +128,15 @@ function refreshLocationOptions() {
   refreshAreaOptions();
 }
 
-function refreshAreaOptions() {
-  populateAreaSelect(byId("visit-area"), byId("visit-location").value);
+// Re-rendering on a location change keeps whichever areas were already
+// checked (if they exist at the new location too - otherwise they drop off).
+function refreshAreaOptions(checkedIds = checkedAreaIdsIn(byId("visit-area-list"))) {
+  renderAreaChecklist(byId("visit-area-list"), byId("visit-location").value, checkedIds);
   refreshFeatureOptions();
 }
 
 function refreshFeatureOptions() {
-  populateYardFeatureSelect(byId("visit-feature"), byId("visit-area").value);
+  populateYardFeatureSelect(byId("visit-feature"), checkedAreaIdsIn(byId("visit-area-list")));
 }
 
 // Mow Pattern/Deck Height/Ground Speed/Blade Speed/Grass Condition (and the
@@ -170,9 +172,7 @@ function openForm(visit = null) {
 
   refreshLocationOptions();
   byId("visit-location").value = visit?.locationId || "";
-  refreshAreaOptions();
-  byId("visit-area").value = visit?.areaId || "";
-  refreshFeatureOptions();
+  refreshAreaOptions(recordAreaIds(visit));
   if (visit?.featureId) byId("visit-feature").value = visit.featureId;
 }
 
@@ -206,7 +206,10 @@ async function handleSubmit(e) {
     timeOfDay: byId("visit-time-of-day").value || null,
     grassCondition: byId("visit-grass-condition").value || null,
     locationId: byId("visit-location").value || null,
-    areaId: byId("visit-area").value || null,
+    areaIds: checkedAreaIdsIn(byId("visit-area-list")),
+    // Clears the single-area field older records carry, now that areaIds
+    // is the source of truth for this record.
+    areaId: null,
     featureId: byId("visit-feature").value || null,
     equipmentId: byId("visit-equipment").value || null,
     notes: byId("visit-notes").value.trim(),
@@ -232,8 +235,8 @@ export function initMowLogView() {
     byId("visit-filter-customer").addEventListener("change", renderTable);
     byId("pattern-lookup-customer").addEventListener("change", renderPatternLookup);
     byId("visit-customer").addEventListener("change", refreshLocationOptions);
-    byId("visit-location").addEventListener("change", refreshAreaOptions);
-    byId("visit-area").addEventListener("change", refreshFeatureOptions);
+    byId("visit-location").addEventListener("change", () => refreshAreaOptions());
+    byId("visit-area-list").addEventListener("change", refreshFeatureOptions);
     byId("visit-mowed").addEventListener("change", updateMowedFieldsVisibility);
     byId("visit-equipment").addEventListener("change", () => {
       populateDeckHeightSelect(byId("visit-height"), byId("visit-equipment").value);
