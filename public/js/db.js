@@ -64,3 +64,26 @@ export async function batchSet(name, items, idField) {
     await batch.commit();
   }
 }
+
+// Applies groups of update/delete operations ({ type, collection, id, data })
+// in as few batch commits as possible. A group is never split across two
+// commits, so each one (e.g. "merge these duplicates") lands all-or-nothing.
+export async function batchWrite(groups) {
+  const LIMIT = 450;
+  let batch = writeBatch(db);
+  let count = 0;
+  for (const ops of groups) {
+    if (count && count + ops.length > LIMIT) {
+      await batch.commit();
+      batch = writeBatch(db);
+      count = 0;
+    }
+    for (const op of ops) {
+      const ref = doc(db, op.collection, op.id);
+      if (op.type === "delete") batch.delete(ref);
+      else batch.update(ref, op.data);
+    }
+    count += ops.length;
+  }
+  if (count) await batch.commit();
+}

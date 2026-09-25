@@ -1,4 +1,4 @@
-import { byId, escapeHtml, formatDateDisplay, todayStr } from "./utils.js";
+import { byId, escapeHtml, formatDateDisplay, todayStr, confirmAction } from "./utils.js";
 import { getCustomers, getCustomerName, populateCustomerSelect } from "./customers.js";
 import { getCustomerGroups, getCustomerGroupById, getGroupsForCustomer } from "./customerGroups.js";
 import {
@@ -18,6 +18,7 @@ import { getEquipmentName } from "./equipment.js";
 import { getLocationLabel } from "./locations.js";
 import { getProductName, getProductById } from "./products.js";
 import { openLogEventFor } from "./eventLog.js";
+import { countDuplicates, combineDuplicates } from "./duplicates.js";
 
 // History replaces the separate Yard Work and Spray Log pages: every visit
 // and spray in one place, browsable five ways (Days, Groups, Calendar,
@@ -61,6 +62,7 @@ const state = {
   dayLimit: DAYS_PER_PAGE,
   calendarMonth: todayStr().slice(0, 7),
   calendarDay: todayStr(),
+  combineMessage: "",
 };
 let listenersBound = false;
 
@@ -763,13 +765,58 @@ const RENDERERS = {
   sprays: renderSpraysView,
 };
 
+// Shown only while old one-record-per-area duplicates exist (and once more
+// right after combining, to confirm what happened).
+function renderDuplicateNotice() {
+  const container = byId("history-duplicates");
+  const { sets, records } = countDuplicates();
+  if (!sets) {
+    container.innerHTML = state.combineMessage ? `<p class="notice-done">${escapeHtml(state.combineMessage)}</p>` : "";
+    return;
+  }
+  container.innerHTML = `
+    <div class="card notice-card">
+      <div class="notice-text">
+        <strong>Old duplicate records</strong>
+        <span class="hint-text">Before the fix, each area was saved as its own record, so some visits show up more than once. ${records} records can be combined into ${sets}, keeping all of their areas.</span>
+      </div>
+      <button type="button" class="primary-btn" id="combine-duplicates-btn">Combine duplicates</button>
+    </div>`;
+}
+
+async function handleCombineDuplicates() {
+  const { sets, records } = countDuplicates();
+  if (!sets) return;
+  const ok = await confirmAction(
+    `Combine ${records} duplicate records into ${sets}? Each combined record keeps every area from its copies. This can't be undone.`,
+    { confirmLabel: "Combine", danger: false }
+  );
+  if (!ok) return;
+  const btn = byId("combine-duplicates-btn");
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "Combining…";
+  }
+  try {
+    const result = await combineDuplicates();
+    state.combineMessage = `Combined ${result.records} records into ${result.sets}.`;
+  } catch (err) {
+    console.error("Failed to combine duplicate records", err);
+    state.combineMessage = "";
+    alert("Couldn't combine the duplicates. Nothing was changed for any record that failed - try again.");
+  }
+  render();
+}
+
 function render() {
   applyControlVisibility();
+  renderDuplicateNotice();
   RENDERERS[state.view]();
 }
 
 function setView(view) {
   state.view = view;
+  state.combineMessage = "";
   state.dayLimit = DAYS_PER_PAGE;
   try {
     localStorage.setItem(VIEW_STORAGE_KEY, view);
@@ -850,6 +897,9 @@ export function initHistoryView() {
     }
     byId("history-subject").addEventListener("change", render);
     byId("history-results").addEventListener("click", handleClick);
+    byId("history-duplicates").addEventListener("click", (e) => {
+      if (e.target.closest("#combine-duplicates-btn")) handleCombineDuplicates();
+    });
     document.addEventListener("records:changed", render);
     document.addEventListener("event:logged", render);
     document.addEventListener("customers:changed", () => {

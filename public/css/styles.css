@@ -721,6 +721,32 @@ form {
 
 /* ---------- History ---------- */
 
+.notice-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.notice-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1 1 260px;
+}
+
+.notice-card .primary-btn {
+  min-height: 44px;
+}
+
+.notice-done {
+  margin: 0 0 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--primary-dark);
+}
+
 .history-controls {
   display: flex;
   flex-direction: column;
