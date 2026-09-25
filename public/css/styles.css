@@ -597,15 +597,6 @@ form {
   font-size: 13px;
 }
 
-.activity-date {
-  color: var(--text-muted);
-  margin-right: 8px;
-}
-
-.activity-group + .activity-group {
-  margin-top: 14px;
-}
-
 .group-pattern {
   font-weight: 700;
   color: var(--primary-dark);
