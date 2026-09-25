@@ -335,7 +335,9 @@ function openForm() {
 
 // Opens Log Event already pointed at specific customers and a date - used by
 // History's "Log visit" shortcut for a group neighbor who was skipped.
-export function openLogEventFor({ customerIds = [], date = null } = {}) {
+// plan (from Ready to Mow's "Log mow") also fills in what last time looked
+// like - see quickLogPlan.
+export function openLogEventFor({ customerIds = [], date = null, plan = null } = {}) {
   openForm();
   if (date) {
     byId("event-date").value = date;
@@ -347,7 +349,39 @@ export function openLogEventFor({ customerIds = [], date = null } = {}) {
     });
     onCustomersChanged();
   }
+  if (plan) applyPlan(plan);
   byId("log-event-form-card").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+// On top of the usual pattern and mower suggestions: last time's trim/edge
+// choices, location and areas, and its double/triple cut if there was one.
+function applyPlan({ tasks, cuts, locationId, areaIds }) {
+  if (tasks) {
+    byId("event-mowed").checked = tasks.mowed;
+    byId("event-trimmed").checked = tasks.trimmed;
+    byId("event-edged").checked = tasks.edged;
+  }
+  if (locationId && [...byId("event-location").options].some((o) => o.value === locationId)) {
+    byId("event-location").value = locationId;
+    refreshAreaOptions();
+    updateWhenSummary();
+  }
+  if (areaIds?.length) {
+    document.querySelectorAll("#event-area-list-yardwork .event-area-checkbox").forEach((cb) => {
+      cb.checked = areaIds.includes(cb.value);
+    });
+  }
+  if (cuts?.length > 1) {
+    const mowerId = byId("event-equipment").value;
+    setRadio("event-pattern", cuts[0].pattern);
+    populateDeckHeightSelect(byId("event-height"), mowerId, cuts[0].deckHeight ?? null);
+    populateGroundSpeedSelect(byId("event-ground-speed"), mowerId, cuts[0].groundSpeed ?? null);
+    populateBladeSpeedSelect(byId("event-blade-speed"), mowerId, cuts[0].bladeSpeed ?? null);
+    updateMowerSummary();
+    const cutAreas = checkedAreaIds("yardwork");
+    cutEditor.set(cuts.slice(1).map((c) => ({ ...c, areaIds: cutAreas })));
+  }
+  updateMowedFieldsVisibility();
 }
 
 function closeForm() {
