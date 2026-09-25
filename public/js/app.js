@@ -3,8 +3,9 @@ import { watchAuth, login, logout } from "./auth.js";
 import { byId } from "./utils.js";
 import { loadCustomers, initCustomersView, refreshCustomersView } from "./customers.js";
 import { loadCustomerGroups, initCustomerGroupsView, refreshCustomerGroupsView } from "./customerGroups.js";
-import { loadVisits, initMowLogView, refreshMowLogView } from "./mowLog.js";
-import { loadSprays, initSprayLogView, refreshSprayLogView } from "./sprayLog.js";
+import { loadVisits } from "./mowLog.js";
+import { loadSprays } from "./sprayLog.js";
+import { initHistoryView, refreshHistoryView } from "./history.js";
 import { loadTasks, initMaintenanceView, refreshMaintenanceView } from "./maintenance.js";
 import { loadEquipment, initEquipmentView, refreshEquipmentView } from "./equipment.js";
 import { loadLocations, initLocationsView, refreshLocationsView } from "./locations.js";
@@ -62,8 +63,7 @@ async function showApp() {
 function initView(view) {
   if (initializedViews.has(view)) {
     if (view === "dashboard") refreshDashboard();
-    if (view === "mow-log") refreshMowLogView();
-    if (view === "spray-log") refreshSprayLogView();
+    if (view === "history") refreshHistoryView();
     if (view === "settings") {
       refreshCustomersView();
       refreshCustomerGroupsView();
@@ -82,11 +82,8 @@ function initView(view) {
     case "dashboard":
       initDashboardView();
       break;
-    case "mow-log":
-      initMowLogView();
-      break;
-    case "spray-log":
-      initSprayLogView();
+    case "history":
+      initHistoryView();
       break;
     case "settings":
       initCustomersView();
@@ -115,6 +112,9 @@ function switchView(view) {
 
 function setupNav() {
   document.querySelectorAll(".nav-btn").forEach((btn) => btn.addEventListener("click", () => switchView(btn.dataset.view)));
+  // Lets a page send the user elsewhere (e.g. History's "Log visit" jumping
+  // to the Log Event form on the Dashboard) without importing app.js.
+  document.addEventListener("app:navigate", (e) => switchView(e.detail.view));
 }
 
 // Tablet/desktop only (see .settings-nav in styles.css, hidden below 601px):

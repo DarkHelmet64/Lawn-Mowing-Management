@@ -33,6 +33,41 @@ export function getAreaName(id) {
   return cache.find((a) => a.id === id)?.name || null;
 }
 
+// A visit/spray record covers every area worked in one go, stored as an
+// areaIds array. Records logged before that stored a single areaId (one
+// record per area), so fall back to it rather than showing no area at all.
+export function recordAreaIds(record) {
+  if (Array.isArray(record?.areaIds)) return record.areaIds;
+  return record?.areaId ? [record.areaId] : [];
+}
+
+export function getAreaNames(ids) {
+  return ids.map(getAreaName).filter(Boolean).join(", ");
+}
+
+// Renders a checkbox per area at locationId into container, pre-checking
+// checkedIds - the multi-area equivalent of populateAreaSelect, used by the
+// Yard Work/Spray Log edit forms.
+export function renderAreaChecklist(container, locationId, checkedIds = []) {
+  const checked = new Set(checkedIds);
+  const areas = getAreasForLocation(locationId);
+  container.innerHTML = areas.length
+    ? areas
+        .map(
+          (a) => `
+      <label class="checkbox-label">
+        <input type="checkbox" class="area-checkbox" value="${a.id}" ${checked.has(a.id) ? "checked" : ""} />
+        ${escapeHtml(a.name)}
+      </label>`
+        )
+        .join("")
+    : `<p class="hint-text">No areas set up at this location.</p>`;
+}
+
+export function checkedAreaIdsIn(container) {
+  return Array.from(container.querySelectorAll(".area-checkbox:checked")).map((cb) => cb.value);
+}
+
 // Areas created before this field existed have no eventTypes at all, so
 // treat that as "applies everywhere" rather than making them vanish from
 // every event type's area list.

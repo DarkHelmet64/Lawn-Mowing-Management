@@ -60,8 +60,10 @@ export function getYardFeatureName(id) {
   return cache.find((f) => f.id === id)?.name || null;
 }
 
-// Populates a <select> with the yard features belonging to areaId only.
-export function populateYardFeatureSelect(selectEl, areaId, { includeNone = true } = {}) {
+// Populates a <select> with the yard features belonging to the given area -
+// or, given an array, to any of those areas.
+export function populateYardFeatureSelect(selectEl, areaIdOrIds, { includeNone = true } = {}) {
+  const areaIds = new Set(Array.isArray(areaIdOrIds) ? areaIdOrIds : [areaIdOrIds]);
   const current = selectEl.value;
   selectEl.innerHTML = "";
   if (includeNone) {
@@ -70,7 +72,7 @@ export function populateYardFeatureSelect(selectEl, areaId, { includeNone = true
     opt.textContent = "None / Not specific";
     selectEl.appendChild(opt);
   }
-  for (const f of cache.filter((f) => f.areaId === areaId)) {
+  for (const f of cache.filter((f) => areaIds.has(f.areaId))) {
     const opt = document.createElement("option");
     opt.value = f.id;
     opt.textContent = f.name;

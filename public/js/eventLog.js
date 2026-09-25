@@ -316,6 +316,20 @@ function openForm() {
   applyEquipmentDefaults();
 }
 
+// Opens Log Event already pointed at specific customers and a date - used by
+// History's "Log visit" shortcut for a group neighbor who was skipped.
+export function openLogEventFor({ customerIds = [], date = null } = {}) {
+  openForm();
+  if (date) byId("event-date").value = date;
+  if (customerIds.length) {
+    document.querySelectorAll("#event-customer-list .event-customer-checkbox").forEach((cb) => {
+      cb.checked = customerIds.includes(cb.value);
+    });
+    refreshLocationOptions();
+  }
+  byId("log-event-form-card").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
 function closeForm() {
   byId("log-event-form-card").classList.add("hidden");
   byId("log-event-form").reset();
@@ -334,12 +348,12 @@ function resetForNextEntry() {
   refreshLocationOptions();
 }
 
-// Each active event type is entirely independent: its own Areas checklist,
-// its own fan-out (one record per its own checked area, or a single
-// unspecified-area record if none are checked), and its own fields. Two
-// types sharing the mowVisits collection (Yard Work, Extra Yard Work) no
-// longer merge into one record even if they happen to share a checked area -
-// each contributes its own record, since the user picks their areas apart.
+// Each active event type is entirely independent: its own Areas checklist
+// and its own fields, saved as one record per checked customer carrying all
+// of that type's checked areas in areaIds. (Records used to be split one per
+// area, which showed up as identical-looking duplicate rows.) Two types
+// sharing the mowVisits collection (Yard Work, Extra Yard Work) still save
+// separate records, since each has its own tasks and its own areas.
 async function handleSubmit(e) {
   e.preventDefault();
   const logAnother = e.submitter?.id === "save-log-another-btn";
@@ -412,66 +426,59 @@ async function handleSubmit(e) {
   if (yardworkFields) {
     const areaIds = checkedAreaIds("yardwork");
     for (const customerId of customerIds) {
-      for (const areaId of areaIds.length ? areaIds : [null]) {
-        await createDoc("mowVisits", {
-          customerId,
-          ...eventBase,
-          ...yardworkFields,
-          pruned: false,
-          trimmedBushes: false,
-          mulched: false,
-          areaId,
-          featureId: null,
-        });
-      }
+      await createDoc("mowVisits", {
+        customerId,
+        ...eventBase,
+        ...yardworkFields,
+        pruned: false,
+        trimmedBushes: false,
+        mulched: false,
+        areaIds,
+        featureId: null,
+      });
     }
   }
 
   if (extraFields) {
     const areaIds = checkedAreaIds("extra_yardwork");
     for (const customerId of customerIds) {
-      for (const areaId of areaIds.length ? areaIds : [null]) {
-        await createDoc("mowVisits", {
-          customerId,
-          ...eventBase,
-          mowed: false,
-          trimmed: false,
-          edged: false,
-          pattern: null,
-          deckHeight: null,
-          groundSpeed: null,
-          bladeSpeed: null,
-          grassCondition: null,
-          ...extraFields,
-          areaId,
-          featureId,
-        });
-      }
+      await createDoc("mowVisits", {
+        customerId,
+        ...eventBase,
+        mowed: false,
+        trimmed: false,
+        edged: false,
+        pattern: null,
+        deckHeight: null,
+        groundSpeed: null,
+        bladeSpeed: null,
+        grassCondition: null,
+        ...extraFields,
+        areaIds,
+        featureId,
+      });
     }
   }
 
   if (chemicalOn) {
     const areaIds = checkedAreaIds("chemical");
     for (const customerId of customerIds) {
-      for (const areaId of areaIds.length ? areaIds : [null]) {
-        await createDoc("sprayApplications", {
-          customerId,
-          date,
-          timeOfDay,
-          target: byId("event-spray-target").value,
-          productId,
-          quantityUsed,
-          locationId,
-          areaId,
-          featureId: null,
-          equipmentId,
-          notes,
-        });
-      }
+      await createDoc("sprayApplications", {
+        customerId,
+        date,
+        timeOfDay,
+        target: byId("event-spray-target").value,
+        productId,
+        quantityUsed,
+        locationId,
+        areaIds,
+        featureId: null,
+        equipmentId,
+        notes,
+      });
     }
-    // Each checked customer is its own real application - areas within one
-    // customer's job share the quantity entered, so usage is only
-    // multiplied by customer count, not by area count too.
+    // Each checked customer is its own real application, and quantityUsed
+    // is that customer's whole job across all its areas.
     await adjustProductQuantity(productId, -(quantityUsed * customerIds.length));
   }
 
