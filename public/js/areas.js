@@ -45,20 +45,17 @@ export function getAreaNames(ids) {
   return ids.map(getAreaName).filter(Boolean).join(", ");
 }
 
-// Renders a checkbox per area at locationId into container, pre-checking
+// Renders a chip per area at locationId into container, pre-checking
 // checkedIds - the multi-area equivalent of populateAreaSelect, used by the
 // Yard Work/Spray Log edit forms.
-export function renderAreaChecklist(container, locationId, checkedIds = []) {
+export function renderAreaChecklist(container, locationId, checkedIds = [], { chipClass = "" } = {}) {
   const checked = new Set(checkedIds);
   const areas = getAreasForLocation(locationId);
   container.innerHTML = areas.length
     ? areas
         .map(
-          (a) => `
-      <label class="checkbox-label">
-        <input type="checkbox" class="area-checkbox" value="${a.id}" ${checked.has(a.id) ? "checked" : ""} />
-        ${escapeHtml(a.name)}
-      </label>`
+          (a) =>
+            `<label class="chip-toggle${chipClass ? ` ${chipClass}` : ""}"><input type="checkbox" class="area-checkbox" value="${escapeHtml(a.id)}" ${checked.has(a.id) ? "checked" : ""} /><span>${escapeHtml(a.name)}</span></label>`
         )
         .join("")
     : `<p class="hint-text">No areas set up at this location.</p>`;

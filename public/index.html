@@ -882,137 +882,210 @@
         </div>
         <div id="history-duplicates"></div>
         <div id="visit-form-card" class="card hidden">
-          <h3>Edit Visit</h3>
-          <form id="visit-form">
+          <div class="form-title-row">
+            <h3>Edit Visit</h3>
+            <button type="button" id="cancel-visit-btn" class="link-btn">Cancel</button>
+          </div>
+          <form id="visit-form" class="log-form">
             <input type="hidden" id="visit-id" />
-            <label>Customer
-              <select id="visit-customer" required></select>
-            </label>
-            <label>Date
-              <input type="date" id="visit-date" required />
-            </label>
-            <label>Time of Day
-              <select id="visit-time-of-day">
-                <option value="">Not specified</option>
-                <option value="morning">Morning</option>
-                <option value="midday">Midday</option>
-                <option value="afternoon">Afternoon</option>
-                <option value="evening">Evening</option>
-                <option value="other">Other</option>
-              </select>
-            </label>
-            <label>Location
-              <select id="visit-location"></select>
-            </label>
-            <label>Areas</label>
-            <div id="visit-area-list" class="checkbox-row"></div>
-            <label>Plant / Object
-              <select id="visit-feature"></select>
-            </label>
-            <div class="checkbox-row">
-              <label class="checkbox-label"><input type="checkbox" id="visit-mowed" checked /> Mowed</label>
-              <label class="checkbox-label"><input type="checkbox" id="visit-trimmed" checked /> Trimmed</label>
-              <label class="checkbox-label"><input type="checkbox" id="visit-edged" /> Edged</label>
-              <label class="checkbox-label"><input type="checkbox" id="visit-pruned" /> Pruned</label>
-              <label class="checkbox-label"><input type="checkbox" id="visit-trimmed-bushes" /> Trimmed Bushes</label>
-              <label class="checkbox-label"><input type="checkbox" id="visit-mulched" /> Mulched</label>
-            </div>
-            <div id="visit-mowed-fields">
-              <label>Mower Used
-                <select id="visit-equipment"></select>
+            <section class="form-section">
+              <h4 class="form-section-title">Who</h4>
+              <div id="visit-customer-list" class="chip-group" role="radiogroup" aria-label="Customer"></div>
+            </section>
+
+            <section class="form-section">
+              <div class="summary-row">
+                <div class="summary-text">
+                  <span class="summary-label">When &amp; where</span>
+                  <span id="visit-when-summary" class="summary-value"></span>
+                </div>
+                <button type="button" class="link-btn summary-change" data-toggle-panel="visit-when-panel" aria-controls="visit-when-panel" aria-expanded="false">Change</button>
+              </div>
+              <div id="visit-when-panel" class="summary-panel hidden">
+                <label>Date
+                  <input type="date" id="visit-date" required />
+                </label>
+                <label>Time of Day
+                  <select id="visit-time-of-day">
+                    <option value="">Not specified</option>
+                    <option value="morning">Morning</option>
+                    <option value="midday">Midday</option>
+                    <option value="afternoon">Afternoon</option>
+                    <option value="evening">Evening</option>
+                    <option value="other">Other</option>
+                  </select>
+                </label>
+                <label>Location
+                  <select id="visit-location"></select>
+                </label>
+              </div>
+            </section>
+
+            <section class="form-section">
+              <h4 class="form-section-title">What</h4>
+              <div class="field-block">
+                <span class="field-label">Yard work</span>
+                <div class="chip-group">
+                  <label class="chip-toggle"><input type="checkbox" id="visit-mowed" /><span>Mowed</span></label>
+                  <label class="chip-toggle"><input type="checkbox" id="visit-trimmed" /><span>Trimmed</span></label>
+                  <label class="chip-toggle"><input type="checkbox" id="visit-edged" /><span>Edged</span></label>
+                </div>
+              </div>
+              <div class="field-block">
+                <span class="field-label">Extra yard work</span>
+                <div class="chip-group">
+                  <label class="chip-toggle chip-extra-toggle"><input type="checkbox" id="visit-pruned" /><span>Pruned</span></label>
+                  <label class="chip-toggle chip-extra-toggle"><input type="checkbox" id="visit-trimmed-bushes" /><span>Trimmed Bushes</span></label>
+                  <label class="chip-toggle chip-extra-toggle"><input type="checkbox" id="visit-mulched" /><span>Mulched</span></label>
+                </div>
+              </div>
+              <div class="field-block">
+                <span class="field-label">Areas</span>
+                <div id="visit-area-list" class="chip-group"></div>
+              </div>
+              <label>Plant / Object
+                <select id="visit-feature"></select>
               </label>
-              <label><span id="visit-pattern-label">Mow Pattern</span>
-                <select id="visit-pattern">
-                  <option value="parallel">Parallel</option>
-                  <option value="perpendicular">Perpendicular</option>
-                  <option value="diagonal_left">Diagonal Left</option>
-                  <option value="diagonal_right">Diagonal Right</option>
-                  <option value="other">Other</option>
-                </select>
-              </label>
-              <label>Deck Height
-                <select id="visit-height"></select>
-              </label>
-              <label>Ground Speed
-                <select id="visit-ground-speed"></select>
-              </label>
-              <label>Blade Speed
-                <select id="visit-blade-speed"></select>
-              </label>
+            </section>
+
+            <section id="visit-mowed-fields" class="form-section">
+              <h4 class="form-section-title">Mowing</h4>
+              <div class="field-block">
+                <span class="field-label" id="visit-pattern-label">Mow pattern</span>
+                <div class="pattern-options" role="radiogroup" aria-labelledby="visit-pattern-label">
+                  <label class="pattern-option"><input type="radio" name="visit-pattern" value="parallel" aria-label="Parallel" /><span><svg width="26" height="26" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" aria-hidden="true"><rect x="1.5" y="1.5" width="13" height="13" rx="3"></rect><path d="M4.5 5h7M4.5 8h7M4.5 11h7"></path></svg>Parallel</span></label>
+                  <label class="pattern-option"><input type="radio" name="visit-pattern" value="perpendicular" aria-label="Perpendicular" /><span><svg width="26" height="26" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" aria-hidden="true"><rect x="1.5" y="1.5" width="13" height="13" rx="3"></rect><path d="M5 4.5v7M8 4.5v7M11 4.5v7"></path></svg>Perpend.</span></label>
+                  <label class="pattern-option"><input type="radio" name="visit-pattern" value="diagonal_left" aria-label="Diagonal Left" /><span><svg width="26" height="26" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" aria-hidden="true"><rect x="1.5" y="1.5" width="13" height="13" rx="3"></rect><path d="M4.5 4.5l7 7M4.5 8l3.5 3.5M8 4.5l3.5 3.5"></path></svg>Diag. Left</span></label>
+                  <label class="pattern-option"><input type="radio" name="visit-pattern" value="diagonal_right" aria-label="Diagonal Right" /><span><svg width="26" height="26" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" aria-hidden="true"><rect x="1.5" y="1.5" width="13" height="13" rx="3"></rect><path d="M4.5 11.5l7-7M4.5 8L8 4.5M8 11.5L11.5 8"></path></svg>Diag. Right</span></label>
+                  <label class="pattern-option"><input type="radio" name="visit-pattern" value="other" aria-label="Other" /><span><svg width="26" height="26" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" aria-hidden="true"><rect x="1.5" y="1.5" width="13" height="13" rx="3"></rect><circle cx="8" cy="8" r="1.5"></circle></svg>Other</span></label>
+                </div>
+              </div>
+              <div class="summary-row">
+                <div class="summary-text">
+                  <span class="summary-label" id="visit-mower-label">Mower</span>
+                  <span id="visit-mower-summary" class="summary-value"></span>
+                </div>
+                <button type="button" class="link-btn summary-change" data-toggle-panel="visit-mower-panel" aria-controls="visit-mower-panel" aria-expanded="false">Change</button>
+              </div>
+              <div id="visit-mower-panel" class="summary-panel hidden">
+                <label>Mower Used
+                  <select id="visit-equipment"></select>
+                </label>
+                <label>Deck Height
+                  <select id="visit-height"></select>
+                </label>
+                <label>Ground Speed
+                  <select id="visit-ground-speed"></select>
+                </label>
+                <label>Blade Speed
+                  <select id="visit-blade-speed"></select>
+                </label>
+              </div>
               <div id="visit-extra-cuts" class="cut-list hidden"></div>
               <button type="button" id="visit-add-cut-btn" class="link-btn add-cut-btn">+ Add a second cut</button>
-              <label>Grass Condition
-                <select id="visit-grass-condition">
-                  <option value="">Not specified</option>
-                  <option value="dry">Dry</option>
-                  <option value="wet_dew">Wet (dew)</option>
-                  <option value="wet_rain">Wet (rain)</option>
-                  <option value="damp">Damp</option>
-                  <option value="other">Other</option>
-                </select>
+              <div class="field-block">
+                <span class="field-label" id="visit-grass-label">Grass</span>
+                <div class="segmented segmented-full" role="radiogroup" aria-labelledby="visit-grass-label">
+                  <label class="segmented-option"><input type="radio" name="visit-grass" value="dry" /><span>Dry</span></label>
+                  <label class="segmented-option"><input type="radio" name="visit-grass" value="damp" /><span>Damp</span></label>
+                  <label class="segmented-option"><input type="radio" name="visit-grass" value="wet_dew" /><span>Dew</span></label>
+                  <label class="segmented-option"><input type="radio" name="visit-grass" value="wet_rain" /><span>Rain</span></label>
+                  <label class="segmented-option"><input type="radio" name="visit-grass" value="other" /><span>Other</span></label>
+                </div>
+              </div>
+            </section>
+
+            <section class="form-section">
+              <button type="button" id="visit-add-note-btn" class="link-btn add-note-btn">+ Add a note</button>
+              <label id="visit-notes-field" class="hidden">Notes
+                <textarea id="visit-notes" rows="2"></textarea>
               </label>
-            </div>
-            <label>Notes
-              <textarea id="visit-notes" rows="2"></textarea>
-            </label>
-            <div class="form-actions">
-              <button type="submit" class="primary-btn">Save</button>
-              <button type="button" id="cancel-visit-btn" class="ghost-btn">Cancel</button>
+            </section>
+
+            <div class="form-footer">
+              <button type="submit" class="primary-btn">Save changes</button>
             </div>
           </form>
         </div>
         <div id="spray-form-card" class="card hidden">
-          <h3>Edit Spray Application</h3>
-          <form id="spray-form">
+          <div class="form-title-row">
+            <h3>Edit Spray Application</h3>
+            <button type="button" id="cancel-spray-btn" class="link-btn">Cancel</button>
+          </div>
+          <form id="spray-form" class="log-form">
             <input type="hidden" id="spray-id" />
-            <label>Customer
-              <select id="spray-customer" required></select>
-            </label>
-            <label>Date
-              <input type="date" id="spray-date" required />
-            </label>
-            <label>Time of Day
-              <select id="spray-time-of-day">
-                <option value="">Not specified</option>
-                <option value="morning">Morning</option>
-                <option value="midday">Midday</option>
-                <option value="afternoon">Afternoon</option>
-                <option value="evening">Evening</option>
-                <option value="other">Other</option>
-              </select>
-            </label>
-            <label>Location
-              <select id="spray-location"></select>
-            </label>
-            <label>Areas</label>
-            <div id="spray-area-list" class="checkbox-row"></div>
-            <label>Plant / Object
-              <select id="spray-feature"></select>
-            </label>
-            <label>Equipment Used
-              <select id="spray-equipment"></select>
-            </label>
-            <label>Target
-              <select id="spray-target">
-                <option value="weeds">Weeds</option>
-                <option value="insects">Insects</option>
-                <option value="fungus">Fungus / Disease</option>
-                <option value="fertilizer">Fertilizer</option>
-                <option value="other">Other</option>
-              </select>
-            </label>
-            <label>Product Used
-              <select id="spray-product"></select>
-            </label>
-            <label>Quantity Used
-              <input type="number" id="spray-quantity" step="any" min="0" />
-            </label>
-            <label>Notes
-              <textarea id="spray-notes" rows="2"></textarea>
-            </label>
-            <div class="form-actions">
-              <button type="submit" class="primary-btn">Save</button>
-              <button type="button" id="cancel-spray-btn" class="ghost-btn">Cancel</button>
+            <section class="form-section">
+              <h4 class="form-section-title">Who</h4>
+              <div id="spray-customer-list" class="chip-group" role="radiogroup" aria-label="Customer"></div>
+            </section>
+
+            <section class="form-section">
+              <div class="summary-row">
+                <div class="summary-text">
+                  <span class="summary-label">When &amp; where</span>
+                  <span id="spray-when-summary" class="summary-value"></span>
+                </div>
+                <button type="button" class="link-btn summary-change" data-toggle-panel="spray-when-panel" aria-controls="spray-when-panel" aria-expanded="false">Change</button>
+              </div>
+              <div id="spray-when-panel" class="summary-panel hidden">
+                <label>Date
+                  <input type="date" id="spray-date" required />
+                </label>
+                <label>Time of Day
+                  <select id="spray-time-of-day">
+                    <option value="">Not specified</option>
+                    <option value="morning">Morning</option>
+                    <option value="midday">Midday</option>
+                    <option value="afternoon">Afternoon</option>
+                    <option value="evening">Evening</option>
+                    <option value="other">Other</option>
+                  </select>
+                </label>
+                <label>Location
+                  <select id="spray-location"></select>
+                </label>
+              </div>
+            </section>
+
+            <section class="form-section">
+              <h4 class="form-section-title">Spray</h4>
+              <div class="field-block">
+                <span class="field-label">Areas</span>
+                <div id="spray-area-list" class="chip-group"></div>
+              </div>
+              <label>Plant / Object
+                <select id="spray-feature"></select>
+              </label>
+              <div class="field-block">
+                <span class="field-label" id="spray-target-label">Target</span>
+                <div class="chip-group" role="radiogroup" aria-labelledby="spray-target-label">
+                  <label class="chip-toggle chip-spray-toggle"><input type="radio" name="spray-target" value="weeds" /><span>Weeds</span></label>
+                  <label class="chip-toggle chip-spray-toggle"><input type="radio" name="spray-target" value="insects" /><span>Insects</span></label>
+                  <label class="chip-toggle chip-spray-toggle"><input type="radio" name="spray-target" value="fungus" /><span>Fungus / Disease</span></label>
+                  <label class="chip-toggle chip-spray-toggle"><input type="radio" name="spray-target" value="fertilizer" /><span>Fertilizer</span></label>
+                  <label class="chip-toggle chip-spray-toggle"><input type="radio" name="spray-target" value="other" /><span>Other</span></label>
+                </div>
+              </div>
+              <label>Product Used
+                <select id="spray-product"></select>
+              </label>
+              <label>Quantity Used
+                <input type="number" id="spray-quantity" step="any" min="0" />
+              </label>
+              <label>Equipment Used
+                <select id="spray-equipment"></select>
+              </label>
+            </section>
+
+            <section class="form-section">
+              <button type="button" id="spray-add-note-btn" class="link-btn add-note-btn">+ Add a note</button>
+              <label id="spray-notes-field" class="hidden">Notes
+                <textarea id="spray-notes" rows="2"></textarea>
+              </label>
+            </section>
+
+            <div class="form-footer">
+              <button type="submit" class="primary-btn">Save changes</button>
             </div>
           </form>
         </div>

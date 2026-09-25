@@ -1,14 +1,14 @@
 import { listAll, createDoc, updateDocById, deleteDocById } from "./db.js";
-import { byId, todayStr, confirmAction } from "./utils.js";
-import { getCustomers, populateCustomerSelect } from "./customers.js";
+import { byId, todayStr, confirmAction, setPanelOpen, whenSummaryText } from "./utils.js";
+import { getCustomers, customerChipsHtml } from "./customers.js";
 import { populateEquipmentSelect } from "./equipment.js";
-import { populateLocationSelect } from "./locations.js";
+import { populateLocationSelect, getLocationLabel } from "./locations.js";
 import { recordAreaIds, renderAreaChecklist, checkedAreaIdsIn } from "./areas.js";
 import { populateYardFeatureSelect } from "./yardFeatures.js";
 import { populateProductSelect } from "./products.js";
 
-// Spray applications: the data cache plus the Edit Spray form. How sprays
-// are listed and browsed lives on the History page (history.js).
+// Spray applications: the data cache plus the Edit Spray form (laid out like
+// Log Event). How sprays are listed and browsed lives in history.js.
 const COLLECTION = "sprayApplications";
 let cache = [];
 let listenersBound = false;
@@ -50,15 +50,37 @@ function recordsChanged() {
   document.dispatchEvent(new CustomEvent("records:changed"));
 }
 
+// Kept local rather than importing mowLog.js, which is only for visits.
+const TIME_OF_DAY_LABELS = { morning: "Morning", midday: "Midday", afternoon: "Afternoon", evening: "Evening", other: "Other" };
+
+function radioValue(name) {
+  return document.querySelector(`#spray-form input[name="${name}"]:checked`)?.value || null;
+}
+
+function setRadio(name, value) {
+  document.querySelectorAll(`#spray-form input[name="${name}"]`).forEach((r) => {
+    r.checked = r.value === value;
+  });
+}
+
+function updateWhenSummary() {
+  byId("spray-when-summary").textContent = whenSummaryText(
+    byId("spray-date").value,
+    TIME_OF_DAY_LABELS[byId("spray-time-of-day").value],
+    getLocationLabel(byId("spray-location").value)
+  );
+}
+
 function refreshLocationOptions() {
-  populateLocationSelect(byId("spray-location"), byId("spray-customer").value);
+  populateLocationSelect(byId("spray-location"), radioValue("spray-customer"));
   refreshAreaOptions();
+  updateWhenSummary();
 }
 
 // Re-rendering on a location change keeps whichever areas were already
 // checked (if they exist at the new location too - otherwise they drop off).
 function refreshAreaOptions(checkedIds = checkedAreaIdsIn(byId("spray-area-list"))) {
-  renderAreaChecklist(byId("spray-area-list"), byId("spray-location").value, checkedIds);
+  renderAreaChecklist(byId("spray-area-list"), byId("spray-location").value, checkedIds, { chipClass: "chip-spray-toggle" });
   refreshFeatureOptions();
 }
 
@@ -66,25 +88,36 @@ function refreshFeatureOptions() {
   populateYardFeatureSelect(byId("spray-feature"), checkedAreaIdsIn(byId("spray-area-list")));
 }
 
+function showNotes(show) {
+  byId("spray-notes-field").classList.toggle("hidden", !show);
+  byId("spray-add-note-btn").classList.toggle("hidden", show);
+}
+
 export function openSprayForm(spray = null) {
   byId("spray-form-card").classList.remove("hidden");
-  populateCustomerSelect(byId("spray-customer"));
+  byId("spray-customer-list").innerHTML = customerChipsHtml({
+    name: "spray-customer",
+    type: "radio",
+    checkedIds: [spray?.customerId || getCustomers()[0]?.id].filter(Boolean),
+  });
   populateEquipmentSelect(byId("spray-equipment"));
   populateProductSelect(byId("spray-product"));
   byId("spray-id").value = spray?.id || "";
-  byId("spray-customer").value = spray?.customerId || getCustomers()[0]?.id || "";
   byId("spray-date").value = spray?.date || todayStr();
   byId("spray-time-of-day").value = spray?.timeOfDay || "";
-  byId("spray-target").value = spray?.target || "weeds";
+  setRadio("spray-target", spray?.target || "weeds");
   byId("spray-product").value = spray?.productId || "";
   byId("spray-quantity").value = spray?.quantityUsed ?? "";
   byId("spray-equipment").value = spray?.equipmentId || "";
   byId("spray-notes").value = spray?.notes || "";
+  showNotes(Boolean(spray?.notes));
+  setPanelOpen("spray-when-panel", false);
 
   refreshLocationOptions();
   byId("spray-location").value = spray?.locationId || "";
   refreshAreaOptions(recordAreaIds(spray));
   if (spray?.featureId) byId("spray-feature").value = spray.featureId;
+  updateWhenSummary();
   byId("spray-form-card").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
@@ -102,12 +135,17 @@ export async function deleteSpray(id) {
 
 async function handleSubmit(e) {
   e.preventDefault();
+  const customerId = radioValue("spray-customer");
+  if (!customerId) {
+    alert("Pick the customer this spray was for.");
+    return;
+  }
   const id = byId("spray-id").value;
   const data = {
-    customerId: byId("spray-customer").value,
+    customerId,
     date: byId("spray-date").value,
     timeOfDay: byId("spray-time-of-day").value || null,
-    target: byId("spray-target").value,
+    target: radioValue("spray-target") || "weeds",
     productId: byId("spray-product").value || null,
     quantityUsed: byId("spray-quantity").value ? Number(byId("spray-quantity").value) : null,
     locationId: byId("spray-location").value || null,
@@ -130,8 +168,30 @@ export function initSprayForm() {
   if (listenersBound) return;
   byId("cancel-spray-btn").addEventListener("click", closeForm);
   byId("spray-form").addEventListener("submit", handleSubmit);
-  byId("spray-customer").addEventListener("change", refreshLocationOptions);
-  byId("spray-location").addEventListener("change", () => refreshAreaOptions());
+  byId("spray-form").addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-toggle-panel]");
+    if (btn) setPanelOpen(btn.dataset.togglePanel, byId(btn.dataset.togglePanel).classList.contains("hidden"));
+  });
+  // Switching the record to another customer starts at their first location.
+  byId("spray-customer-list").addEventListener("change", () => {
+    refreshLocationOptions();
+    const first = byId("spray-location").options[1];
+    if (first) {
+      byId("spray-location").value = first.value;
+      refreshAreaOptions();
+      updateWhenSummary();
+    }
+  });
+  byId("spray-date").addEventListener("change", updateWhenSummary);
+  byId("spray-time-of-day").addEventListener("change", updateWhenSummary);
+  byId("spray-location").addEventListener("change", () => {
+    refreshAreaOptions();
+    updateWhenSummary();
+  });
   byId("spray-area-list").addEventListener("change", refreshFeatureOptions);
+  byId("spray-add-note-btn").addEventListener("click", () => {
+    showNotes(true);
+    byId("spray-notes").focus();
+  });
   listenersBound = true;
 }

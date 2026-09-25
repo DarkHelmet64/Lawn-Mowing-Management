@@ -1,5 +1,7 @@
 import { getVisits } from "./mowLog.js";
-import { getEquipment, getEquipmentById, getEquipmentName } from "./equipment.js";
+import { getEquipment, getEquipmentById, mowerSummary } from "./equipment.js";
+
+export { mowerSummary };
 import { getLocationsForCustomer } from "./locations.js";
 import { getAreasForLocation, areaAppliesToEventTypes, recordAreaIds } from "./areas.js";
 import { PATTERN_ROTATION, nextPattern, rotatePattern, patternGlyph } from "./patterns.js";
@@ -103,14 +105,6 @@ export function mowerSettings(customerIds) {
     groundSpeed: m.defaultGroundSpeed ?? null,
     bladeSpeed: m.defaultBladeSpeed ?? null,
   };
-}
-
-export function mowerSummary({ equipmentId, deckHeight, groundSpeed, bladeSpeed }) {
-  const name = getEquipmentName(equipmentId);
-  if (!name) return "No mower selected";
-  return [name, deckHeight != null && deckHeight !== "" ? `${deckHeight}"` : "", groundSpeed ? `speed ${groundSpeed}` : "", bladeSpeed || ""]
-    .filter(Boolean)
-    .join(" · ");
 }
 
 export function defaultAreaIds(locationId, type = "yardwork") {

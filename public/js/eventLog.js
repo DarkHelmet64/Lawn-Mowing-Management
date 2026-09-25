@@ -1,6 +1,6 @@
 import { createDoc } from "./db.js";
-import { byId, escapeHtml, todayStr, formatDateDisplay, setPanelOpen } from "./utils.js";
-import { getCustomers, getCustomerName } from "./customers.js";
+import { byId, escapeHtml, todayStr, formatDateDisplay, setPanelOpen, whenSummaryText } from "./utils.js";
+import { getCustomers, getCustomerName, customerChipsHtml } from "./customers.js";
 import { getCustomerGroups } from "./customerGroups.js";
 import {
   populateEquipmentSelect,
@@ -26,8 +26,6 @@ import {
   mowerSummary,
 } from "./visitDefaults.js";
 
-const CHECK_ICON = `<svg class="chip-check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg>`;
-
 // Set once a pattern or mower is picked by hand, so changing who's checked
 // stops replacing that choice with a fresh suggestion.
 let patternTouched = false;
@@ -52,18 +50,12 @@ function firstCheckedCustomerId() {
 // normal open; "Save & log another" passes false so the next entry starts
 // with nobody checked, forcing a deliberate pick of who's next.
 function renderCustomerList(preselectFirst = true) {
-  const customers = getCustomers();
-  byId("event-customer-list").innerHTML = customers.length
-    ? customers
-        .map(
-          (c, i) => `
-      <label class="chip-toggle">
-        <input type="checkbox" class="event-customer-checkbox" value="${escapeHtml(c.id)}" ${preselectFirst && i === 0 ? "checked" : ""} />
-        <span>${CHECK_ICON}${escapeHtml(c.name)}</span>
-      </label>`
-        )
-        .join("")
-    : `<p class="hint-text">Add a customer first.</p>`;
+  const first = getCustomers()[0]?.id;
+  byId("event-customer-list").innerHTML = customerChipsHtml({
+    name: "event-customer",
+    checkedIds: preselectFirst && first ? [first] : [],
+    inputClass: "event-customer-checkbox",
+  });
 }
 
 function groupMembers(group) {
@@ -220,12 +212,11 @@ function applyGrassConditionDefault() {
 }
 
 function updateWhenSummary() {
-  const date = byId("event-date").value;
-  const [y, m, d] = date ? date.split("-").map(Number) : [];
-  const weekday = date ? new Date(y, m - 1, d).toLocaleDateString("en-US", { weekday: "short" }) : "";
-  const dayText = !date ? "No date" : date === todayStr() ? `Today, ${weekday} ${formatDateDisplay(date).slice(0, 5)}` : `${weekday} ${formatDateDisplay(date)}`;
-  const parts = [dayText, TIME_OF_DAY_LABELS[byId("event-time-of-day").value], getLocationLabel(byId("event-location").value)];
-  byId("event-when-summary").textContent = parts.filter(Boolean).join(" · ");
+  byId("event-when-summary").textContent = whenSummaryText(
+    byId("event-date").value,
+    TIME_OF_DAY_LABELS[byId("event-time-of-day").value],
+    getLocationLabel(byId("event-location").value)
+  );
 }
 
 function updateSaveLabel() {

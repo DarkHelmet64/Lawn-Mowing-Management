@@ -19,6 +19,21 @@ export function getCustomerName(id) {
   return cache.find((c) => c.id === id)?.name || "(deleted customer)";
 }
 
+const CHECK_ICON = `<svg class="chip-check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg>`;
+
+// One tappable chip per customer - checkboxes for picking several, radios
+// for picking one - with a check mark on the chosen ones.
+export function customerChipsHtml({ name, type = "checkbox", checkedIds = [], inputClass = "" }) {
+  if (!cache.length) return `<p class="hint-text">Add a customer first.</p>`;
+  const checked = new Set(checkedIds);
+  return cache
+    .map(
+      (c) =>
+        `<label class="chip-toggle"><input type="${type}" name="${name}" class="${inputClass}" value="${escapeHtml(c.id)}" ${checked.has(c.id) ? "checked" : ""} /><span>${CHECK_ICON}${escapeHtml(c.name)}</span></label>`
+    )
+    .join("");
+}
+
 export function populateCustomerSelect(selectEl, { includeAll = false } = {}) {
   const current = selectEl.value;
   selectEl.innerHTML = "";
