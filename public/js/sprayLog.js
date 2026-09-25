@@ -1,29 +1,23 @@
 import { listAll, createDoc, updateDocById, deleteDocById } from "./db.js";
-import { byId, escapeHtml, todayStr, formatDateDisplay, confirmAction } from "./utils.js";
-import { getCustomers, getCustomerName, populateCustomerSelect } from "./customers.js";
-import { populateEquipmentSelect, getEquipmentName } from "./equipment.js";
-import { getLocationLabel, populateLocationSelect } from "./locations.js";
-import { recordAreaIds, getAreaNames, renderAreaChecklist, checkedAreaIdsIn } from "./areas.js";
-import { populateYardFeatureSelect, getYardFeatureName } from "./yardFeatures.js";
-import { populateProductSelect, getProductById, getProductName } from "./products.js";
+import { byId, todayStr, confirmAction } from "./utils.js";
+import { getCustomers, populateCustomerSelect } from "./customers.js";
+import { populateEquipmentSelect } from "./equipment.js";
+import { populateLocationSelect } from "./locations.js";
+import { recordAreaIds, renderAreaChecklist, checkedAreaIdsIn } from "./areas.js";
+import { populateYardFeatureSelect } from "./yardFeatures.js";
+import { populateProductSelect } from "./products.js";
 
+// Spray applications: the data cache plus the Edit Spray form. How sprays
+// are listed and browsed lives on the History page (history.js).
 const COLLECTION = "sprayApplications";
 let cache = [];
 let listenersBound = false;
 
-const TARGET_LABELS = {
+export const TARGET_LABELS = {
   weeds: "Weeds",
   insects: "Insects",
   fungus: "Fungus / Disease",
   fertilizer: "Fertilizer",
-  other: "Other",
-};
-
-const TIME_OF_DAY_LABELS = {
-  morning: "Morning",
-  midday: "Midday",
-  afternoon: "Afternoon",
-  evening: "Evening",
   other: "Other",
 };
 
@@ -52,35 +46,8 @@ export function getLastQuantityUsedForProduct(productId) {
   return latest.quantityUsed;
 }
 
-function renderTable() {
-  const body = byId("spray-table-body");
-  body.innerHTML = cache
-    .map(
-      (s) => `
-      <tr>
-        <td>${formatDateDisplay(s.date)}</td>
-        <td>${TIME_OF_DAY_LABELS[s.timeOfDay] || ""}</td>
-        <td>${escapeHtml(getCustomerName(s.customerId))}</td>
-        <td>${TARGET_LABELS[s.target] || s.target}</td>
-        <td>${escapeHtml(getProductName(s.productId) || s.product || "")}${s.quantityUsed ? ` (${s.quantityUsed} ${escapeHtml(getProductById(s.productId)?.unit || "")})` : ""}</td>
-        <td>${escapeHtml(getLocationLabel(s.locationId) || "")}</td>
-        <td>${escapeHtml(getAreaNames(recordAreaIds(s)))}</td>
-        <td>${escapeHtml(getYardFeatureName(s.featureId) || "")}</td>
-        <td>${escapeHtml(getEquipmentName(s.equipmentId) || "")}</td>
-        <td class="row-actions">
-          <button class="link-btn" data-edit="${s.id}">Edit</button>
-          <button class="link-btn danger" data-delete="${s.id}">Delete</button>
-        </td>
-      </tr>`
-    )
-    .join("");
-
-  body.querySelectorAll("[data-edit]").forEach((btn) =>
-    btn.addEventListener("click", () => openForm(cache.find((s) => s.id === btn.dataset.edit)))
-  );
-  body.querySelectorAll("[data-delete]").forEach((btn) =>
-    btn.addEventListener("click", () => handleDelete(btn.dataset.delete))
-  );
+function recordsChanged() {
+  document.dispatchEvent(new CustomEvent("records:changed"));
 }
 
 function refreshLocationOptions() {
@@ -99,7 +66,7 @@ function refreshFeatureOptions() {
   populateYardFeatureSelect(byId("spray-feature"), checkedAreaIdsIn(byId("spray-area-list")));
 }
 
-function openForm(spray = null) {
+export function openSprayForm(spray = null) {
   byId("spray-form-card").classList.remove("hidden");
   populateCustomerSelect(byId("spray-customer"));
   populateEquipmentSelect(byId("spray-equipment"));
@@ -118,6 +85,7 @@ function openForm(spray = null) {
   byId("spray-location").value = spray?.locationId || "";
   refreshAreaOptions(recordAreaIds(spray));
   if (spray?.featureId) byId("spray-feature").value = spray.featureId;
+  byId("spray-form-card").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function closeForm() {
@@ -125,10 +93,11 @@ function closeForm() {
   byId("spray-form").reset();
 }
 
-async function handleDelete(id) {
+export async function deleteSpray(id) {
   if (!(await confirmAction("Delete this spray record?"))) return;
   await deleteDocById(COLLECTION, id);
-  await refreshSprayLogView();
+  await loadSprays();
+  recordsChanged();
 }
 
 async function handleSubmit(e) {
@@ -153,23 +122,16 @@ async function handleSubmit(e) {
   if (id) await updateDocById(COLLECTION, id, data);
   else await createDoc(COLLECTION, data);
   closeForm();
-  await refreshSprayLogView();
-}
-
-export async function refreshSprayLogView() {
   await loadSprays();
-  renderTable();
+  recordsChanged();
 }
 
-export function initSprayLogView() {
-  if (!listenersBound) {
-    byId("cancel-spray-btn").addEventListener("click", closeForm);
-    byId("spray-form").addEventListener("submit", handleSubmit);
-    byId("spray-customer").addEventListener("change", refreshLocationOptions);
-    byId("spray-location").addEventListener("change", () => refreshAreaOptions());
-    byId("spray-area-list").addEventListener("change", refreshFeatureOptions);
-    document.addEventListener("customers:changed", renderTable);
-    listenersBound = true;
-  }
-  return refreshSprayLogView();
+export function initSprayForm() {
+  if (listenersBound) return;
+  byId("cancel-spray-btn").addEventListener("click", closeForm);
+  byId("spray-form").addEventListener("submit", handleSubmit);
+  byId("spray-customer").addEventListener("change", refreshLocationOptions);
+  byId("spray-location").addEventListener("change", () => refreshAreaOptions());
+  byId("spray-area-list").addEventListener("change", refreshFeatureOptions);
+  listenersBound = true;
 }

@@ -26,7 +26,7 @@ export async function refreshDashboard() {
 
 // One line per Customer Group: the pattern from the most recent mow of any
 // customer in it, since a group is mowed together as one visit. Individual
-// customers' patterns live on the Yard Work page.
+// customers' patterns live in History's Customer view.
 function renderGroupMowPatterns() {
   const groups = getCustomerGroups();
   const list = byId("group-pattern-list");

@@ -316,6 +316,20 @@ function openForm() {
   applyEquipmentDefaults();
 }
 
+// Opens Log Event already pointed at specific customers and a date - used by
+// History's "Log visit" shortcut for a group neighbor who was skipped.
+export function openLogEventFor({ customerIds = [], date = null } = {}) {
+  openForm();
+  if (date) byId("event-date").value = date;
+  if (customerIds.length) {
+    document.querySelectorAll("#event-customer-list .event-customer-checkbox").forEach((cb) => {
+      cb.checked = customerIds.includes(cb.value);
+    });
+    refreshLocationOptions();
+  }
+  byId("log-event-form-card").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
 function closeForm() {
   byId("log-event-form-card").classList.add("hidden");
   byId("log-event-form").reset();

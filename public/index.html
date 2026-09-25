@@ -32,8 +32,7 @@
       <h1>🌱 Lawn Mowing Management</h1>
       <nav id="main-nav">
         <button data-view="dashboard" class="nav-btn active">Dashboard</button>
-        <button data-view="mow-log" class="nav-btn">Yard Work</button>
-        <button data-view="spray-log" class="nav-btn">Spray Log</button>
+        <button data-view="history" class="nav-btn">History</button>
         <button data-view="weather" class="nav-btn">Weather &amp; Growth</button>
         <button data-view="settings" class="nav-btn">⚙ Settings</button>
       </nav>
@@ -746,23 +745,12 @@
         </div>
       </section>
 
-      <section id="view-mow-log" class="view">
+      <section id="view-history" class="view">
         <div class="view-header">
-          <h2>Yard Work Log</h2>
-        </div>
-        <div class="card">
-          <div class="view-header">
-            <h3>Last Mow Pattern</h3>
-            <label>Customer
-              <select id="pattern-lookup-customer"></select>
-            </label>
-          </div>
-          <div id="pattern-lookup-result">
-            <p class="hint-text">Add a customer to see their last mow pattern.</p>
-          </div>
+          <h2>History</h2>
         </div>
         <div id="visit-form-card" class="card hidden">
-          <h3>Log a Visit</h3>
+          <h3>Edit Visit</h3>
           <form id="visit-form">
             <input type="hidden" id="visit-id" />
             <label>Customer
@@ -839,27 +827,8 @@
             </div>
           </form>
         </div>
-        <div class="filter-row">
-          <label>Filter by customer
-            <select id="visit-filter-customer"><option value="">All Customers</option></select>
-          </label>
-        </div>
-        <div class="table-wrap">
-          <table class="data-table">
-            <thead>
-              <tr><th>Date</th><th>Customer</th><th>Mowed</th><th>Trimmed</th><th>Edged</th><th>Pruned</th><th>Bushes</th><th>Mulched</th><th>Pattern</th><th>Deck Height</th><th>Ground Speed</th><th>Blade Speed</th><th>Time of Day</th><th>Grass Condition</th><th>Location</th><th>Areas</th><th>Feature</th><th>Equipment</th><th></th></tr>
-            </thead>
-            <tbody id="visit-table-body"></tbody>
-          </table>
-        </div>
-      </section>
-
-      <section id="view-spray-log" class="view">
-        <div class="view-header">
-          <h2>Spray Log</h2>
-        </div>
         <div id="spray-form-card" class="card hidden">
-          <h3>Log Spray Application</h3>
+          <h3>Edit Spray Application</h3>
           <form id="spray-form">
             <input type="hidden" id="spray-id" />
             <label>Customer
@@ -913,13 +882,64 @@
             </div>
           </form>
         </div>
-        <div class="table-wrap">
-          <table class="data-table">
-            <thead>
-              <tr><th>Date</th><th>Time of Day</th><th>Customer</th><th>Target</th><th>Product</th><th>Location</th><th>Areas</th><th>Feature</th><th>Equipment</th><th></th></tr>
-            </thead>
-            <tbody id="spray-table-body"></tbody>
-          </table>
+        <div class="history-controls">
+          <div class="toggle-group" role="group" aria-label="View">
+            <button type="button" class="toggle-btn" data-history-view="days" aria-pressed="false">Days</button>
+            <button type="button" class="toggle-btn" data-history-view="groups" aria-pressed="false">Groups</button>
+            <button type="button" class="toggle-btn" data-history-view="calendar" aria-pressed="false">Calendar</button>
+            <button type="button" class="toggle-btn" data-history-view="customer" aria-pressed="false">Customer</button>
+            <button type="button" class="toggle-btn" data-history-view="sprays" aria-pressed="false">Last Sprayed</button>
+          </div>
+          <div id="history-type-tabs" class="segmented" role="group" aria-label="Show">
+            <button type="button" class="segmented-btn" data-history-type="all" aria-pressed="false">All</button>
+            <button type="button" class="segmented-btn" data-history-type="yard" aria-pressed="false">Yard Work</button>
+            <button type="button" class="segmented-btn" data-history-type="extra" aria-pressed="false">Extra</button>
+            <button type="button" class="segmented-btn" data-history-type="spray" aria-pressed="false">Sprays</button>
+          </div>
+          <div id="history-filters" class="history-filters">
+            <label id="history-group-field">Group
+              <select id="history-filter-group"><option value="">All groups</option></select>
+            </label>
+            <label id="history-customer-field">Customer
+              <select id="history-filter-customer"><option value="">All Customers</option></select>
+            </label>
+            <label id="history-range-field">Dates
+              <select id="history-filter-range">
+                <option value="7">Last 7 days</option>
+                <option value="30" selected>Last 30 days</option>
+                <option value="year">This year</option>
+                <option value="all">All time</option>
+              </select>
+            </label>
+            <label id="history-target-field">Target
+              <select id="history-filter-target">
+                <option value="weeds">Weeds</option>
+                <option value="insects">Insects</option>
+                <option value="fungus">Fungus / Disease</option>
+                <option value="fertilizer">Fertilizer</option>
+                <option value="other">Other</option>
+                <option value="any">Any target</option>
+              </select>
+            </label>
+          </div>
+        </div>
+        <div id="history-results">
+          <div id="history-panel-days" class="history-panel"></div>
+          <div id="history-panel-groups" class="history-panel hidden"></div>
+          <div id="history-panel-calendar" class="history-panel hidden"></div>
+          <div id="history-panel-customer" class="history-panel hidden">
+            <div class="customer-picker">
+              <div class="segmented" role="group" aria-label="Show history for">
+                <button type="button" class="segmented-btn active" data-subject="customer" aria-pressed="true">Customer</button>
+                <button type="button" class="segmented-btn" data-subject="group" aria-pressed="false">Group</button>
+              </div>
+              <label><span id="history-subject-label">Customer</span>
+                <select id="history-subject"></select>
+              </label>
+            </div>
+            <div id="history-customer-body"></div>
+          </div>
+          <div id="history-panel-sprays" class="history-panel hidden"></div>
         </div>
       </section>
 

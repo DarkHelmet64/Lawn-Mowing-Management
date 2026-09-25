@@ -24,16 +24,27 @@ API in the browser and cached in Firestore.
   Dashboard. Every event can note which location/area it was in, which
   registered plant/object it applied to, and which piece of equipment was
   used.
-- **Yard Work Log** — per-visit record of what was done (mowed, trimmed,
-  edged, pruned, bushes trimmed), the mowing pattern used (parallel,
-  perpendicular, diagonal left, diagonal right, other), deck height, ground
-  speed, and blade speed (each limited to whatever settings you've defined
-  for the mower used), the time of day and grass condition (e.g. "morning
-  mow with wet dew grass" or "afternoon mow with dry grass"), location/area,
-  plant/object, equipment used, and notes.
-- **Spray Log** — records what you sprayed for (weeds, insects, fungus,
-  fertilizer, or other), which product, equipment, location/area, and
-  plant/object it applied to, and notes.
+- **History** — every yard work visit and spray in one place. Yard work
+  records what was done (mowed, trimmed, edged, pruned, bushes trimmed,
+  mulched), the mowing pattern used (parallel, perpendicular, diagonal left,
+  diagonal right, other), deck height, ground speed, blade speed, time of
+  day, grass condition, areas, plant/object, equipment, and notes; sprays
+  record the target (weeds, insects, fungus, fertilizer, or other), product
+  and quantity, equipment, areas, and notes. Filter by type (yard work,
+  extra yard work, sprays), customer group, customer, and date range, and
+  browse it five ways:
+  - **Days** — one card per customer per day combining everything done
+    there; tap a card for the full details and Edit/Delete.
+  - **Groups** — each day split by customer group, showing the group's mow
+    pattern, how many neighbors got done, and a **Log visit** shortcut for
+    anyone skipped.
+  - **Calendar** — a month grid marking yard work, extra yard work, and
+    spray days; pick a day to see its visits.
+  - **Customer** — for one customer or group: last pattern, next pattern in
+    the rotation, days since the last mow, typical gap between mows, the
+    recent pattern rotation, and their full visit list.
+  - **Last Sprayed** — every customer sorted by how long since their last
+    spray for a given target (e.g. weeds), to see who's due.
 - **Settings** — customer records, each with a **primary contact** (name,
   phone, email — the phone auto-formats to `(XXX) XXX-XXXX`) and an address
   you can validate against real US postal data with one click; **locations**
