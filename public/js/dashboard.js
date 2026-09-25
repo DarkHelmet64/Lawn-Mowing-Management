@@ -13,6 +13,7 @@ import { startRun } from "./runSheet.js";
 import { showHistory } from "./history.js";
 import { showToast } from "./toast.js";
 import { patternGlyph, mowerSummary } from "./visitDefaults.js";
+import { cutCount, cutLabel } from "./cuts.js";
 
 let listenersBound = false;
 // Ready to Mow rows currently on screen, by key, for the Log mow buttons.
@@ -39,6 +40,7 @@ export async function refreshDashboard() {
   byId("stat-customer-count").textContent = String(getCustomers().length);
   renderLowStock();
   renderGroupMowPatterns();
+  renderMultiCutStat();
   byId("ready-to-mow-list").innerHTML = "<li>Loading…</li>";
   refreshWeatherStats().catch((err) => console.error("Failed to refresh weather-dependent dashboard stats", err));
 }
@@ -67,6 +69,25 @@ function renderGroupMowPatterns() {
       </li>`;
     })
     .join("");
+}
+
+// How many mows this year were double or triple cuts.
+function renderMultiCutStat() {
+  const yearStart = `${todayStr().slice(0, 4)}-01-01`;
+  const counts = getVisits()
+    .filter((v) => v.mowed && v.date >= yearStart)
+    .map(cutCount)
+    .filter((n) => n >= 2);
+  const doubles = counts.filter((n) => n === 2).length;
+  const triples = counts.filter((n) => n >= 3).length;
+  byId("stat-multi-cuts").textContent = String(counts.length);
+  byId("stat-multi-cuts-detail").textContent = counts.length ? `${doubles} double · ${triples} triple` : "None yet";
+}
+
+// The patterns a plan will cut, in order: "Diagonal Left" or, for a
+// repeated double cut, "Diagonal Left then Diagonal Right".
+function planPatternsText(plan) {
+  return (plan.cuts ? plan.cuts.map((c) => c.pattern) : [plan.pattern]).map((p) => PATTERN_LABELS[p] || p).join(" then ");
 }
 
 function renderLowStock() {
@@ -172,7 +193,9 @@ function renderReadyToMow(mowStatus) {
             <button type="button" class="primary-btn" data-quick-log="${escapeHtml(u.key)}">Log mow</button>
           </div>
         </div>
-        <span class="ready-saves">Saves: ${escapeHtml(tasks)} · <span class="pattern-label">${patternGlyph(plan.pattern, 14)}${escapeHtml(PATTERN_LABELS[plan.pattern] || plan.pattern)}</span> · ${escapeHtml(mowerSummary(plan.mower))}</span>
+        <span class="ready-saves">Saves: ${escapeHtml(tasks)}${plan.cuts ? ` · ${cutLabel(plan.cuts.length)}` : ""} · ${(plan.cuts || [plan])
+          .map((c) => `<span class="pattern-label">${patternGlyph(c.pattern, 14)}${escapeHtml(PATTERN_LABELS[c.pattern] || c.pattern)}</span>`)
+          .join('<span aria-hidden="true">→</span>')} · ${escapeHtml(mowerSummary(plan.mower))}</span>
       </li>`;
       })
       .join("") || "<li>No lawns ready to mow yet.</li>";
@@ -188,7 +211,7 @@ async function handleQuickLog(btn) {
     document.dispatchEvent(new CustomEvent("event:logged"));
     showToast({
       message: `Logged ${plural(ids.length, "visit")} for ${unit.name}`,
-      detail: `${PATTERN_LABELS[plan.pattern] || plan.pattern} · ${mowerSummary(plan.mower)}`,
+      detail: plan.cuts ? `${cutLabel(plan.cuts.length)} · ${planPatternsText(plan)}` : `${planPatternsText(plan)} · ${mowerSummary(plan.mower)}`,
       actions: [
         {
           label: "Undo",

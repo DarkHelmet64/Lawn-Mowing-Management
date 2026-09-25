@@ -1,7 +1,8 @@
 import { createDoc, batchWrite } from "./db.js";
 import { todayStr } from "./utils.js";
 import { loadVisits } from "./mowLog.js";
-import { repeatVisitFor, suggestedPattern, mowerSettings, suggestedTimeOfDay, grassDefault } from "./visitDefaults.js";
+import { repeatVisitFor, suggestedPattern, mowerSettings, suggestedTimeOfDay, grassDefault, repeatCuts } from "./visitDefaults.js";
+import { cutFields } from "./cuts.js";
 
 // Ready to Mow's one-tap "Log mow": a mow for each customer in the row,
 // today, with the next pattern in the rotation (shared by a group, since
@@ -9,9 +10,12 @@ import { repeatVisitFor, suggestedPattern, mowerSettings, suggestedTimeOfDay, gr
 // each customer's own usual location, areas and trim/edge choices.
 
 // What a quick log would save, for showing on the row before it's tapped.
+// cuts is set when last time was a double/triple cut, to repeat it.
 export function quickLogPlan(customerIds) {
+  const pattern = suggestedPattern(customerIds);
   return {
-    pattern: suggestedPattern(customerIds),
+    pattern,
+    cuts: repeatCuts(customerIds, pattern),
     mower: mowerSettings(customerIds),
     tasks: repeatVisitFor(customerIds[0]).tasks,
   };
@@ -32,16 +36,17 @@ export async function logQuickMow(customerIds) {
         locationId: repeat.locationId,
         notes: "",
         ...repeat.tasks,
-        pattern: plan.pattern,
-        deckHeight: plan.mower.deckHeight,
-        groundSpeed: plan.mower.groundSpeed,
-        bladeSpeed: plan.mower.bladeSpeed,
+        ...cutFields(
+          (plan.cuts || [{ pattern: plan.pattern, deckHeight: plan.mower.deckHeight, groundSpeed: plan.mower.groundSpeed, bladeSpeed: plan.mower.bladeSpeed }]).map((c) => ({
+            ...c,
+            areaIds: repeat.areaIds,
+          }))
+        ),
         grassCondition: grassDefault(timeOfDay),
         equipmentId: plan.mower.equipmentId,
         pruned: false,
         trimmedBushes: false,
         mulched: false,
-        areaIds: repeat.areaIds,
         featureId: null,
       })
     );

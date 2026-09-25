@@ -125,7 +125,7 @@
                 </div>
                 <div class="summary-row">
                   <div class="summary-text">
-                    <span class="summary-label">Mower</span>
+                    <span class="summary-label" id="event-mower-label">Mower</span>
                     <span id="event-mower-summary" class="summary-value"></span>
                   </div>
                   <button type="button" class="link-btn summary-change" data-toggle-panel="event-mower-panel" aria-controls="event-mower-panel" aria-expanded="false">Change</button>
@@ -144,6 +144,8 @@
                     <select id="event-blade-speed"></select>
                   </label>
                 </div>
+                <div id="event-extra-cuts" class="cut-list hidden"></div>
+                <button type="button" id="event-add-cut-btn" class="link-btn add-cut-btn">+ Add a second cut</button>
                 <div class="field-block">
                   <span class="field-label" id="event-grass-label">Grass</span>
                   <div class="segmented segmented-full" role="radiogroup" aria-labelledby="event-grass-label">
@@ -245,6 +247,11 @@
             <span class="stat-value" id="stat-ready-to-mow">–</span>
           </div>
           <div class="stat-card">
+            <span class="stat-label">Double/Triple Cuts This Year</span>
+            <span class="stat-value" id="stat-multi-cuts">–</span>
+            <span class="hint-text" id="stat-multi-cuts-detail"></span>
+          </div>
+          <div class="stat-card">
             <span class="stat-label">Customers</span>
             <span class="stat-value" id="stat-customer-count">–</span>
           </div>
@@ -307,7 +314,7 @@
           </div>
           <div class="summary-row">
             <div class="summary-text">
-              <span class="summary-label">Mower</span>
+              <span class="summary-label" id="run-mower-label">Mower</span>
               <span id="run-mower-summary" class="summary-value"></span>
             </div>
             <button type="button" class="link-btn summary-change" data-toggle-panel="run-mower-panel" aria-controls="run-mower-panel" aria-expanded="false">Change</button>
@@ -326,6 +333,8 @@
               <select id="run-blade-speed"></select>
             </label>
           </div>
+          <div id="run-extra-cuts" class="cut-list hidden"></div>
+          <button type="button" id="run-add-cut-btn" class="link-btn add-cut-btn">+ Add a second cut</button>
           <div class="field-block">
             <span class="field-label" id="run-grass-label">Grass</span>
             <div class="segmented segmented-full" role="radiogroup" aria-labelledby="run-grass-label">
@@ -912,7 +921,7 @@
               <label>Mower Used
                 <select id="visit-equipment"></select>
               </label>
-              <label>Mow Pattern
+              <label><span id="visit-pattern-label">Mow Pattern</span>
                 <select id="visit-pattern">
                   <option value="parallel">Parallel</option>
                   <option value="perpendicular">Perpendicular</option>
@@ -930,6 +939,8 @@
               <label>Blade Speed
                 <select id="visit-blade-speed"></select>
               </label>
+              <div id="visit-extra-cuts" class="cut-list hidden"></div>
+              <button type="button" id="visit-add-cut-btn" class="link-btn add-cut-btn">+ Add a second cut</button>
               <label>Grass Condition
                 <select id="visit-grass-condition">
                   <option value="">Not specified</option>
@@ -1018,6 +1029,7 @@
             <button type="button" class="segmented-btn" data-history-type="yard" aria-pressed="false">Yard Work</button>
             <button type="button" class="segmented-btn" data-history-type="extra" aria-pressed="false">Extra</button>
             <button type="button" class="segmented-btn" data-history-type="spray" aria-pressed="false">Sprays</button>
+            <button type="button" class="segmented-btn" data-history-type="multi" aria-pressed="false">Multi-cut</button>
           </div>
           <div id="history-filters" class="history-filters">
             <label id="history-group-field">Group

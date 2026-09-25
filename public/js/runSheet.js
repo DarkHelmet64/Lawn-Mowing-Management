@@ -21,6 +21,7 @@ import {
   grassDefault,
 } from "./visitDefaults.js";
 import { undoVisits } from "./quickLog.js";
+import { createCutEditor, cutFields, cutLabel } from "./cuts.js";
 import { showToast } from "./toast.js";
 import { showHistory } from "./history.js";
 
@@ -38,6 +39,28 @@ const state = {
   dirty: false,
 };
 let listenersBound = false;
+// Cuts 2 and 3 of a double/triple cut, shared by every house. Each cut
+// covers the house's own areas, so there's no area choice per cut here.
+let cutEditor = null;
+
+function cuts() {
+  if (!cutEditor) {
+    cutEditor = createCutEditor({
+      container: byId("run-extra-cuts"),
+      addButton: byId("run-add-cut-btn"),
+      namePrefix: "run-cut",
+      getMowerId: () => byId("run-equipment").value,
+      getFirstCut: () => ({ pattern: radioValue("run-pattern"), ...currentMower() }),
+      withAreas: false,
+      onChange: () => {
+        const multi = cutEditor.count() > 0;
+        byId("run-pattern-label").textContent = multi ? "Cut 1 pattern" : "Mow pattern";
+        byId("run-mower-label").textContent = multi ? "Mower · cut 1 settings" : "Mower";
+      },
+    });
+  }
+  return cutEditor;
+}
 
 function plural(n, word) {
   return `${n} ${word}${n === 1 ? "" : "s"}`;
@@ -68,6 +91,7 @@ function applyMower({ equipmentId, deckHeight, groundSpeed, bladeSpeed }) {
   populateGroundSpeedSelect(byId("run-ground-speed"), id, groundSpeed ?? null);
   populateBladeSpeedSelect(byId("run-blade-speed"), id, bladeSpeed ?? null);
   updateMowerSummary();
+  cutEditor?.refresh();
 }
 
 function currentMower() {
@@ -123,6 +147,7 @@ export function startRun(groupId) {
     : "";
   byId("run-pattern-hint").textContent = next ? `${PATTERN_LABELS[next]} is next in the rotation for ${group.name}.` : "";
   applyMower(mowerSettings(members));
+  cuts().clear();
   setRadio("run-grass", grassDefault(byId("run-time-of-day").value));
   setPanelOpen("run-when-panel", false);
   setPanelOpen("run-mower-panel", false);
@@ -252,6 +277,7 @@ async function saveRun() {
   const pattern = radioValue("run-pattern");
   const grass = radioValue("run-grass");
   const mower = currentMower();
+  const extraCuts = cuts().get();
   const btn = byId("run-save-btn");
   btn.disabled = true;
   btn.textContent = "Saving…";
@@ -262,22 +288,26 @@ async function saveRun() {
       const base = { customerId: h.customerId, date, timeOfDay, locationId: h.locationId, notes: "", featureId: null };
       const { mowed, trimmed, edged } = h.tasks;
       if (mowed || trimmed || edged) {
+        const cutData = mowed
+          ? cutFields(
+              [{ pattern, deckHeight: mower.deckHeight, groundSpeed: mower.groundSpeed, bladeSpeed: mower.bladeSpeed }, ...extraCuts].map((c) => ({
+                ...c,
+                areaIds: h.areaIds,
+              }))
+            )
+          : { pattern: null, deckHeight: null, groundSpeed: null, bladeSpeed: null, areaIds: h.areaIds, cuts: null };
         ids.push(
           await createDoc("mowVisits", {
             ...base,
             mowed,
             trimmed,
             edged,
-            pattern: mowed ? pattern : null,
-            deckHeight: mowed ? mower.deckHeight : null,
-            groundSpeed: mowed ? mower.groundSpeed : null,
-            bladeSpeed: mowed ? mower.bladeSpeed : null,
+            ...cutData,
             grassCondition: mowed ? grass : null,
             equipmentId: mowed ? mower.equipmentId : null,
             pruned: false,
             trimmedBushes: false,
             mulched: false,
-            areaIds: h.areaIds,
           })
         );
       }
@@ -318,7 +348,11 @@ async function saveRun() {
   document.dispatchEvent(new CustomEvent("app:navigate", { detail: { view: "dashboard" } }));
   showToast({
     message: `Saved ${plural(done.length, "visit")} for ${state.groupName}`,
-    detail: anyMowed ? `${PATTERN_LABELS[pattern] || pattern} · ${mowerSummary(mower)}` : "",
+    detail: !anyMowed
+      ? ""
+      : extraCuts.length
+      ? `${cutLabel(extraCuts.length + 1)} · ${[pattern, ...extraCuts.map((c) => c.pattern)].map((p) => PATTERN_LABELS[p] || p).join(" then ")}`
+      : `${PATTERN_LABELS[pattern] || pattern} · ${mowerSummary(mower)}`,
     actions: [
       {
         label: "Undo",

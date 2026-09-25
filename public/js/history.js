@@ -20,6 +20,7 @@ import { getProductName, getProductById } from "./products.js";
 import { openLogEventFor } from "./eventLog.js";
 import { countDuplicates, combineDuplicates } from "./duplicates.js";
 import { createdMs, mowHistory, nextPattern, patternGlyph } from "./visitDefaults.js";
+import { visitCuts, cutCount, cutLabel } from "./cuts.js";
 
 // History replaces the separate Yard Work and Spray Log pages: every visit
 // and spray in one place, browsable five ways (Days, Groups, Calendar,
@@ -114,8 +115,26 @@ function allEntries() {
   ].map((e) => ({ ...e, customerId: e.record.customerId, date: e.record.date, created: createdMs(e.record) }));
 }
 
+function isMultiCut(entry) {
+  return entry.source === "visit" && cutCount(entry.record) >= 2;
+}
+
 function matchesType(entry) {
+  if (state.type === "multi") return isMultiCut(entry);
   return state.type === "all" || entryKinds(entry).includes(state.type);
+}
+
+// "Parallel · 3.5" · speed 2 · High · Front Yard, Back Yard"
+function cutSummaryText(c) {
+  return [
+    patternLabel(c.pattern),
+    c.deckHeight != null ? `${c.deckHeight}"` : "",
+    c.groundSpeed ? `speed ${c.groundSpeed}` : "",
+    c.bladeSpeed || "",
+    getAreaNames(c.areaIds || []),
+  ]
+    .filter(Boolean)
+    .join(" · ");
 }
 
 // Yard work first, then extra, then sprays - the order they read on a card.
@@ -219,17 +238,26 @@ function toggleButton(key, expanded) {
 // ---------- record sections (shared by Days, Groups and Calendar) ----------
 
 function visitDetails(v) {
+  const cuts = visitCuts(v);
+  const multi = cuts.length > 1;
+  // A double/triple cut lists each cut's settings below instead of one set.
   const items = [
     detailItem(v.mowed ? "Mower" : "Equipment", getEquipmentName(v.equipmentId)),
-    detailItem("Deck height", v.deckHeight != null ? `${v.deckHeight}"` : ""),
-    detailItem("Ground speed", v.groundSpeed),
-    detailItem("Blade speed", v.bladeSpeed),
+    multi ? "" : detailItem("Deck height", v.deckHeight != null ? `${v.deckHeight}"` : ""),
+    multi ? "" : detailItem("Ground speed", v.groundSpeed),
+    multi ? "" : detailItem("Blade speed", v.bladeSpeed),
     detailItem("Grass", GRASS_CONDITION_LABELS[v.grassCondition]),
     detailItem("Time of day", TIME_OF_DAY_LABELS[v.timeOfDay]),
     detailItem("Location", getLocationLabel(v.locationId)),
   ].join("");
+  const cutList = multi
+    ? `<ol class="cut-detail-list">${cuts
+        .map((c, i) => `<li><span class="cut-detail-label">Cut ${i + 1}</span><span>${escapeHtml(cutSummaryText(c))}</span></li>`)
+        .join("")}</ol>`
+    : "";
   return `
     ${items ? `<dl class="record-details">${items}</dl>` : ""}
+    ${cutList}
     ${v.notes ? `<p class="record-notes">${escapeHtml(v.notes)}</p>` : ""}
     <div class="record-actions">
       <button type="button" class="ghost-btn" data-edit-visit="${escapeHtml(v.id)}">Edit</button>
@@ -244,8 +272,16 @@ function renderVisitSection(v, expanded) {
   const feature = escapeHtml(getYardFeatureName(v.featureId) || "");
   const rows = [];
   if (yard.length) {
-    rows.push(`<div class="chip-row">${yard.map((l) => chip(l, "yard")).join("")}</div>`);
-    const meta = [v.mowed && v.pattern ? patternBadge(v.pattern) : "", areas].filter(Boolean);
+    const cuts = visitCuts(v);
+    const multi = cuts.length > 1;
+    rows.push(`<div class="chip-row">${yard.map((l) => chip(l, "yard")).join("")}${multi ? chip(cutLabel(cuts.length), "cut") : ""}</div>`);
+    // A double/triple cut shows each cut's pattern in order.
+    const patterns = multi
+      ? cuts.map((c) => patternBadge(c.pattern)).join('<span aria-hidden="true">→</span>')
+      : v.mowed && v.pattern
+      ? patternBadge(v.pattern)
+      : "";
+    const meta = [patterns, areas].filter(Boolean);
     if (meta.length) rows.push(`<div class="record-meta">${meta.join('<span aria-hidden="true">·</span>')}</div>`);
   }
   if (extra.length) {
@@ -303,7 +339,11 @@ function summaryLines(entry) {
   const lines = [];
   const yard = flagsDone(r, YARD_FLAGS);
   const extra = flagsDone(r, EXTRA_FLAGS);
-  if (yard.length) lines.push(`<span class="summary-line">${marker("yard")}${escapeHtml([yard.join(", "), areas].filter(Boolean).join(" · "))}</span>`);
+  if (yard.length) {
+    const n = cutCount(r);
+    const tasks = yard.map((t) => (t === "Mowed" && n > 1 ? `Mowed (${cutLabel(n).toLowerCase()})` : t)).join(", ");
+    lines.push(`<span class="summary-line">${marker("yard")}${escapeHtml([tasks, areas].filter(Boolean).join(" · "))}</span>`);
+  }
   if (extra.length) {
     const where = [yard.length ? "" : areas, getYardFeatureName(r.featureId)].filter(Boolean).join(" · ");
     lines.push(`<span class="summary-line">${marker("extra")}${escapeHtml([extra.join(", "), where].filter(Boolean).join(" · "))}</span>`);
@@ -339,14 +379,26 @@ const EMPTY_FILTER_MESSAGE = `<p class="hint-text">Nothing logged for these filt
 
 // ---------- Days ----------
 
+// With the Multi-cut filter on: how many double and triple cuts are in view.
+function multiCutSummary(entries) {
+  if (state.type !== "multi" || !entries.length) return "";
+  const counts = entries.map((e) => cutCount(e.record));
+  const doubles = counts.filter((n) => n === 2).length;
+  const triples = counts.filter((n) => n >= 3).length;
+  const parts = [doubles ? plural(doubles, "double cut") : "", triples ? plural(triples, "triple cut") : ""].filter(Boolean);
+  return `<p class="results-summary"><strong>${plural(entries.length, "multi-cut mow")}</strong> · ${parts.join(", ")}</p>`;
+}
+
 function renderDaysView() {
   const container = byId("history-panel-days");
-  const days = groupByDate(filteredEntries());
+  const entries = filteredEntries();
+  const days = groupByDate(entries);
   if (!days.length) {
     container.innerHTML = EMPTY_FILTER_MESSAGE;
     return;
   }
   container.innerHTML =
+    multiCutSummary(entries) +
     days
       .slice(0, state.dayLimit)
       .map(([date, dayEntries]) => {
@@ -567,6 +619,10 @@ function renderCustomerView() {
   const today = todayStr();
 
   const sinceDays = last ? daysBetween(last.date, today) : null;
+  // Counted per mow day, like the rotation: a group mowed together is one mow.
+  const yearStart = `${today.slice(0, 4)}-01-01`;
+  const mowsThisYear = mows.filter((v) => v.date >= yearStart);
+  const multiThisYear = mowsThisYear.filter((v) => cutCount(v) >= 2);
   const avgGap = recent.length >= 2 ? Math.round(daysBetween(recent[recent.length - 1].date, recent[0].date) / (recent.length - 1)) : null;
   const tiles = [
     tile("Last pattern", last ? patternLabel(last.pattern) : "–", last ? dayHeading(last.date) : "No mow recorded yet", true),
@@ -578,6 +634,14 @@ function renderCustomerView() {
     ),
     tile("Since last mow", last ? (sinceDays <= 0 ? "Today" : plural(sinceDays, "day")) : "–", last ? `Mowed ${dayHeading(last.date)}` : ""),
     tile("Typical gap", avgGap != null ? plural(avgGap, "day") : "–", avgGap != null ? `Average of last ${recent.length} mows` : "Needs 2+ mows"),
+    tile("Mows this year", String(mowsThisYear.length), `Since Jan 1, ${yearStart.slice(0, 4)}`),
+    tile(
+      "Double/triple cuts",
+      String(multiThisYear.length),
+      multiThisYear.length
+        ? `${multiThisYear.filter((v) => cutCount(v) === 2).length} double · ${multiThisYear.filter((v) => cutCount(v) >= 3).length} triple this year`
+        : "None this year"
+    ),
   ].join("");
 
   const strip = recent.length
