@@ -1,7 +1,7 @@
 import { createDoc } from "./db.js";
-import { byId, escapeHtml, todayStr } from "./utils.js";
-import { getCustomers } from "./customers.js";
-import { getCustomerGroupById, populateGroupSelect } from "./customerGroups.js";
+import { byId, escapeHtml, todayStr, formatDateDisplay, setPanelOpen } from "./utils.js";
+import { getCustomers, getCustomerName } from "./customers.js";
+import { getCustomerGroups } from "./customerGroups.js";
 import {
   populateEquipmentSelect,
   populateDeckHeightSelect,
@@ -9,23 +9,32 @@ import {
   populateBladeSpeedSelect,
   getEquipmentById,
 } from "./equipment.js";
-import { getLocationsForCustomer, populateLocationSelect } from "./locations.js";
+import { getLocationsForCustomer, populateLocationSelect, getLocationLabel } from "./locations.js";
 import { getAreasForLocation, areaAppliesToEventTypes } from "./areas.js";
 import { getYardFeatures } from "./yardFeatures.js";
-import { loadVisits } from "./mowLog.js";
+import { loadVisits, PATTERN_LABELS, TIME_OF_DAY_LABELS } from "./mowLog.js";
 import { loadSprays, getLastQuantityUsedForProduct } from "./sprayLog.js";
-import { EVENT_TYPE_LABELS, EVENT_TYPE_KEYS } from "./eventTypes.js";
+import { EVENT_TYPE_KEYS } from "./eventTypes.js";
 import { populateProductSelect, getProductById, adjustProductQuantity } from "./products.js";
+import {
+  DEFAULT_YARDWORK_AREA_NAMES,
+  patternSuggestion,
+  suggestedTimeOfDay,
+  grassDefault,
+  mowerSettings,
+  mowerSummary,
+} from "./visitDefaults.js";
 
-// Areas with these exact names are the default pick whenever Yard Work is
-// the active event type - see applyYardworkDefaults().
-const DEFAULT_YARDWORK_AREA_NAMES = new Set(["Front Yard", "Back Yard"]);
+const CHECK_ICON = `<svg class="chip-check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg>`;
 
-// Customers are a multi-select too - Location/Areas are shared across
-// whichever customers are checked (driven by the first one checked), and
-// submitting fans out a copy of every record across all of them. This suits
-// customers who share one property (e.g. a couple listed as two records)
-// more than customers with entirely different addresses.
+// Set once a pattern or mower is picked by hand, so changing who's checked
+// stops replacing that choice with a fresh suggestion.
+let patternTouched = false;
+let mowerTouched = false;
+
+// Customers are a multi-select - Location/Areas are shared across whichever
+// customers are checked (driven by the first one checked), and submitting
+// saves a copy of every record for each of them.
 function checkedCustomerIds() {
   return Array.from(document.querySelectorAll("#event-customer-list .event-customer-checkbox:checked")).map(
     (cb) => cb.value
@@ -36,89 +45,77 @@ function firstCheckedCustomerId() {
   return checkedCustomerIds()[0] || null;
 }
 
-// Renders fresh every time the form opens (customers don't change while it's
-// open). preselectFirst defaults to true for a normal fresh open; "Save &
-// Log Another" passes false so the next entry starts with nobody checked,
-// forcing a deliberate pick of who's next rather than reusing whoever
-// happens to be first alphabetically.
+// Renders fresh every time the form opens. preselectFirst is true for a
+// normal open; "Save & log another" passes false so the next entry starts
+// with nobody checked, forcing a deliberate pick of who's next.
 function renderCustomerList(preselectFirst = true) {
   const customers = getCustomers();
-  const container = byId("event-customer-list");
-  container.innerHTML = customers.length
+  byId("event-customer-list").innerHTML = customers.length
     ? customers
         .map(
           (c, i) => `
-      <label class="checkbox-label">
-        <input type="checkbox" class="event-customer-checkbox" value="${c.id}" ${preselectFirst && i === 0 ? "checked" : ""} />
-        ${escapeHtml(c.name)}
+      <label class="chip-toggle">
+        <input type="checkbox" class="event-customer-checkbox" value="${escapeHtml(c.id)}" ${preselectFirst && i === 0 ? "checked" : ""} />
+        <span>${CHECK_ICON}${escapeHtml(c.name)}</span>
       </label>`
         )
         .join("")
     : `<p class="hint-text">Add a customer first.</p>`;
-
-  container.querySelectorAll(".event-customer-checkbox").forEach((cb) => cb.addEventListener("change", refreshLocationOptions));
 }
 
-// Picking a group checks exactly that group's customers (replacing whatever
-// was checked before) - a shortcut for the neighbors-mowed-together case
-// this is built for, not an additive "also check these" merge.
-function applyGroupSelection() {
-  const group = getCustomerGroupById(byId("event-group").value);
+function groupMembers(group) {
+  const existing = new Set(getCustomers().map((c) => c.id));
+  return (group.customerIds || []).filter((id) => existing.has(id));
+}
+
+// A group chip shows as selected while exactly its customers are checked.
+function renderGroupChips() {
+  const groups = getCustomerGroups();
+  const container = byId("event-group-chips");
+  container.classList.toggle("hidden", !groups.length);
+  const checked = new Set(checkedCustomerIds());
+  container.innerHTML = groups
+    .map((g) => {
+      const members = groupMembers(g);
+      const active = members.length > 0 && members.length === checked.size && members.every((id) => checked.has(id));
+      return `<button type="button" class="group-chip" data-group-id="${escapeHtml(g.id)}" aria-pressed="${active}">${escapeHtml(g.name)}</button>`;
+    })
+    .join("");
+}
+
+// Picking a group checks exactly that group's customers, replacing whatever
+// was checked before - the neighbors-mowed-together shortcut.
+function applyGroupSelection(groupId) {
+  const group = getCustomerGroups().find((g) => g.id === groupId);
   if (!group) return;
+  const members = new Set(groupMembers(group));
   document.querySelectorAll("#event-customer-list .event-customer-checkbox").forEach((cb) => {
-    cb.checked = group.customerIds.includes(cb.value);
+    cb.checked = members.has(cb.value);
   });
+  onCustomersChanged();
+}
+
+function onCustomersChanged() {
+  renderGroupChips();
   refreshLocationOptions();
+  refreshSuggestions();
+  updateSaveLabel();
 }
 
-function primaryCategory() {
-  return byId("event-category").value;
+// "Maple Ct", "Dave Johnson" or "these customers" - whoever the pattern hint
+// is talking about.
+function selectionLabel(ids) {
+  if (ids.length === 1) return getCustomerName(ids[0]);
+  const set = new Set(ids);
+  const group = getCustomerGroups().find((g) => {
+    const members = groupMembers(g);
+    return members.length === set.size && members.every((id) => set.has(id));
+  });
+  return group ? group.name : "these customers";
 }
 
-function secondaryCategory() {
-  return byId("event-category-2").value;
-}
-
-function tertiaryCategory() {
-  return byId("event-category-3").value;
-}
-
-// All three event types can be active at once: the primary dropdown, plus up
-// to two "Add Another Event Type" picks.
-function activeCategories() {
-  return [primaryCategory(), secondaryCategory(), tertiaryCategory()].filter(Boolean);
-}
-
-function populateCategoryOptions(selectEl, excludeKeys) {
-  const current = selectEl.value;
-  selectEl.innerHTML = '<option value="">None</option>';
-  for (const key of EVENT_TYPE_KEYS) {
-    if (excludeKeys.includes(key)) continue;
-    const opt = document.createElement("option");
-    opt.value = key;
-    opt.textContent = EVENT_TYPE_LABELS[key];
-    selectEl.appendChild(opt);
-  }
-  if (current && [...selectEl.options].some((o) => o.value === current)) {
-    selectEl.value = current;
-  }
-}
-
-// The second dropdown offers the two types not already chosen as primary.
-// The third only makes sense once a second has been picked, and then offers
-// whichever single type is left.
-function refreshCategoryChoices() {
-  populateCategoryOptions(byId("event-category-2"), [primaryCategory()]);
-  const third = byId("event-category-3");
-  const thirdVisible = Boolean(secondaryCategory());
-  byId("event-category-3-field").classList.toggle("hidden", !thirdVisible);
-  if (thirdVisible) {
-    third.disabled = false;
-    populateCategoryOptions(third, [primaryCategory(), secondaryCategory()]);
-  } else {
-    third.disabled = true;
-    third.innerHTML = '<option value="">None</option>';
-  }
+function activeTypes() {
+  return EVENT_TYPE_KEYS.filter((t) => byId(`event-type-${t}`).checked);
 }
 
 function applyYardworkDefaults() {
@@ -127,65 +124,58 @@ function applyYardworkDefaults() {
   byId("event-edged").checked = true;
 }
 
-const FIELD_GROUP_BY_TYPE = {
-  yardwork: "event-yardwork-fields",
-  extra_yardwork: "event-extra-yardwork-fields",
-  chemical: "event-chemical-fields",
-};
-
-// Each event type's own fields travel with wherever that type is currently
-// selected - if Extra Yard Work is picked in the "Add Another" slot, its
-// fields move to sit right after that slot's dropdown instead of staying in
-// a fixed position.
-function positionCategoryFields() {
-  const anchorForType = {};
-  if (primaryCategory()) anchorForType[primaryCategory()] = byId("event-category").closest("label");
-  if (secondaryCategory()) anchorForType[secondaryCategory()] = byId("event-category-2").closest("label");
-  if (tertiaryCategory()) anchorForType[tertiaryCategory()] = byId("event-category-3").closest("label");
-
-  for (const [type, groupId] of Object.entries(FIELD_GROUP_BY_TYPE)) {
-    const anchor = anchorForType[type];
-    if (anchor) anchor.after(byId(groupId));
-  }
-}
-
-// Each event type has its own Areas checklist, nested inside that type's
-// field group - so it travels with the group and only ever affects that
-// one type's records, never the others.
-function checkedAreaIds(type) {
-  return Array.from(document.querySelectorAll(`#event-area-list-${type} .event-area-checkbox:checked`)).map(
-    (cb) => cb.value
-  );
-}
-
 function updateFieldVisibility() {
-  positionCategoryFields();
-  const types = activeCategories();
+  const types = activeTypes();
   byId("event-yardwork-fields").classList.toggle("hidden", !types.includes("yardwork"));
   byId("event-extra-yardwork-fields").classList.toggle("hidden", !types.includes("extra_yardwork"));
   byId("event-chemical-fields").classList.toggle("hidden", !types.includes("chemical"));
   updateMowedFieldsVisibility();
 }
 
-// Mow Pattern/Deck Height/Ground Speed/Blade Speed/Grass Condition (and the
-// Equipment Used filter) only apply when Mowed itself is checked - trimming
-// or edging alone doesn't need a mow pattern or deck height. handleSubmit
-// reads Mower Used regardless of visibility, so whenever this group hides,
-// the selection is cleared here too - otherwise a mower picked earlier
-// would silently stay attached (and get saved) to a record it no longer
-// applies to, with no visible field left to un-pick it from.
-function updateMowedFieldsVisibility() {
-  const mowed = activeCategories().includes("yardwork") && byId("event-mowed").checked;
-  byId("event-mowed-fields").classList.toggle("hidden", !mowed);
-  if (!mowed) byId("event-equipment").value = "";
-  populateEquipmentSelect(byId("event-equipment"), { typeFilter: mowed ? "mower" : null });
-  if (!mowed) applyEquipmentDefaults();
-  if (mowed) applyGrassConditionDefault();
+// Pattern, mower and grass only apply when Mowed itself is checked - trimming
+// or edging alone doesn't need them (and handleSubmit leaves them off).
+function mowedActive() {
+  return activeTypes().includes("yardwork") && byId("event-mowed").checked;
 }
 
-// Fills Deck Height/Ground Speed/Blade Speed from the selected mower's own
-// configured defaults (set on the equipment record itself), while still
-// leaving them editable for a one-off change on this visit.
+function updateMowedFieldsVisibility() {
+  byId("event-mowed-fields").classList.toggle("hidden", !mowedActive());
+}
+
+function radioValue(name) {
+  return document.querySelector(`#log-event-form input[name="${name}"]:checked`)?.value || null;
+}
+
+function setRadio(name, value) {
+  document.querySelectorAll(`#log-event-form input[name="${name}"]`).forEach((r) => {
+    r.checked = r.value === value;
+  });
+}
+
+// Pre-picks the next pattern in the rotation and last visit's mower for
+// whoever's checked, unless those were already chosen by hand.
+function refreshSuggestions() {
+  const ids = checkedCustomerIds();
+  const { last, next } = patternSuggestion(ids);
+  byId("event-pattern-last").textContent = last
+    ? `Last time: ${PATTERN_LABELS[last.pattern] || last.pattern} (${formatDateDisplay(last.date)})`
+    : "";
+  byId("event-pattern-hint").textContent = next ? `${PATTERN_LABELS[next]} is next in the rotation for ${selectionLabel(ids)}.` : "";
+  if (!patternTouched) setRadio("event-pattern", next || last?.pattern || "parallel");
+  if (!mowerTouched) applyMowerSettings(mowerSettings(ids));
+}
+
+function applyMowerSettings({ equipmentId, deckHeight, groundSpeed, bladeSpeed }) {
+  populateEquipmentSelect(byId("event-equipment"), { typeFilter: "mower" });
+  byId("event-equipment").value = equipmentId || "";
+  const id = byId("event-equipment").value;
+  populateDeckHeightSelect(byId("event-height"), id, deckHeight ?? null);
+  populateGroundSpeedSelect(byId("event-ground-speed"), id, groundSpeed ?? null);
+  populateBladeSpeedSelect(byId("event-blade-speed"), id, bladeSpeed ?? null);
+  updateMowerSummary();
+}
+
+// Picking a different mower by hand starts from that mower's own defaults.
 function applyEquipmentDefaults() {
   const equipmentId = byId("event-equipment").value;
   const eq = getEquipmentById(equipmentId);
@@ -194,12 +184,31 @@ function applyEquipmentDefaults() {
   populateBladeSpeedSelect(byId("event-blade-speed"), equipmentId, eq?.defaultBladeSpeed ?? null);
 }
 
-// Grass Condition defaults to Damp when Time of Day is Morning, or Dry
-// otherwise - but only while Grass Condition is actually visible.
+function updateMowerSummary() {
+  byId("event-mower-summary").textContent = mowerSummary({
+    equipmentId: byId("event-equipment").value,
+    deckHeight: byId("event-height").value,
+    groundSpeed: byId("event-ground-speed").value,
+    bladeSpeed: byId("event-blade-speed").value,
+  });
+}
+
 function applyGrassConditionDefault() {
-  const visible = activeCategories().includes("yardwork") && byId("event-mowed").checked;
-  if (!visible) return;
-  byId("event-grass-condition").value = byId("event-time-of-day").value === "morning" ? "damp" : "dry";
+  setRadio("event-grass", grassDefault(byId("event-time-of-day").value));
+}
+
+function updateWhenSummary() {
+  const date = byId("event-date").value;
+  const [y, m, d] = date ? date.split("-").map(Number) : [];
+  const weekday = date ? new Date(y, m - 1, d).toLocaleDateString("en-US", { weekday: "short" }) : "";
+  const dayText = !date ? "No date" : date === todayStr() ? `Today, ${weekday} ${formatDateDisplay(date).slice(0, 5)}` : `${weekday} ${formatDateDisplay(date)}`;
+  const parts = [dayText, TIME_OF_DAY_LABELS[byId("event-time-of-day").value], getLocationLabel(byId("event-location").value)];
+  byId("event-when-summary").textContent = parts.filter(Boolean).join(" · ");
+}
+
+function updateSaveLabel() {
+  const n = checkedCustomerIds().length;
+  byId("save-log-btn").textContent = n > 1 ? `Save ${n} visits` : n === 1 ? "Save visit" : "Save";
 }
 
 function refreshLocationOptions() {
@@ -208,36 +217,29 @@ function refreshLocationOptions() {
   const locations = customerId ? getLocationsForCustomer(customerId) : [];
   if (locations.length) byId("event-location").value = locations[0].id;
   refreshAreaOptions();
+  updateWhenSummary();
 }
 
-// Each event type's Areas checklist is scoped to the selected location and
-// to that one type only - an area only shows up under, say, Chemical
-// Application if it's configured (in Settings) to populate under Chemical
-// Application, regardless of whether it's also checked under Yard Work.
-// Yard Work's own list defaults to Front Yard/Back Yard (if present); the
-// other types keep whatever was already checked in their own list.
+// Each event type has its own Areas chips, scoped to the selected location
+// and to areas set up (in Settings) to show under that type. Yard Work's
+// default to Front Yard/Back Yard; the others keep whatever was checked.
+function checkedAreaIds(type) {
+  return Array.from(document.querySelectorAll(`#event-area-list-${type} .event-area-checkbox:checked`)).map((cb) => cb.value);
+}
+
 function refreshAreaOptionsForType(type) {
   const locationId = byId("event-location").value;
   const previouslyChecked = new Set(checkedAreaIds(type));
   const areas = getAreasForLocation(locationId).filter((a) => areaAppliesToEventTypes(a, [type]));
-  const container = byId(`event-area-list-${type}`);
-
-  container.innerHTML = areas.length
+  const chipClass = type === "extra_yardwork" ? " chip-extra-toggle" : type === "chemical" ? " chip-spray-toggle" : "";
+  byId(`event-area-list-${type}`).innerHTML = areas.length
     ? areas
         .map((a) => {
           const checked = type === "yardwork" ? DEFAULT_YARDWORK_AREA_NAMES.has(a.name) : previouslyChecked.has(a.id);
-          return `
-      <label class="checkbox-label">
-        <input type="checkbox" class="event-area-checkbox" value="${a.id}" ${checked ? "checked" : ""} />
-        ${escapeHtml(a.name)}
-      </label>`;
+          return `<label class="chip-toggle${chipClass}"><input type="checkbox" class="event-area-checkbox" value="${escapeHtml(a.id)}" ${checked ? "checked" : ""} /><span>${escapeHtml(a.name)}</span></label>`;
         })
         .join("")
-    : `<p class="hint-text">No areas set up for this event type at this location.</p>`;
-
-  if (type === "extra_yardwork") {
-    container.querySelectorAll(".event-area-checkbox").forEach((cb) => cb.addEventListener("change", refreshFeatureOptions));
-  }
+    : `<p class="hint-text">No areas set up for this at this location.</p>`;
 }
 
 function refreshAreaOptions() {
@@ -246,31 +248,7 @@ function refreshAreaOptions() {
 }
 
 // The Plant/Object dropdown is specific to Extra Yard Work, so it covers the
-// union of features across whichever areas are checked in that type's own
-// Areas list.
-// Surfaces how much of the selected product is on hand right where the
-// quantity gets entered, so a low/empty product is obvious before you
-// submit, and prefills the quantity from whatever was used last time this
-// same product was applied (any customer) - most products get reused at
-// roughly the same dose, so this is usually right and always editable.
-function updateProductHint() {
-  const product = getProductById(byId("event-spray-product").value);
-  byId("event-spray-quantity-hint").textContent = product ? `${product.quantityOnHand} ${product.unit} on hand` : "";
-  const lastQuantity = product ? getLastQuantityUsedForProduct(product.id) : null;
-  byId("event-spray-quantity").value = lastQuantity != null ? lastQuantity : "";
-}
-
-// Guesses Time of Day from the current clock so it's rarely left blank -
-// still fully editable, and this only runs on a fresh open (see openForm),
-// never overwriting what "Save & Log Another" is carrying forward.
-function suggestedTimeOfDay() {
-  const hour = new Date().getHours();
-  if (hour < 11) return "morning";
-  if (hour < 14) return "midday";
-  if (hour < 18) return "afternoon";
-  return "evening";
-}
-
+// features in whichever areas are checked there.
 function refreshFeatureOptions() {
   const areaIds = new Set(checkedAreaIds("extra_yardwork"));
   const select = byId("event-feature");
@@ -282,50 +260,68 @@ function refreshFeatureOptions() {
     opt.textContent = f.name;
     select.appendChild(opt);
   }
-  if (current && [...select.options].some((o) => o.value === current)) {
-    select.value = current;
-  }
+  if (current && [...select.options].some((o) => o.value === current)) select.value = current;
+}
+
+// Shows how much of the product is on hand, and prefills the quantity from
+// the last time this product was used (any customer) - most products get
+// reused at about the same dose.
+function updateProductHint() {
+  const product = getProductById(byId("event-spray-product").value);
+  byId("event-spray-quantity-hint").textContent = product ? `${product.quantityOnHand} ${product.unit} on hand` : "";
+  const lastQuantity = product ? getLastQuantityUsedForProduct(product.id) : null;
+  byId("event-spray-quantity").value = lastQuantity != null ? lastQuantity : "";
+}
+
+function showNotes(show) {
+  byId("event-notes-field").classList.toggle("hidden", !show);
+  byId("event-add-note-btn").classList.toggle("hidden", show);
 }
 
 function openForm() {
   byId("log-event-form-card").classList.remove("hidden");
+  patternTouched = false;
+  mowerTouched = false;
   renderCustomerList();
-  populateGroupSelect(byId("event-group"));
-  byId("event-group").value = "";
+  renderGroupChips();
   byId("event-date").value = todayStr();
   byId("event-time-of-day").value = suggestedTimeOfDay();
-  byId("event-category").value = "yardwork";
-  byId("event-category-2").value = "";
-  byId("event-category-3").value = "";
-  refreshCategoryChoices();
-  byId("event-equipment").innerHTML = "";
+  byId("event-type-yardwork").checked = true;
+  byId("event-type-extra_yardwork").checked = false;
+  byId("event-type-chemical").checked = false;
   applyYardworkDefaults();
   byId("event-pruned").checked = false;
   byId("event-trimmed-bushes").checked = false;
   byId("event-mulched").checked = false;
-  byId("event-pattern").value = "parallel";
-  populateDeckHeightSelect(byId("event-height"), "");
-  populateGroundSpeedSelect(byId("event-ground-speed"), "");
-  populateBladeSpeedSelect(byId("event-blade-speed"), "");
-  byId("event-spray-target").value = "weeds";
+  setRadio("event-spray-target", "weeds");
   populateProductSelect(byId("event-spray-product"));
+  populateEquipmentSelect(byId("event-spray-equipment"));
+  byId("event-spray-equipment").value = "";
   updateProductHint();
   byId("event-notes").value = "";
+  showNotes(false);
+  setPanelOpen("event-when-panel", false);
+  setPanelOpen("event-mower-panel", false);
   refreshLocationOptions();
+  refreshSuggestions();
+  applyGrassConditionDefault();
   updateFieldVisibility();
-  applyEquipmentDefaults();
+  updateSaveLabel();
 }
 
 // Opens Log Event already pointed at specific customers and a date - used by
 // History's "Log visit" shortcut for a group neighbor who was skipped.
 export function openLogEventFor({ customerIds = [], date = null } = {}) {
   openForm();
-  if (date) byId("event-date").value = date;
+  if (date) {
+    byId("event-date").value = date;
+    updateWhenSummary();
+  }
   if (customerIds.length) {
     document.querySelectorAll("#event-customer-list .event-customer-checkbox").forEach((cb) => {
       cb.checked = customerIds.includes(cb.value);
     });
-    refreshLocationOptions();
+    onCustomersChanged();
   }
   byId("log-event-form-card").scrollIntoView({ behavior: "smooth", block: "start" });
 }
@@ -335,25 +331,24 @@ function closeForm() {
   byId("log-event-form").reset();
 }
 
-// "Save & Log Another" keeps the form open for a quick repeat: date, time,
-// event type, and its checkboxes/settings all carry over untouched (most
-// consecutive visits share these), but Customers/Group reset to force a
-// deliberate pick of who's next, and Notes clear since they're specific to
-// the visit just saved.
+// "Save & log another" keeps the form open for a quick repeat: date, time,
+// event types, tasks and settings carry over, but customers reset to force a
+// deliberate pick of who's next, notes clear, and the pattern goes back to
+// following the next customers' own rotation.
 function resetForNextEntry() {
+  patternTouched = false;
   renderCustomerList(false);
-  populateGroupSelect(byId("event-group"));
-  byId("event-group").value = "";
+  renderGroupChips();
   byId("event-notes").value = "";
+  showNotes(false);
   refreshLocationOptions();
+  refreshSuggestions();
+  updateSaveLabel();
 }
 
-// Each active event type is entirely independent: its own Areas checklist
-// and its own fields, saved as one record per checked customer carrying all
-// of that type's checked areas in areaIds. (Records used to be split one per
-// area, which showed up as identical-looking duplicate rows.) Two types
-// sharing the mowVisits collection (Yard Work, Extra Yard Work) still save
-// separate records, since each has its own tasks and its own areas.
+// Each active event type is independent: its own areas and fields, saved as
+// one record per checked customer carrying all of that type's checked
+// areas. Yard Work and Extra Yard Work save separate records.
 async function handleSubmit(e) {
   e.preventDefault();
   const logAnother = e.submitter?.id === "save-log-another-btn";
@@ -362,28 +357,29 @@ async function handleSubmit(e) {
     alert("Select at least one customer.");
     return;
   }
+  const types = activeTypes();
+  if (!types.length) {
+    alert("Pick what you did: Yard Work, Extra or Spray.");
+    return;
+  }
   const date = byId("event-date").value;
   const timeOfDay = byId("event-time-of-day").value || null;
   const notes = byId("event-notes").value.trim();
   const locationId = byId("event-location").value || null;
-  const equipmentId = byId("event-equipment").value || null;
-  const types = activeCategories();
-
-  const yardworkOn = types.includes("yardwork");
-  const extraOn = types.includes("extra_yardwork");
-  const chemicalOn = types.includes("chemical");
 
   let yardworkFields = null;
-  if (yardworkOn) {
+  if (types.includes("yardwork")) {
+    const mowed = byId("event-mowed").checked;
     yardworkFields = {
-      mowed: byId("event-mowed").checked,
+      mowed,
       trimmed: byId("event-trimmed").checked,
       edged: byId("event-edged").checked,
-      pattern: byId("event-pattern").value,
-      deckHeight: byId("event-height").value ? Number(byId("event-height").value) : null,
-      groundSpeed: byId("event-ground-speed").value || null,
-      bladeSpeed: byId("event-blade-speed").value || null,
-      grassCondition: byId("event-grass-condition").value || null,
+      pattern: mowed ? radioValue("event-pattern") : null,
+      deckHeight: mowed && byId("event-height").value ? Number(byId("event-height").value) : null,
+      groundSpeed: (mowed && byId("event-ground-speed").value) || null,
+      bladeSpeed: (mowed && byId("event-blade-speed").value) || null,
+      grassCondition: mowed ? radioValue("event-grass") : null,
+      equipmentId: (mowed && byId("event-equipment").value) || null,
     };
     if (!yardworkFields.mowed && !yardworkFields.trimmed && !yardworkFields.edged) {
       alert("Select at least one yard work task.");
@@ -392,23 +388,21 @@ async function handleSubmit(e) {
   }
 
   let extraFields = null;
-  let featureId = null;
-  if (extraOn) {
+  if (types.includes("extra_yardwork")) {
     extraFields = {
       pruned: byId("event-pruned").checked,
       trimmedBushes: byId("event-trimmed-bushes").checked,
       mulched: byId("event-mulched").checked,
     };
     if (!extraFields.pruned && !extraFields.trimmedBushes && !extraFields.mulched) {
-      alert("Select at least one yard work task.");
+      alert("Select at least one extra yard work task.");
       return;
     }
-    featureId = byId("event-feature").value || null;
   }
 
   let productId = null;
   let quantityUsed = 0;
-  if (chemicalOn) {
+  if (types.includes("chemical")) {
     productId = byId("event-spray-product").value || null;
     quantityUsed = Number(byId("event-spray-quantity").value) || 0;
     if (!productId) {
@@ -421,7 +415,7 @@ async function handleSubmit(e) {
     }
   }
 
-  const eventBase = { date, timeOfDay, locationId, equipmentId, notes };
+  const eventBase = { date, timeOfDay, locationId, notes };
 
   if (yardworkFields) {
     const areaIds = checkedAreaIds("yardwork");
@@ -441,6 +435,7 @@ async function handleSubmit(e) {
 
   if (extraFields) {
     const areaIds = checkedAreaIds("extra_yardwork");
+    const featureId = byId("event-feature").value || null;
     for (const customerId of customerIds) {
       await createDoc("mowVisits", {
         customerId,
@@ -453,6 +448,7 @@ async function handleSubmit(e) {
         groundSpeed: null,
         bladeSpeed: null,
         grassCondition: null,
+        equipmentId: null,
         ...extraFields,
         areaIds,
         featureId,
@@ -460,20 +456,20 @@ async function handleSubmit(e) {
     }
   }
 
-  if (chemicalOn) {
+  if (productId) {
     const areaIds = checkedAreaIds("chemical");
     for (const customerId of customerIds) {
       await createDoc("sprayApplications", {
         customerId,
         date,
         timeOfDay,
-        target: byId("event-spray-target").value,
+        target: radioValue("event-spray-target") || "weeds",
         productId,
         quantityUsed,
         locationId,
         areaIds,
         featureId: null,
-        equipmentId,
+        equipmentId: byId("event-spray-equipment").value || null,
         notes,
       });
     }
@@ -483,7 +479,7 @@ async function handleSubmit(e) {
   }
 
   if (yardworkFields || extraFields) await loadVisits();
-  if (chemicalOn) await loadSprays();
+  if (productId) await loadSprays();
 
   if (logAnother) resetForNextEntry();
   else closeForm();
@@ -499,28 +495,52 @@ export function initEventLogView() {
     openForm();
   });
   byId("cancel-event-btn").addEventListener("click", closeForm);
-  byId("event-category").addEventListener("change", () => {
-    refreshCategoryChoices();
-    if (primaryCategory() === "yardwork") applyYardworkDefaults();
-    updateFieldVisibility();
-    refreshAreaOptions();
+  byId("event-group-chips").addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-group-id]");
+    if (btn) applyGroupSelection(btn.dataset.groupId);
   });
-  byId("event-category-2").addEventListener("change", () => {
-    refreshCategoryChoices();
-    if (secondaryCategory() === "yardwork") applyYardworkDefaults();
-    updateFieldVisibility();
-    refreshAreaOptions();
+  byId("event-customer-list").addEventListener("change", onCustomersChanged);
+  byId("log-event-form").addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-toggle-panel]");
+    if (btn) setPanelOpen(btn.dataset.togglePanel, byId(btn.dataset.togglePanel).classList.contains("hidden"));
   });
-  byId("event-category-3").addEventListener("change", () => {
-    if (tertiaryCategory() === "yardwork") applyYardworkDefaults();
-    updateFieldVisibility();
-    refreshAreaOptions();
-  });
+  for (const type of EVENT_TYPE_KEYS) {
+    byId(`event-type-${type}`).addEventListener("change", (e) => {
+      if (type === "yardwork" && e.target.checked) applyYardworkDefaults();
+      updateFieldVisibility();
+    });
+  }
   byId("event-mowed").addEventListener("change", updateMowedFieldsVisibility);
-  byId("event-time-of-day").addEventListener("change", applyGrassConditionDefault);
-  byId("event-location").addEventListener("change", refreshAreaOptions);
+  document.querySelectorAll('#log-event-form input[name="event-pattern"]').forEach((r) =>
+    r.addEventListener("change", () => {
+      patternTouched = true;
+    })
+  );
+  byId("event-equipment").addEventListener("change", () => {
+    mowerTouched = true;
+    applyEquipmentDefaults();
+    updateMowerSummary();
+  });
+  for (const id of ["event-height", "event-ground-speed", "event-blade-speed"]) {
+    byId(id).addEventListener("change", () => {
+      mowerTouched = true;
+      updateMowerSummary();
+    });
+  }
+  byId("event-date").addEventListener("change", updateWhenSummary);
+  byId("event-time-of-day").addEventListener("change", () => {
+    applyGrassConditionDefault();
+    updateWhenSummary();
+  });
+  byId("event-location").addEventListener("change", () => {
+    refreshAreaOptions();
+    updateWhenSummary();
+  });
+  byId("event-area-list-extra_yardwork").addEventListener("change", refreshFeatureOptions);
   byId("event-spray-product").addEventListener("change", updateProductHint);
-  byId("event-equipment").addEventListener("change", applyEquipmentDefaults);
-  byId("event-group").addEventListener("change", applyGroupSelection);
+  byId("event-add-note-btn").addEventListener("click", () => {
+    showNotes(true);
+    byId("event-notes").focus();
+  });
   byId("log-event-form").addEventListener("submit", handleSubmit);
 }

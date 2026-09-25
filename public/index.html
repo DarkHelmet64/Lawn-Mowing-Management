@@ -46,110 +46,152 @@
           <button id="log-event-btn" class="primary-btn">+ Log Event</button>
         </div>
         <div id="log-event-form-card" class="card hidden">
-          <h3>Log an Event</h3>
-          <form id="log-event-form">
-            <label>Group (optional)
-              <select id="event-group"></select>
-            </label>
-            <label>Customers</label>
-            <div id="event-customer-list" class="checkbox-row"></div>
-            <label>Date
-              <input type="date" id="event-date" required />
-            </label>
-            <label>Time of Day
-              <select id="event-time-of-day">
-                <option value="">Not specified</option>
-                <option value="morning">Morning</option>
-                <option value="midday">Midday</option>
-                <option value="afternoon">Afternoon</option>
-                <option value="evening">Evening</option>
-                <option value="other">Other</option>
-              </select>
-            </label>
-            <label>Location
-              <select id="event-location"></select>
-            </label>
-            <label>Event Type
-              <select id="event-category">
-                <option value="yardwork">Yard Work</option>
-                <option value="extra_yardwork">Extra Yard Work</option>
-                <option value="chemical">Chemical Application</option>
-              </select>
-            </label>
-            <div id="event-yardwork-fields">
-              <div class="checkbox-row">
-                <label class="checkbox-label"><input type="checkbox" id="event-mowed" checked /> Mowed</label>
-                <label class="checkbox-label"><input type="checkbox" id="event-trimmed" checked /> Trimmed</label>
-                <label class="checkbox-label"><input type="checkbox" id="event-edged" checked /> Edged</label>
-              </div>
-              <label>Areas</label>
-              <div id="event-area-list-yardwork" class="checkbox-row"></div>
-              <div id="event-mowed-fields">
-                <label>Mower Used
-                  <select id="event-equipment"></select>
-                </label>
-                <label>Mow Pattern
-                  <select id="event-pattern">
-                    <option value="parallel">Parallel</option>
-                    <option value="perpendicular">Perpendicular</option>
-                    <option value="diagonal_left">Diagonal Left</option>
-                    <option value="diagonal_right">Diagonal Right</option>
-                    <option value="other">Other</option>
-                  </select>
-                </label>
-                <label>Deck Height
-                  <select id="event-height"></select>
-                </label>
-                <label>Ground Speed
-                  <select id="event-ground-speed"></select>
-                </label>
-                <label>Blade Speed
-                  <select id="event-blade-speed"></select>
-                </label>
-                <label>Grass Condition
-                  <select id="event-grass-condition">
-                    <option value="">Not specified</option>
-                    <option value="dry">Dry</option>
-                    <option value="wet_dew">Wet (dew)</option>
-                    <option value="wet_rain">Wet (rain)</option>
-                    <option value="damp">Damp</option>
-                    <option value="other">Other</option>
-                  </select>
-                </label>
-              </div>
-            </div>
+          <div class="form-title-row">
+            <h3>Log an Event</h3>
+            <button type="button" id="cancel-event-btn" class="link-btn">Cancel</button>
+          </div>
+          <form id="log-event-form" class="log-form">
+            <section class="form-section">
+              <h4 class="form-section-title">Who</h4>
+              <div id="event-group-chips" class="chip-group" role="group" aria-label="Customer groups"></div>
+              <div id="event-customer-list" class="chip-group" role="group" aria-label="Customers"></div>
+            </section>
 
-            <label>Add Another Event Type
-              <select id="event-category-2"></select>
-            </label>
-            <div id="event-extra-yardwork-fields" class="hidden">
-              <div class="checkbox-row">
-                <label class="checkbox-label"><input type="checkbox" id="event-pruned" /> Pruned</label>
-                <label class="checkbox-label"><input type="checkbox" id="event-trimmed-bushes" /> Trimmed Bushes</label>
-                <label class="checkbox-label"><input type="checkbox" id="event-mulched" /> Mulched</label>
+            <section class="form-section">
+              <div class="summary-row">
+                <div class="summary-text">
+                  <span class="summary-label">When &amp; where</span>
+                  <span id="event-when-summary" class="summary-value"></span>
+                </div>
+                <button type="button" class="link-btn summary-change" data-toggle-panel="event-when-panel" aria-controls="event-when-panel" aria-expanded="false">Change</button>
               </div>
-              <label>Areas</label>
-              <div id="event-area-list-extra_yardwork" class="checkbox-row"></div>
+              <div id="event-when-panel" class="summary-panel hidden">
+                <label>Date
+                  <input type="date" id="event-date" required />
+                </label>
+                <label>Time of Day
+                  <select id="event-time-of-day">
+                    <option value="">Not specified</option>
+                    <option value="morning">Morning</option>
+                    <option value="midday">Midday</option>
+                    <option value="afternoon">Afternoon</option>
+                    <option value="evening">Evening</option>
+                    <option value="other">Other</option>
+                  </select>
+                </label>
+                <label>Location
+                  <select id="event-location"></select>
+                </label>
+              </div>
+            </section>
+
+            <section class="form-section">
+              <h4 class="form-section-title">What</h4>
+              <div class="type-tiles" role="group" aria-label="Event types">
+                <label class="type-tile"><input type="checkbox" id="event-type-yardwork" /><span><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 20h18"></path><path d="M6 20c0-4 1-7 3-9"></path><path d="M11 20c0-5 0-9 1-12"></path><path d="M16 20c0-4 1-6 3-8"></path></svg>Yard Work</span></label>
+                <label class="type-tile type-extra"><input type="checkbox" id="event-type-extra_yardwork" /><span><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19c0-8 5-13 14-14-1 9-6 14-14 14z"></path><path d="M5 19l7-7"></path></svg>Extra</span></label>
+                <label class="type-tile type-spray"><input type="checkbox" id="event-type-chemical" /><span><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3c3 4 6 7.5 6 11a6 6 0 0 1-12 0c0-3.5 3-7 6-11z"></path></svg>Spray</span></label>
+              </div>
+            </section>
+
+            <section id="event-yardwork-fields" class="form-section">
+              <h4 class="form-section-title">Yard Work</h4>
+              <div class="field-block">
+                <span class="field-label">Tasks</span>
+                <div class="chip-group">
+                  <label class="chip-toggle"><input type="checkbox" id="event-mowed" /><span>Mowed</span></label>
+                  <label class="chip-toggle"><input type="checkbox" id="event-trimmed" /><span>Trimmed</span></label>
+                  <label class="chip-toggle"><input type="checkbox" id="event-edged" /><span>Edged</span></label>
+                </div>
+              </div>
+              <div class="field-block">
+                <span class="field-label">Areas</span>
+                <div id="event-area-list-yardwork" class="chip-group"></div>
+              </div>
+              <div id="event-mowed-fields" class="field-stack">
+                <div class="field-block">
+                  <div class="field-label-row">
+                    <span class="field-label" id="event-pattern-label">Mow pattern</span>
+                    <span id="event-pattern-last" class="hint-text"></span>
+                  </div>
+                  <div class="pattern-options" role="radiogroup" aria-labelledby="event-pattern-label">
+                  <label class="pattern-option"><input type="radio" name="event-pattern" value="parallel" aria-label="Parallel" /><span><svg width="26" height="26" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" aria-hidden="true"><rect x="1.5" y="1.5" width="13" height="13" rx="3"></rect><path d="M5 4.5v7M8 4.5v7M11 4.5v7"></path></svg>Parallel</span></label>
+                  <label class="pattern-option"><input type="radio" name="event-pattern" value="perpendicular" aria-label="Perpendicular" /><span><svg width="26" height="26" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" aria-hidden="true"><rect x="1.5" y="1.5" width="13" height="13" rx="3"></rect><path d="M4.5 5h7M4.5 8h7M4.5 11h7"></path></svg>Perpend.</span></label>
+                  <label class="pattern-option"><input type="radio" name="event-pattern" value="diagonal_left" aria-label="Diagonal Left" /><span><svg width="26" height="26" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" aria-hidden="true"><rect x="1.5" y="1.5" width="13" height="13" rx="3"></rect><path d="M4.5 4.5l7 7M4.5 8l3.5 3.5M8 4.5l3.5 3.5"></path></svg>Diag. Left</span></label>
+                  <label class="pattern-option"><input type="radio" name="event-pattern" value="diagonal_right" aria-label="Diagonal Right" /><span><svg width="26" height="26" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" aria-hidden="true"><rect x="1.5" y="1.5" width="13" height="13" rx="3"></rect><path d="M4.5 11.5l7-7M4.5 8L8 4.5M8 11.5L11.5 8"></path></svg>Diag. Right</span></label>
+                  <label class="pattern-option"><input type="radio" name="event-pattern" value="other" aria-label="Other" /><span><svg width="26" height="26" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" aria-hidden="true"><rect x="1.5" y="1.5" width="13" height="13" rx="3"></rect><circle cx="8" cy="8" r="1.5"></circle></svg>Other</span></label>
+                  </div>
+                  <span id="event-pattern-hint" class="pattern-hint"></span>
+                </div>
+                <div class="summary-row">
+                  <div class="summary-text">
+                    <span class="summary-label">Mower</span>
+                    <span id="event-mower-summary" class="summary-value"></span>
+                  </div>
+                  <button type="button" class="link-btn summary-change" data-toggle-panel="event-mower-panel" aria-controls="event-mower-panel" aria-expanded="false">Change</button>
+                </div>
+                <div id="event-mower-panel" class="summary-panel hidden">
+                  <label>Mower Used
+                    <select id="event-equipment"></select>
+                  </label>
+                  <label>Deck Height
+                    <select id="event-height"></select>
+                  </label>
+                  <label>Ground Speed
+                    <select id="event-ground-speed"></select>
+                  </label>
+                  <label>Blade Speed
+                    <select id="event-blade-speed"></select>
+                  </label>
+                </div>
+                <div class="field-block">
+                  <span class="field-label" id="event-grass-label">Grass</span>
+                  <div class="segmented segmented-full" role="radiogroup" aria-labelledby="event-grass-label">
+                    <label class="segmented-option"><input type="radio" name="event-grass" value="dry" /><span>Dry</span></label>
+                    <label class="segmented-option"><input type="radio" name="event-grass" value="damp" /><span>Damp</span></label>
+                    <label class="segmented-option"><input type="radio" name="event-grass" value="wet_dew" /><span>Dew</span></label>
+                    <label class="segmented-option"><input type="radio" name="event-grass" value="wet_rain" /><span>Rain</span></label>
+                    <label class="segmented-option"><input type="radio" name="event-grass" value="other" /><span>Other</span></label>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section id="event-extra-yardwork-fields" class="form-section hidden">
+              <h4 class="form-section-title">Extra Yard Work</h4>
+              <div class="field-block">
+                <span class="field-label">Tasks</span>
+                <div class="chip-group">
+                  <label class="chip-toggle chip-extra-toggle"><input type="checkbox" id="event-pruned" /><span>Pruned</span></label>
+                  <label class="chip-toggle chip-extra-toggle"><input type="checkbox" id="event-trimmed-bushes" /><span>Trimmed Bushes</span></label>
+                  <label class="chip-toggle chip-extra-toggle"><input type="checkbox" id="event-mulched" /><span>Mulched</span></label>
+                </div>
+              </div>
+              <div class="field-block">
+                <span class="field-label">Areas</span>
+                <div id="event-area-list-extra_yardwork" class="chip-group"></div>
+              </div>
               <label>Plant / Object
                 <select id="event-feature"></select>
               </label>
-            </div>
+            </section>
 
-            <label id="event-category-3-field" class="hidden">Add Another Event Type
-              <select id="event-category-3" disabled></select>
-            </label>
-            <div id="event-chemical-fields" class="hidden">
-              <label>Areas</label>
-              <div id="event-area-list-chemical" class="checkbox-row"></div>
-              <label>Target
-                <select id="event-spray-target">
-                  <option value="weeds">Weeds</option>
-                  <option value="insects">Insects</option>
-                  <option value="fungus">Fungus / Disease</option>
-                  <option value="fertilizer">Fertilizer</option>
-                  <option value="other">Other</option>
-                </select>
-              </label>
+            <section id="event-chemical-fields" class="form-section hidden">
+              <h4 class="form-section-title">Spray</h4>
+              <div class="field-block">
+                <span class="field-label">Areas</span>
+                <div id="event-area-list-chemical" class="chip-group"></div>
+              </div>
+              <div class="field-block">
+                <span class="field-label" id="event-target-label">Target</span>
+                <div class="chip-group" role="radiogroup" aria-labelledby="event-target-label">
+                  <label class="chip-toggle chip-spray-toggle"><input type="radio" name="event-spray-target" value="weeds" /><span>Weeds</span></label>
+                  <label class="chip-toggle chip-spray-toggle"><input type="radio" name="event-spray-target" value="insects" /><span>Insects</span></label>
+                  <label class="chip-toggle chip-spray-toggle"><input type="radio" name="event-spray-target" value="fungus" /><span>Fungus / Disease</span></label>
+                  <label class="chip-toggle chip-spray-toggle"><input type="radio" name="event-spray-target" value="fertilizer" /><span>Fertilizer</span></label>
+                  <label class="chip-toggle chip-spray-toggle"><input type="radio" name="event-spray-target" value="other" /><span>Other</span></label>
+                </div>
+              </div>
               <label>Product Used
                 <select id="event-spray-product"></select>
               </label>
@@ -157,15 +199,21 @@
                 <input type="number" id="event-spray-quantity" step="any" min="0" placeholder="e.g. 16" />
               </label>
               <p id="event-spray-quantity-hint" class="hint-text"></p>
-            </div>
+              <label>Equipment Used
+                <select id="event-spray-equipment"></select>
+              </label>
+            </section>
 
-            <label>Notes
-              <textarea id="event-notes" rows="2"></textarea>
-            </label>
-            <div class="form-actions">
-              <button type="submit" class="primary-btn">Save</button>
-              <button type="submit" id="save-log-another-btn" class="primary-btn">Save &amp; Log Another</button>
-              <button type="button" id="cancel-event-btn" class="ghost-btn">Cancel</button>
+            <section class="form-section">
+              <button type="button" id="event-add-note-btn" class="link-btn add-note-btn">+ Add a note</button>
+              <label id="event-notes-field" class="hidden">Notes
+                <textarea id="event-notes" rows="2"></textarea>
+              </label>
+            </section>
+
+            <div class="form-footer">
+              <button type="submit" id="save-log-btn" class="primary-btn">Save</button>
+              <button type="submit" id="save-log-another-btn" class="ghost-btn">Save &amp; log another</button>
             </div>
           </form>
         </div>
@@ -219,6 +267,85 @@
         <div class="card">
           <h3>Recent Activity</h3>
           <div id="recent-activity-list"></div>
+        </div>
+      </section>
+
+      <section id="view-run" class="view">
+        <div class="run-header">
+          <button type="button" id="run-exit-btn" class="icon-btn" aria-label="Exit run sheet"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg></button>
+          <div class="run-title">
+            <h2 id="run-title">Run sheet</h2>
+            <span id="run-when-summary" class="hint-text"></span>
+          </div>
+          <button type="button" class="link-btn summary-change" data-toggle-panel="run-when-panel" aria-controls="run-when-panel" aria-expanded="false">Change</button>
+        </div>
+        <div id="run-when-panel" class="card summary-panel hidden">
+          <label>Date
+            <input type="date" id="run-date" />
+          </label>
+          <label>Time of Day
+            <select id="run-time-of-day">
+              <option value="">Not specified</option>
+              <option value="morning">Morning</option>
+              <option value="midday">Midday</option>
+              <option value="afternoon">Afternoon</option>
+              <option value="evening">Evening</option>
+              <option value="other">Other</option>
+            </select>
+          </label>
+        </div>
+        <section class="card run-shared">
+          <h3 class="form-section-title">Same for every house</h3>
+          <div class="field-block">
+            <div class="field-label-row">
+              <span class="field-label" id="run-pattern-label">Mow pattern</span>
+              <span id="run-pattern-last" class="hint-text"></span>
+            </div>
+            <div class="pattern-options" role="radiogroup" aria-labelledby="run-pattern-label">
+                  <label class="pattern-option"><input type="radio" name="run-pattern" value="parallel" aria-label="Parallel" /><span><svg width="26" height="26" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" aria-hidden="true"><rect x="1.5" y="1.5" width="13" height="13" rx="3"></rect><path d="M5 4.5v7M8 4.5v7M11 4.5v7"></path></svg>Parallel</span></label>
+                  <label class="pattern-option"><input type="radio" name="run-pattern" value="perpendicular" aria-label="Perpendicular" /><span><svg width="26" height="26" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" aria-hidden="true"><rect x="1.5" y="1.5" width="13" height="13" rx="3"></rect><path d="M4.5 5h7M4.5 8h7M4.5 11h7"></path></svg>Perpend.</span></label>
+                  <label class="pattern-option"><input type="radio" name="run-pattern" value="diagonal_left" aria-label="Diagonal Left" /><span><svg width="26" height="26" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" aria-hidden="true"><rect x="1.5" y="1.5" width="13" height="13" rx="3"></rect><path d="M4.5 4.5l7 7M4.5 8l3.5 3.5M8 4.5l3.5 3.5"></path></svg>Diag. Left</span></label>
+                  <label class="pattern-option"><input type="radio" name="run-pattern" value="diagonal_right" aria-label="Diagonal Right" /><span><svg width="26" height="26" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" aria-hidden="true"><rect x="1.5" y="1.5" width="13" height="13" rx="3"></rect><path d="M4.5 11.5l7-7M4.5 8L8 4.5M8 11.5L11.5 8"></path></svg>Diag. Right</span></label>
+                  <label class="pattern-option"><input type="radio" name="run-pattern" value="other" aria-label="Other" /><span><svg width="26" height="26" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" aria-hidden="true"><rect x="1.5" y="1.5" width="13" height="13" rx="3"></rect><circle cx="8" cy="8" r="1.5"></circle></svg>Other</span></label>
+            </div>
+            <span id="run-pattern-hint" class="pattern-hint"></span>
+          </div>
+          <div class="summary-row">
+            <div class="summary-text">
+              <span class="summary-label">Mower</span>
+              <span id="run-mower-summary" class="summary-value"></span>
+            </div>
+            <button type="button" class="link-btn summary-change" data-toggle-panel="run-mower-panel" aria-controls="run-mower-panel" aria-expanded="false">Change</button>
+          </div>
+          <div id="run-mower-panel" class="summary-panel hidden">
+            <label>Mower Used
+              <select id="run-equipment"></select>
+            </label>
+            <label>Deck Height
+              <select id="run-height"></select>
+            </label>
+            <label>Ground Speed
+              <select id="run-ground-speed"></select>
+            </label>
+            <label>Blade Speed
+              <select id="run-blade-speed"></select>
+            </label>
+          </div>
+          <div class="field-block">
+            <span class="field-label" id="run-grass-label">Grass</span>
+            <div class="segmented segmented-full" role="radiogroup" aria-labelledby="run-grass-label">
+                <label class="segmented-option"><input type="radio" name="run-grass" value="dry" /><span>Dry</span></label>
+                <label class="segmented-option"><input type="radio" name="run-grass" value="damp" /><span>Damp</span></label>
+                <label class="segmented-option"><input type="radio" name="run-grass" value="wet_dew" /><span>Dew</span></label>
+                <label class="segmented-option"><input type="radio" name="run-grass" value="wet_rain" /><span>Rain</span></label>
+                <label class="segmented-option"><input type="radio" name="run-grass" value="other" /><span>Other</span></label>
+            </div>
+          </div>
+        </section>
+        <div id="run-houses" class="run-houses"></div>
+        <div class="run-footer">
+          <span id="run-counts" class="run-counts"></span>
+          <button type="button" id="run-save-btn" class="primary-btn">Save</button>
         </div>
       </section>
 
@@ -1034,6 +1161,8 @@
       </section>
     </main>
   </div>
+
+  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
 
   <div id="confirm-dialog" class="confirm-overlay hidden">
     <div class="confirm-box">

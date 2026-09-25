@@ -18,12 +18,21 @@ API in the browser and cached in Firestore.
 
 ## Features
 
-- **Log an Event (Dashboard button)** — one quick-entry form covering every
-  event type: mowing, trimming, edging, pruning, and bush trimming as a
-  single yard-work visit, or a spray application, without leaving the
-  Dashboard. Every event can note which location/area it was in, which
-  registered plant/object it applied to, and which piece of equipment was
-  used.
+- **Log an Event (Dashboard button)** — one form for yard work, extra yard
+  work and sprays, built from tap targets: pick a customer group or
+  customers, tap the event types you did, then tasks and areas. The mow
+  pattern is pre-picked as the next one in that customer's (or group's)
+  rotation, and the mower with its deck height and speeds comes from their
+  last mow; date, time, location and mower settings sit behind a "Change"
+  button until you need them.
+- **Log mow (Ready to Mow)** — each lawn (or street group) that's ready gets
+  a one-tap button that saves today's mow with last visit's settings and the
+  next pattern, showing exactly what it will save first. A confirmation
+  offers Undo or Edit.
+- **Run sheet** — for a customer group: set the pattern, mower and grass once,
+  tick each house done (or skip it) as you go, adjust tasks, extra work or
+  areas per house, and save every finished house at the end. Start one from
+  Group Mow Patterns or a group's Ready to Mow row.
 - **History** — every yard work visit and spray in one place. Yard work
   records what was done (mowed, trimmed, edged, pruned, bushes trimmed,
   mulched), the mowing pattern used (parallel, perpendicular, diagonal left,
