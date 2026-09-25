@@ -19,6 +19,7 @@ import { getLocationLabel } from "./locations.js";
 import { getProductName, getProductById } from "./products.js";
 import { openLogEventFor } from "./eventLog.js";
 import { countDuplicates, combineDuplicates } from "./duplicates.js";
+import { createdMs, mowHistory, nextPattern, patternGlyph } from "./visitDefaults.js";
 
 // History replaces the separate Yard Work and Spray Log pages: every visit
 // and spray in one place, browsable five ways (Days, Groups, Calendar,
@@ -42,7 +43,6 @@ const VIEW_CONTROLS = {
 
 const YARD_FLAGS = { mowed: "Mowed", trimmed: "Trimmed", edged: "Edged" };
 const EXTRA_FLAGS = { pruned: "Pruned", trimmedBushes: "Trimmed Bushes", mulched: "Mulched" };
-const PATTERN_ROTATION = ["parallel", "perpendicular", "diagonal_left", "diagonal_right"];
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const SPRAY_DUE_PHRASES = {
@@ -83,10 +83,6 @@ function addDays(dateStr, n) {
 
 function dayHeading(dateStr) {
   return `${WEEKDAYS[new Date(utcMs(dateStr)).getUTCDay()]} ${formatDateDisplay(dateStr)}`;
-}
-
-function createdMs(record) {
-  return record.createdAt?.toMillis?.() ?? 0;
 }
 
 function plural(n, word) {
@@ -182,19 +178,6 @@ function entriesByCustomer(dayEntries) {
 }
 
 // ---------- small pieces ----------
-
-const PATTERN_STRIPES = {
-  parallel: "M5 4.5v7M8 4.5v7M11 4.5v7",
-  perpendicular: "M4.5 5h7M4.5 8h7M4.5 11h7",
-  diagonal_left: "M4.5 4.5l7 7M4.5 8l3.5 3.5M8 4.5l3.5 3.5",
-  diagonal_right: "M4.5 11.5l7-7M4.5 8L8 4.5M8 11.5L11.5 8",
-};
-
-function patternGlyph(pattern, size = 16) {
-  const stripes = PATTERN_STRIPES[pattern];
-  const inner = stripes ? `<path d="${stripes}"></path>` : `<circle cx="8" cy="8" r="1.5"></circle>`;
-  return `<svg class="pattern-glyph" width="${size}" height="${size}" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><rect x="1.5" y="1.5" width="13" height="13" rx="3"></rect>${inner}</svg>`;
-}
 
 function patternLabel(pattern) {
   return PATTERN_LABELS[pattern] || pattern || "";
@@ -556,24 +539,6 @@ function populateSubjectSelect() {
   });
 }
 
-// One mow per distinct date, newest first. For a group the neighbors are
-// mowed together, so a day with three mows still counts once, taking the
-// pattern of whichever was logged last.
-function mowHistory(customerIds) {
-  const latestByDate = new Map();
-  for (const v of getVisits()) {
-    if (!customerIds.has(v.customerId) || !v.mowed || !v.pattern) continue;
-    const best = latestByDate.get(v.date);
-    if (!best || createdMs(v) > createdMs(best)) latestByDate.set(v.date, v);
-  }
-  return [...latestByDate.values()].sort((a, b) => (a.date < b.date ? 1 : -1));
-}
-
-function nextPattern(pattern) {
-  const i = PATTERN_ROTATION.indexOf(pattern);
-  return i === -1 ? null : PATTERN_ROTATION[(i + 1) % PATTERN_ROTATION.length];
-}
-
 function tile(label, value, sub, accent = false) {
   return `
     <div class="tile">
@@ -824,6 +789,20 @@ function setView(view) {
     // Storage can be unavailable (private browsing) - the view just won't be remembered.
   }
   render();
+}
+
+// Opens History from elsewhere in the app (e.g. "Edit" on a Dashboard
+// confirmation) on a particular view.
+export function showHistory(view = "days") {
+  if (VIEWS.includes(view)) {
+    state.view = view;
+    try {
+      localStorage.setItem(VIEW_STORAGE_KEY, view);
+    } catch {
+      // Not remembered for next time - state.view still applies now.
+    }
+  }
+  document.dispatchEvent(new CustomEvent("app:navigate", { detail: { view: "history" } }));
 }
 
 function logVisitFor(customerId, date) {

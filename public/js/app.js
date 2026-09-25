@@ -6,6 +6,7 @@ import { loadCustomerGroups, initCustomerGroupsView, refreshCustomerGroupsView }
 import { loadVisits } from "./mowLog.js";
 import { loadSprays } from "./sprayLog.js";
 import { initHistoryView, refreshHistoryView } from "./history.js";
+import { initRunSheetView, refreshRunSheetView } from "./runSheet.js";
 import { loadTasks, initMaintenanceView, refreshMaintenanceView } from "./maintenance.js";
 import { loadEquipment, initEquipmentView, refreshEquipmentView } from "./equipment.js";
 import { loadLocations, initLocationsView, refreshLocationsView } from "./locations.js";
@@ -64,6 +65,7 @@ function initView(view) {
   if (initializedViews.has(view)) {
     if (view === "dashboard") refreshDashboard();
     if (view === "history") refreshHistoryView();
+    if (view === "run") refreshRunSheetView();
     if (view === "settings") {
       refreshCustomersView();
       refreshCustomerGroupsView();
@@ -84,6 +86,9 @@ function initView(view) {
       break;
     case "history":
       initHistoryView();
+      break;
+    case "run":
+      initRunSheetView();
       break;
     case "settings":
       initCustomersView();
@@ -107,6 +112,7 @@ function switchView(view) {
   document.querySelectorAll(".view").forEach((el) => el.classList.remove("active"));
   document.querySelectorAll(".nav-btn").forEach((btn) => btn.classList.toggle("active", btn.dataset.view === view));
   byId(`view-${view}`).classList.add("active");
+  window.scrollTo({ top: 0 });
   initView(view);
 }
 

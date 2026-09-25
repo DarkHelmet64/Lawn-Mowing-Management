@@ -31,6 +31,17 @@ export function byId(id) {
   return document.getElementById(id);
 }
 
+// Shows or hides a collapsible panel and updates the "Change"/"Done" button
+// that controls it (the button carries data-toggle-panel="<panel id>").
+export function setPanelOpen(panelId, open) {
+  byId(panelId).classList.toggle("hidden", !open);
+  const btn = document.querySelector(`[data-toggle-panel="${panelId}"]`);
+  if (btn) {
+    btn.setAttribute("aria-expanded", String(open));
+    btn.textContent = open ? "Done" : "Change";
+  }
+}
+
 // A custom in-page confirmation dialog, used instead of window.confirm() for
 // delete actions - native confirm()/alert() dialogs are unreliable in some
 // mobile contexts (e.g. an installed home-screen PWA on iOS can silently

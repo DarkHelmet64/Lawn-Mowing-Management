@@ -1,23 +1,42 @@
 import { getCustomers, getCustomerName } from "./customers.js";
-import { getCustomerGroups, getGroupsForCustomer } from "./customerGroups.js";
+import { getCustomerGroups } from "./customerGroups.js";
 import { getVisits, getLastMowedVisit, PATTERN_LABELS } from "./mowLog.js";
-import { getSprays } from "./sprayLog.js";
-import { getTasks } from "./maintenance.js";
-import { getLowStockProducts, getProductName } from "./products.js";
+import { getLowStockProducts } from "./products.js";
 import { refreshWeatherView } from "./weatherView.js";
 import { last7DaysRainfall, profileFor } from "./growthPotential.js";
 import { computeMowStatus } from "./mowReadiness.js";
 import { getTreatmentStatuses, TREATMENT_STATE_BADGE } from "./lawnTreatments.js";
 import { getSettings } from "./settings.js";
 import { byId, escapeHtml, formatDateDisplay, todayStr } from "./utils.js";
+import { quickLogPlan, logQuickMow, undoVisits } from "./quickLog.js";
+import { startRun } from "./runSheet.js";
+import { showHistory } from "./history.js";
+import { showToast } from "./toast.js";
+import { patternGlyph, mowerSummary } from "./visitDefaults.js";
+
+let listenersBound = false;
+// Ready to Mow rows currently on screen, by key, for the Log mow buttons.
+let readyUnitsByKey = new Map();
 
 export function initDashboardView() {
+  if (!listenersBound) {
+    byId("ready-to-mow-list").addEventListener("click", (e) => {
+      const logBtn = e.target.closest("[data-quick-log]");
+      if (logBtn) handleQuickLog(logBtn);
+      const runBtn = e.target.closest("[data-start-run]");
+      if (runBtn) startRun(runBtn.dataset.startRun);
+    });
+    byId("group-pattern-list").addEventListener("click", (e) => {
+      const runBtn = e.target.closest("[data-start-run]");
+      if (runBtn) startRun(runBtn.dataset.startRun);
+    });
+    listenersBound = true;
+  }
   return refreshDashboard();
 }
 
 export async function refreshDashboard() {
   byId("stat-customer-count").textContent = String(getCustomers().length);
-  renderRecentActivity();
   renderLowStock();
   renderGroupMowPatterns();
   byId("ready-to-mow-list").innerHTML = "<li>Loading…</li>";
@@ -41,7 +60,11 @@ function renderGroupMowPatterns() {
         ? `<span class="group-pattern">${PATTERN_LABELS[visit.pattern] || escapeHtml(visit.pattern)}</span>
            <span class="hint-text">· last mowed ${formatDateDisplay(visit.date)}</span>`
         : `<span class="hint-text">No mow recorded yet.</span>`;
-      return `<li><strong>${escapeHtml(g.name)}</strong> ${detail}</li>`;
+      return `
+      <li class="group-pattern-row">
+        <span><strong>${escapeHtml(g.name)}</strong> ${detail}</span>
+        <button type="button" class="ghost-btn small-btn" data-start-run="${escapeHtml(g.id)}">Run sheet</button>
+      </li>`;
     })
     .join("");
 }
@@ -97,98 +120,91 @@ function renderTreatmentStatus(days, settings) {
     .join("");
 }
 
-function renderReadyToMow(mowStatus) {
-  const ready = getCustomers()
-    .map((c) => ({ customer: c, status: mowStatus.get(c.id) }))
-    .filter((r) => r.status?.ready)
-    .sort((a, b) => b.status.accumulatedGP - a.status.accumulatedGP);
+const YARD_TASK_LABELS = { mowed: "Mowed", trimmed: "Trimmed", edged: "Edged" };
 
+function plural(n, word) {
+  return `${n} ${word}${n === 1 ? "" : "s"}`;
+}
+
+// Ready customers, bundled by Customer Group since neighbors get mowed
+// together (a customer in several groups goes with the first). Anyone ready
+// who isn't in a group gets a row of their own. Most overdue first.
+function readyUnits(mowStatus) {
+  const readyIds = new Set(getCustomers().filter((c) => mowStatus.get(c.id)?.ready).map((c) => c.id));
+  const placed = new Set();
+  const units = [];
+  for (const g of getCustomerGroups()) {
+    const members = (g.customerIds || []).filter((id) => readyIds.has(id) && !placed.has(id));
+    if (!members.length) continue;
+    members.forEach((id) => placed.add(id));
+    units.push({ key: `group:${g.id}`, groupId: g.id, name: g.name, customerIds: members });
+  }
+  for (const c of getCustomers()) {
+    if (readyIds.has(c.id) && !placed.has(c.id)) units.push({ key: `customer:${c.id}`, groupId: null, name: c.name, customerIds: [c.id] });
+  }
+  return units
+    .map((u) => ({ ...u, status: u.customerIds.map((id) => mowStatus.get(id)).sort((a, b) => b.accumulatedGP - a.accumulatedGP)[0] }))
+    .sort((a, b) => b.status.accumulatedGP - a.status.accumulatedGP);
+}
+
+// Each row says exactly what "Log mow" will save before it's tapped.
+function renderReadyToMow(mowStatus) {
+  const units = readyUnits(mowStatus);
+  readyUnitsByKey = new Map(units.map((u) => [u.key, u]));
   byId("ready-to-mow-list").innerHTML =
-    ready
-      .map(
-        (r) => `
-      <li>
-        <strong>${r.customer.name}</strong>
-        <span class="hint-text">last mowed ${formatDateDisplay(r.status.lastMowDate)} · ${r.status.accumulatedGP.toFixed(1)} GP-days accumulated</span>
-      </li>`
-      )
+    units
+      .map((u) => {
+        const plan = quickLogPlan(u.customerIds);
+        const tasks = Object.keys(YARD_TASK_LABELS)
+          .filter((t) => plan.tasks[t])
+          .map((t) => YARD_TASK_LABELS[t])
+          .join(", ");
+        const who = u.groupId ? `${u.customerIds.map((id) => getCustomerName(id)).join(", ")} · ` : "";
+        return `
+      <li class="ready-row">
+        <div class="ready-row-main">
+          <div class="ready-row-text">
+            <strong>${escapeHtml(u.name)}</strong>
+            <span class="hint-text">${escapeHtml(who)}last mowed ${formatDateDisplay(u.status.lastMowDate)} · ${u.status.accumulatedGP.toFixed(1)} GP-days</span>
+          </div>
+          <div class="ready-row-actions">
+            ${u.groupId ? `<button type="button" class="ghost-btn" data-start-run="${escapeHtml(u.groupId)}">Run sheet</button>` : ""}
+            <button type="button" class="primary-btn" data-quick-log="${escapeHtml(u.key)}">Log mow</button>
+          </div>
+        </div>
+        <span class="ready-saves">Saves: ${escapeHtml(tasks)} · <span class="pattern-label">${patternGlyph(plan.pattern, 14)}${escapeHtml(PATTERN_LABELS[plan.pattern] || plan.pattern)}</span> · ${escapeHtml(mowerSummary(plan.mower))}</span>
+      </li>`;
+      })
       .join("") || "<li>No lawns ready to mow yet.</li>";
 }
 
-const VISIT_FLAG_LABELS = {
-  mowed: "Mowed",
-  trimmed: "Trimmed",
-  edged: "Edged",
-  pruned: "Pruned",
-  trimmedBushes: "Trimmed bushes",
-  mulched: "Mulched",
-};
-
-function describeVisit(v) {
-  const done = Object.keys(VISIT_FLAG_LABELS).filter((flag) => v[flag]);
-  const summary = done.length ? done.map((flag) => VISIT_FLAG_LABELS[flag]).join(", ") : "Visit";
-  return `${summary} for ${getCustomerName(v.customerId)}`;
-}
-
-const UNGROUPED_LABEL = "Ungrouped";
-const RECENT_ITEMS_PER_SOURCE = 15;
-const RECENT_ITEMS_PER_GROUP = 5;
-
-// Recent Activity is sectioned by Customer Group (a customer not in any
-// group - or a maintenance task, which isn't tied to a customer at all -
-// falls into "Ungrouped"). A customer in more than one group shows up
-// under each of them, since there's no single "the" group to pick.
-function renderRecentActivity() {
-  const visits = getVisits().slice(0, RECENT_ITEMS_PER_SOURCE);
-  const sprays = getSprays().slice(0, RECENT_ITEMS_PER_SOURCE);
-  const tasks = getTasks().slice(0, RECENT_ITEMS_PER_SOURCE);
-  const items = [
-    ...visits.map((v) => ({ date: v.date, customerId: v.customerId, text: describeVisit(v) })),
-    ...sprays.map((s) => ({
-      date: s.date,
-      customerId: s.customerId,
-      text: `Sprayed ${getProductName(s.productId) || s.product || "product"} for ${getCustomerName(s.customerId)}`,
-    })),
-    ...tasks.map((t) => ({ date: t.date, customerId: null, text: `Maintenance: ${t.taskType.replace(/_/g, " ")}` })),
-  ];
-
-  const buckets = new Map();
-  function addTo(label, item) {
-    if (!buckets.has(label)) buckets.set(label, []);
-    buckets.get(label).push(item);
+async function handleQuickLog(btn) {
+  const unit = readyUnitsByKey.get(btn.dataset.quickLog);
+  if (!unit) return;
+  btn.disabled = true;
+  btn.textContent = "Saving…";
+  try {
+    const { ids, plan } = await logQuickMow(unit.customerIds);
+    document.dispatchEvent(new CustomEvent("event:logged"));
+    showToast({
+      message: `Logged ${plural(ids.length, "visit")} for ${unit.name}`,
+      detail: `${PATTERN_LABELS[plan.pattern] || plan.pattern} · ${mowerSummary(plan.mower)}`,
+      actions: [
+        {
+          label: "Undo",
+          onClick: async () => {
+            await undoVisits(ids);
+            document.dispatchEvent(new CustomEvent("event:logged"));
+            showToast({ message: `Removed ${plural(ids.length, "visit")} for ${unit.name}.` });
+          },
+        },
+        { label: "Edit", onClick: () => showHistory("days") },
+      ],
+    });
+  } catch (err) {
+    console.error("Quick log failed", err);
+    btn.disabled = false;
+    btn.textContent = "Log mow";
+    alert("Couldn't log the mow. Check your connection and try again.");
   }
-  for (const item of items) {
-    const groups = item.customerId ? getGroupsForCustomer(item.customerId) : [];
-    if (groups.length) {
-      for (const g of groups) addTo(g.name, item);
-    } else {
-      addTo(UNGROUPED_LABEL, item);
-    }
-  }
-  for (const bucket of buckets.values()) {
-    bucket.sort((a, b) => (a.date < b.date ? 1 : -1));
-  }
-
-  // Named groups sort by their own most recent activity; Ungrouped always
-  // trails at the end since it's a catch-all rather than a real group.
-  const sections = [...buckets.entries()]
-    .filter(([label]) => label !== UNGROUPED_LABEL)
-    .sort((a, b) => (a[1][0].date < b[1][0].date ? 1 : -1));
-  if (buckets.has(UNGROUPED_LABEL)) sections.push([UNGROUPED_LABEL, buckets.get(UNGROUPED_LABEL)]);
-
-  byId("recent-activity-list").innerHTML =
-    sections
-      .map(
-        ([label, groupItems]) => `
-      <div class="activity-group">
-        <div class="subsection-header"><span>${escapeHtml(label)}</span></div>
-        <ul class="activity-list">
-          ${groupItems
-            .slice(0, RECENT_ITEMS_PER_GROUP)
-            .map((i) => `<li><span class="activity-date">${formatDateDisplay(i.date)}</span>${i.text}</li>`)
-            .join("")}
-        </ul>
-      </div>`
-      )
-      .join("") || `<p class="hint-text">No activity yet.</p>`;
 }
