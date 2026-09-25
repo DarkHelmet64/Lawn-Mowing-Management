@@ -8,11 +8,11 @@ import { computeMowStatus } from "./mowReadiness.js";
 import { getTreatmentStatuses, TREATMENT_STATE_BADGE } from "./lawnTreatments.js";
 import { getSettings } from "./settings.js";
 import { byId, escapeHtml, formatDateDisplay, todayStr } from "./utils.js";
-import { quickLogPlan, logQuickMow, undoVisits } from "./quickLog.js";
+import { quickLogPlan } from "./quickLog.js";
+import { openLogEventFor } from "./eventLog.js";
 import { startRun } from "./runSheet.js";
-import { showHistory } from "./history.js";
-import { showToast } from "./toast.js";
 import { patternGlyph, mowerSummary } from "./visitDefaults.js";
+import { cutCount, cutLabel } from "./cuts.js";
 
 let listenersBound = false;
 // Ready to Mow rows currently on screen, by key, for the Log mow buttons.
@@ -21,8 +21,8 @@ let readyUnitsByKey = new Map();
 export function initDashboardView() {
   if (!listenersBound) {
     byId("ready-to-mow-list").addEventListener("click", (e) => {
-      const logBtn = e.target.closest("[data-quick-log]");
-      if (logBtn) handleQuickLog(logBtn);
+      const logBtn = e.target.closest("[data-log-mow]");
+      if (logBtn) handleLogMow(logBtn);
       const runBtn = e.target.closest("[data-start-run]");
       if (runBtn) startRun(runBtn.dataset.startRun);
     });
@@ -39,6 +39,7 @@ export async function refreshDashboard() {
   byId("stat-customer-count").textContent = String(getCustomers().length);
   renderLowStock();
   renderGroupMowPatterns();
+  renderMultiCutStat();
   byId("ready-to-mow-list").innerHTML = "<li>Loading…</li>";
   refreshWeatherStats().catch((err) => console.error("Failed to refresh weather-dependent dashboard stats", err));
 }
@@ -67,6 +68,19 @@ function renderGroupMowPatterns() {
       </li>`;
     })
     .join("");
+}
+
+// How many mows this year were double or triple cuts.
+function renderMultiCutStat() {
+  const yearStart = `${todayStr().slice(0, 4)}-01-01`;
+  const counts = getVisits()
+    .filter((v) => v.mowed && v.date >= yearStart)
+    .map(cutCount)
+    .filter((n) => n >= 2);
+  const doubles = counts.filter((n) => n === 2).length;
+  const triples = counts.filter((n) => n >= 3).length;
+  byId("stat-multi-cuts").textContent = String(counts.length);
+  byId("stat-multi-cuts-detail").textContent = counts.length ? `${doubles} double · ${triples} triple` : "None yet";
 }
 
 function renderLowStock() {
@@ -122,10 +136,6 @@ function renderTreatmentStatus(days, settings) {
 
 const YARD_TASK_LABELS = { mowed: "Mowed", trimmed: "Trimmed", edged: "Edged" };
 
-function plural(n, word) {
-  return `${n} ${word}${n === 1 ? "" : "s"}`;
-}
-
 // Ready customers, bundled by Customer Group since neighbors get mowed
 // together (a customer in several groups goes with the first). Anyone ready
 // who isn't in a group gets a row of their own. Most overdue first.
@@ -147,7 +157,7 @@ function readyUnits(mowStatus) {
     .sort((a, b) => b.status.accumulatedGP - a.status.accumulatedGP);
 }
 
-// Each row says exactly what "Log mow" will save before it's tapped.
+// Each row previews what "Log mow" fills the Log Event form in with.
 function renderReadyToMow(mowStatus) {
   const units = readyUnits(mowStatus);
   readyUnitsByKey = new Map(units.map((u) => [u.key, u]));
@@ -169,42 +179,19 @@ function renderReadyToMow(mowStatus) {
           </div>
           <div class="ready-row-actions">
             ${u.groupId ? `<button type="button" class="ghost-btn" data-start-run="${escapeHtml(u.groupId)}">Run sheet</button>` : ""}
-            <button type="button" class="primary-btn" data-quick-log="${escapeHtml(u.key)}">Log mow</button>
+            <button type="button" class="primary-btn" data-log-mow="${escapeHtml(u.key)}">Log mow</button>
           </div>
         </div>
-        <span class="ready-saves">Saves: ${escapeHtml(tasks)} · <span class="pattern-label">${patternGlyph(plan.pattern, 14)}${escapeHtml(PATTERN_LABELS[plan.pattern] || plan.pattern)}</span> · ${escapeHtml(mowerSummary(plan.mower))}</span>
+        <span class="ready-saves">Suggested: ${escapeHtml(tasks)}${plan.cuts ? ` · ${cutLabel(plan.cuts.length)}` : ""} · ${(plan.cuts || [plan])
+          .map((c) => `<span class="pattern-label">${patternGlyph(c.pattern, 14)}${escapeHtml(PATTERN_LABELS[c.pattern] || c.pattern)}</span>`)
+          .join('<span aria-hidden="true">→</span>')} · ${escapeHtml(mowerSummary(plan.mower))}</span>
       </li>`;
       })
       .join("") || "<li>No lawns ready to mow yet.</li>";
 }
 
-async function handleQuickLog(btn) {
-  const unit = readyUnitsByKey.get(btn.dataset.quickLog);
-  if (!unit) return;
-  btn.disabled = true;
-  btn.textContent = "Saving…";
-  try {
-    const { ids, plan } = await logQuickMow(unit.customerIds);
-    document.dispatchEvent(new CustomEvent("event:logged"));
-    showToast({
-      message: `Logged ${plural(ids.length, "visit")} for ${unit.name}`,
-      detail: `${PATTERN_LABELS[plan.pattern] || plan.pattern} · ${mowerSummary(plan.mower)}`,
-      actions: [
-        {
-          label: "Undo",
-          onClick: async () => {
-            await undoVisits(ids);
-            document.dispatchEvent(new CustomEvent("event:logged"));
-            showToast({ message: `Removed ${plural(ids.length, "visit")} for ${unit.name}.` });
-          },
-        },
-        { label: "Edit", onClick: () => showHistory("days") },
-      ],
-    });
-  } catch (err) {
-    console.error("Quick log failed", err);
-    btn.disabled = false;
-    btn.textContent = "Log mow";
-    alert("Couldn't log the mow. Check your connection and try again.");
-  }
+// Opens Log Event filled in for this row's customers, to check and save.
+function handleLogMow(btn) {
+  const unit = readyUnitsByKey.get(btn.dataset.logMow);
+  if (unit) openLogEventFor({ customerIds: unit.customerIds, plan: quickLogPlan(unit.customerIds) });
 }

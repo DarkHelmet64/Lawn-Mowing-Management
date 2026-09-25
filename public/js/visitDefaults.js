@@ -2,13 +2,15 @@ import { getVisits } from "./mowLog.js";
 import { getEquipment, getEquipmentById, getEquipmentName } from "./equipment.js";
 import { getLocationsForCustomer } from "./locations.js";
 import { getAreasForLocation, areaAppliesToEventTypes, recordAreaIds } from "./areas.js";
+import { PATTERN_ROTATION, nextPattern, rotatePattern, patternGlyph } from "./patterns.js";
+import { visitCuts } from "./cuts.js";
+
+export { PATTERN_ROTATION, nextPattern, patternGlyph };
 
 // What a new visit should start out as, worked out from each customer's own
 // history. The Log Event form, Ready to Mow's one-tap button and the run
 // sheet all pre-fill from here, so they agree on "the next pattern" and
 // "the same settings as last time".
-
-export const PATTERN_ROTATION = ["parallel", "perpendicular", "diagonal_left", "diagonal_right"];
 
 // Areas with these exact names are the default pick for yard work.
 export const DEFAULT_YARDWORK_AREA_NAMES = new Set(["Front Yard", "Back Yard"]);
@@ -36,12 +38,6 @@ export function mowHistory(customerIds) {
     if (!best || createdMs(v) > createdMs(best)) latestByDate.set(v.date, v);
   }
   return [...latestByDate.values()].sort(newestFirst);
-}
-
-// null after "other" (or an unknown value): there's no rotation to continue.
-export function nextPattern(pattern) {
-  const i = PATTERN_ROTATION.indexOf(pattern);
-  return i === -1 ? null : PATTERN_ROTATION[(i + 1) % PATTERN_ROTATION.length];
 }
 
 export function patternSuggestion(customerIds) {
@@ -138,16 +134,21 @@ export function repeatVisitFor(customerId) {
   };
 }
 
-const PATTERN_STRIPES = {
-  parallel: "M4.5 5h7M4.5 8h7M4.5 11h7",
-  perpendicular: "M5 4.5v7M8 4.5v7M11 4.5v7",
-  diagonal_left: "M4.5 4.5l7 7M4.5 8l3.5 3.5M8 4.5l3.5 3.5",
-  diagonal_right: "M4.5 11.5l7-7M4.5 8L8 4.5M8 11.5L11.5 8",
-};
-
-// A small square drawn with the pattern's stripe direction.
-export function patternGlyph(pattern, size = 16) {
-  const stripes = PATTERN_STRIPES[pattern];
-  const inner = stripes ? `<path d="${stripes}"></path>` : `<circle cx="8" cy="8" r="1.5"></circle>`;
-  return `<svg class="pattern-glyph" width="${size}" height="${size}" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><rect x="1.5" y="1.5" width="13" height="13" rx="3"></rect>${inner}</svg>`;
+// When the latest mow among these customers was a double/triple cut, the
+// same cuts again: same heights and speeds, with the first cut on
+// firstPattern and each later cut keeping its angle to the first (a
+// checkerboard stays a checkerboard). null when that mow was a single cut.
+export function repeatCuts(customerIds, firstPattern) {
+  const ids = new Set(customerIds);
+  const last = getVisits()
+    .filter((v) => ids.has(v.customerId) && v.mowed)
+    .sort(newestFirst)[0];
+  const cuts = last ? visitCuts(last) : [];
+  if (cuts.length < 2) return null;
+  const base = PATTERN_ROTATION.indexOf(cuts[0].pattern);
+  return cuts.map((c, i) => {
+    const step = PATTERN_ROTATION.indexOf(c.pattern);
+    const pattern = i === 0 ? firstPattern : base === -1 || step === -1 ? c.pattern : rotatePattern(firstPattern, step - base) || c.pattern;
+    return { pattern, deckHeight: c.deckHeight ?? null, groundSpeed: c.groundSpeed ?? null, bladeSpeed: c.bladeSpeed ?? null };
+  });
 }

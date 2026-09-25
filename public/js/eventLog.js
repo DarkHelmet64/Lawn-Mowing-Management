@@ -16,6 +16,7 @@ import { loadVisits, PATTERN_LABELS, TIME_OF_DAY_LABELS } from "./mowLog.js";
 import { loadSprays, getLastQuantityUsedForProduct } from "./sprayLog.js";
 import { EVENT_TYPE_KEYS } from "./eventTypes.js";
 import { populateProductSelect, getProductById, adjustProductQuantity } from "./products.js";
+import { createCutEditor, cutFields } from "./cuts.js";
 import {
   DEFAULT_YARDWORK_AREA_NAMES,
   patternSuggestion,
@@ -31,6 +32,8 @@ const CHECK_ICON = `<svg class="chip-check" width="14" height="14" viewBox="0 0 
 // stops replacing that choice with a fresh suggestion.
 let patternTouched = false;
 let mowerTouched = false;
+// Cuts 2 and 3 of a double/triple cut (cut 1 is the pattern/mower/areas above).
+let cutEditor = null;
 
 // Customers are a multi-select - Location/Areas are shared across whichever
 // customers are checked (driven by the first one checked), and submitting
@@ -173,6 +176,25 @@ function applyMowerSettings({ equipmentId, deckHeight, groundSpeed, bladeSpeed }
   populateGroundSpeedSelect(byId("event-ground-speed"), id, groundSpeed ?? null);
   populateBladeSpeedSelect(byId("event-blade-speed"), id, bladeSpeed ?? null);
   updateMowerSummary();
+  cutEditor?.refresh();
+}
+
+// Cut 1 of the mow, from the main pattern, mower-setting and area fields.
+function firstCut() {
+  return {
+    pattern: radioValue("event-pattern"),
+    deckHeight: byId("event-height").value ? Number(byId("event-height").value) : null,
+    groundSpeed: byId("event-ground-speed").value || null,
+    bladeSpeed: byId("event-blade-speed").value || null,
+    areaIds: checkedAreaIds("yardwork"),
+  };
+}
+
+// Once there's a second cut, the main fields read as "cut 1".
+function updateCutLabels() {
+  const multi = cutEditor?.count() > 0;
+  byId("event-pattern-label").textContent = multi ? "Cut 1 pattern" : "Mow pattern";
+  byId("event-mower-label").textContent = multi ? "Mower · cut 1 settings" : "Mower";
 }
 
 // Picking a different mower by hand starts from that mower's own defaults.
@@ -245,6 +267,7 @@ function refreshAreaOptionsForType(type) {
 function refreshAreaOptions() {
   for (const type of EVENT_TYPE_KEYS) refreshAreaOptionsForType(type);
   refreshFeatureOptions();
+  cutEditor?.refresh();
 }
 
 // The Plant/Object dropdown is specific to Extra Yard Work, so it covers the
@@ -290,6 +313,7 @@ function openForm() {
   byId("event-type-extra_yardwork").checked = false;
   byId("event-type-chemical").checked = false;
   applyYardworkDefaults();
+  cutEditor.clear();
   byId("event-pruned").checked = false;
   byId("event-trimmed-bushes").checked = false;
   byId("event-mulched").checked = false;
@@ -311,7 +335,9 @@ function openForm() {
 
 // Opens Log Event already pointed at specific customers and a date - used by
 // History's "Log visit" shortcut for a group neighbor who was skipped.
-export function openLogEventFor({ customerIds = [], date = null } = {}) {
+// plan (from Ready to Mow's "Log mow") also fills in what last time looked
+// like - see quickLogPlan.
+export function openLogEventFor({ customerIds = [], date = null, plan = null } = {}) {
   openForm();
   if (date) {
     byId("event-date").value = date;
@@ -323,7 +349,39 @@ export function openLogEventFor({ customerIds = [], date = null } = {}) {
     });
     onCustomersChanged();
   }
+  if (plan) applyPlan(plan);
   byId("log-event-form-card").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+// On top of the usual pattern and mower suggestions: last time's trim/edge
+// choices, location and areas, and its double/triple cut if there was one.
+function applyPlan({ tasks, cuts, locationId, areaIds }) {
+  if (tasks) {
+    byId("event-mowed").checked = tasks.mowed;
+    byId("event-trimmed").checked = tasks.trimmed;
+    byId("event-edged").checked = tasks.edged;
+  }
+  if (locationId && [...byId("event-location").options].some((o) => o.value === locationId)) {
+    byId("event-location").value = locationId;
+    refreshAreaOptions();
+    updateWhenSummary();
+  }
+  if (areaIds?.length) {
+    document.querySelectorAll("#event-area-list-yardwork .event-area-checkbox").forEach((cb) => {
+      cb.checked = areaIds.includes(cb.value);
+    });
+  }
+  if (cuts?.length > 1) {
+    const mowerId = byId("event-equipment").value;
+    setRadio("event-pattern", cuts[0].pattern);
+    populateDeckHeightSelect(byId("event-height"), mowerId, cuts[0].deckHeight ?? null);
+    populateGroundSpeedSelect(byId("event-ground-speed"), mowerId, cuts[0].groundSpeed ?? null);
+    populateBladeSpeedSelect(byId("event-blade-speed"), mowerId, cuts[0].bladeSpeed ?? null);
+    updateMowerSummary();
+    const cutAreas = checkedAreaIds("yardwork");
+    cutEditor.set(cuts.slice(1).map((c) => ({ ...c, areaIds: cutAreas })));
+  }
+  updateMowedFieldsVisibility();
 }
 
 function closeForm() {
@@ -370,14 +428,15 @@ async function handleSubmit(e) {
   let yardworkFields = null;
   if (types.includes("yardwork")) {
     const mowed = byId("event-mowed").checked;
+    // A mow saves its cuts (see cuts.js); trim/edge alone has none of that.
+    const cutData = mowed
+      ? cutFields([firstCut(), ...cutEditor.get()])
+      : { pattern: null, deckHeight: null, groundSpeed: null, bladeSpeed: null, areaIds: checkedAreaIds("yardwork"), cuts: null };
     yardworkFields = {
       mowed,
       trimmed: byId("event-trimmed").checked,
       edged: byId("event-edged").checked,
-      pattern: mowed ? radioValue("event-pattern") : null,
-      deckHeight: mowed && byId("event-height").value ? Number(byId("event-height").value) : null,
-      groundSpeed: (mowed && byId("event-ground-speed").value) || null,
-      bladeSpeed: (mowed && byId("event-blade-speed").value) || null,
+      ...cutData,
       grassCondition: mowed ? radioValue("event-grass") : null,
       equipmentId: (mowed && byId("event-equipment").value) || null,
     };
@@ -418,7 +477,6 @@ async function handleSubmit(e) {
   const eventBase = { date, timeOfDay, locationId, notes };
 
   if (yardworkFields) {
-    const areaIds = checkedAreaIds("yardwork");
     for (const customerId of customerIds) {
       await createDoc("mowVisits", {
         customerId,
@@ -427,7 +485,6 @@ async function handleSubmit(e) {
         pruned: false,
         trimmedBushes: false,
         mulched: false,
-        areaIds,
         featureId: null,
       });
     }
@@ -511,6 +568,15 @@ export function initEventLogView() {
     });
   }
   byId("event-mowed").addEventListener("change", updateMowedFieldsVisibility);
+  cutEditor = createCutEditor({
+    container: byId("event-extra-cuts"),
+    addButton: byId("event-add-cut-btn"),
+    namePrefix: "event-cut",
+    getMowerId: () => byId("event-equipment").value,
+    getAreas: () => getAreasForLocation(byId("event-location").value).filter((a) => areaAppliesToEventTypes(a, ["yardwork"])),
+    getFirstCut: firstCut,
+    onChange: updateCutLabels,
+  });
   document.querySelectorAll('#log-event-form input[name="event-pattern"]').forEach((r) =>
     r.addEventListener("change", () => {
       patternTouched = true;
@@ -520,6 +586,7 @@ export function initEventLogView() {
     mowerTouched = true;
     applyEquipmentDefaults();
     updateMowerSummary();
+    cutEditor.refresh();
   });
   for (const id of ["event-height", "event-ground-speed", "event-blade-speed"]) {
     byId(id).addEventListener("change", () => {

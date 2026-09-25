@@ -2003,3 +2003,104 @@ form {
   font-weight: 700;
   flex-shrink: 0;
 }
+
+/* ---------- Double / triple cuts ---------- */
+
+.cut-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cut-block {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cut-block-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.cut-block-title {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.cut-block-head .link-btn {
+  min-height: 40px;
+  font-size: 13px;
+  color: var(--danger);
+}
+
+.cut-settings {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  max-width: 480px;
+}
+
+.cut-settings select {
+  min-width: 0;
+}
+
+.add-cut-btn {
+  align-self: flex-start;
+  min-height: 40px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.chip-cut {
+  background: transparent;
+  border: 1px solid var(--mark-yard);
+  color: var(--chip-yard-text);
+}
+
+.cut-detail-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.cut-detail-list li {
+  display: flex;
+  gap: 10px;
+}
+
+.cut-detail-label {
+  flex-shrink: 0;
+  min-width: 42px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.results-summary {
+  margin: 0 0 14px;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.results-summary strong {
+  color: var(--text);
+}
+
+@media (max-width: 600px) {
+  .segmented-btn {
+    padding: 0 8px;
+  }
+}
