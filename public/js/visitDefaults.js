@@ -139,8 +139,8 @@ export function repeatVisitFor(customerId) {
 }
 
 const PATTERN_STRIPES = {
-  parallel: "M5 4.5v7M8 4.5v7M11 4.5v7",
-  perpendicular: "M4.5 5h7M4.5 8h7M4.5 11h7",
+  parallel: "M4.5 5h7M4.5 8h7M4.5 11h7",
+  perpendicular: "M5 4.5v7M8 4.5v7M11 4.5v7",
   diagonal_left: "M4.5 4.5l7 7M4.5 8l3.5 3.5M8 4.5l3.5 3.5",
   diagonal_right: "M4.5 11.5l7-7M4.5 8L8 4.5M8 11.5L11.5 8",
 };
