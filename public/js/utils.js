@@ -35,11 +35,13 @@ export function byId(id) {
 // delete actions - native confirm()/alert() dialogs are unreliable in some
 // mobile contexts (e.g. an installed home-screen PWA on iOS can silently
 // suppress them, making a guarded action look like it does nothing at all).
-export function confirmAction(message) {
+export function confirmAction(message, { confirmLabel = "Delete", danger = true } = {}) {
   const overlay = byId("confirm-dialog");
   const okBtn = byId("confirm-ok");
   const cancelBtn = byId("confirm-cancel");
   byId("confirm-message").textContent = message;
+  okBtn.textContent = confirmLabel;
+  okBtn.className = danger ? "danger-btn" : "primary-btn";
   overlay.classList.remove("hidden");
 
   return new Promise((resolve) => {
