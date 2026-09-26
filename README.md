@@ -96,19 +96,23 @@ API in the browser and cached in Firestore.
 - **Weather & Growth Potential** — daily high/low temps and precipitation
   for Dayton, OH, a turfgrass Growth Potential (GP) score (0-100%, how fast
   the grass is growing today), and a weekly rainfall chart.
-- **Ready to Mow** — per customer, tracks accumulated Growth Potential
-  since their last mow and flags the lawn "ready to mow" once it crosses a
-  threshold you tune by observation. Shown on the Dashboard.
+- **Ready to Mow** — per customer, tracks growth since their last mow
+  (Growth Potential, slowed down in dry spells) using the weather at their
+  own lawn, and flags the lawn "ready to mow" once it crosses a threshold
+  you tune by observation. Each customer can have their own grass type,
+  threshold, and an Irrigated flag. Shown on the Dashboard, along with
+  **Coming Up** (when each other lawn should be ready, from the week's
+  forecast) and active customers with no mow logged yet.
 - **Dashboard** — today's Growth Potential, 7-day average, last 7 days of
-  rainfall, how many customers are ready to mow right now, and recent
-  activity at a glance.
+  rainfall, how many customers are ready to mow right now, Ready to Mow and
+  Coming Up, and group mow patterns at a glance.
 
 ## Tech stack
 
 - Plain HTML/CSS/JavaScript (ES modules), no build step required.
 - [Firebase](https://firebase.google.com/) Hosting, Firestore, and Authentication (Email/Password).
 - [Open-Meteo](https://open-meteo.com/) forecast + historical archive APIs for weather (no API key needed).
-- [US Census Bureau Geocoder](https://geocoding.geo.census.gov/) for the "Validate" button on customer/location addresses (no API key needed; US addresses only).
+- [OpenStreetMap Nominatim](https://nominatim.org/) for the "Validate" button on customer/location addresses, and to find each lawn on the map for its weather (no API key needed; US addresses only).
 
 ## Firebase project setup
 
@@ -180,22 +184,44 @@ the default. GP is shown as a 0-100% score — near 100% means conditions are
 close to ideal for that species and the grass is growing fast; low GP means
 slow growth (too cold, too hot, or dormant).
 
-**Ready to mow**: for each customer, the app sums the daily GP score for
-every day since their last logged mow. Once that running total crosses the
-**Mow Threshold (GP-days)** setting (default: 5), the lawn is flagged
-"Ready to mow" — both on the Dashboard and as a column on the Customers
-table, which also shows an estimated number of days until ready based on
-the last 5 days' average GP. There's no universally "correct" threshold —
-watch how the accumulated GP-days value tracks against what you actually
-see in the yard over a few mow cycles, and adjust the threshold up or down
-to match.
+**Ready to mow**: for each active customer, the app adds up each day's
+growth since their last logged mow (the mow day itself isn't counted; today
+uses today's forecast high/low). Once that running total crosses the
+**Mow Threshold (GP-days)** (default: 5), the lawn is flagged "Ready to
+mow" on the Dashboard. There's no universally "correct" threshold — watch
+how the accumulated GP-days value tracks against what you actually see in
+the yard over a few mow cycles, and adjust the threshold up or down to
+match.
+
+- **Dry spells**: with "Dry spells slow growth" on (Weather & Growth), each
+  day's GP is multiplied by a moisture factor from the rain over the last
+  14 days against **Rain for Full Growth** (default 1 inch a week): 100%
+  with at least that much, easing down (about 80% with half of it) to 30%
+  with none. Irrigated customers are never slowed down.
+- **Per customer** (Settings → Customers → Mowing): a customer can have
+  their own grass type and threshold (blank uses the Weather & Growth
+  settings) and be marked Irrigated.
+- **Per lawn weather**: each customer's lawn is found on the map (the
+  location of their last mow, else their first location with an address,
+  else their own address) and uses the weather there, fetched per ~7-mile
+  square (0.1° of latitude/longitude). A lawn whose address can't be found
+  uses Dayton's weather; the customer form says which is in use.
+- **Coming Up**: for lawns not ready yet, the next 7 days' forecast gives
+  the day each should cross its threshold ("Ready Tuesday"); beyond the
+  forecast it's extrapolated at the forecast's pace ("Ready in about 12
+  days").
+- Active customers with no mow logged yet are listed under Ready to Mow so
+  their first mow gets recorded; inactive customers are left out.
 
 Weather data (daily high/low temperature and precipitation) is fetched
 directly from Open-Meteo for Dayton, OH (39.7589, -84.1916) — recent days
-from the forecast API (which also serves recent observed data) and the
-rest of the year from the historical archive API — then cached in the
-`weatherDaily` Firestore collection so the app doesn't need to refetch the
-whole year every time.
+from the forecast API (which also serves recent observed data and the
+coming week's forecast) and the rest of the year from the historical
+archive API — then cached in the `weatherDaily` Firestore collection so the
+app doesn't need to refetch the whole year every time. Each other lawn
+square's season and forecast is cached as one `weatherCells` document,
+refreshed at most once a day; a customer's or location's looked-up
+coordinates are saved on it as `geo`.
 
 ## Locations, areas, and yard features
 

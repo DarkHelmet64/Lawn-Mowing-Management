@@ -268,6 +268,11 @@
         </div>
 
         <div class="card">
+          <h3>Coming Up</h3>
+          <ul id="coming-up-list" class="activity-list"></ul>
+        </div>
+
+        <div class="card">
           <h3>Low Stock Alerts</h3>
           <ul id="low-stock-list" class="activity-list"></ul>
         </div>
@@ -414,6 +419,23 @@
                 <option value="oneoff">One-Time</option>
               </select>
             </label>
+            <div class="subsection">
+              <div class="subsection-header"><span>Mowing</span></div>
+              <label>Grass Type
+                <select id="customer-grass-type">
+                  <option value="" id="customer-grass-default">Default</option>
+                  <option value="cool">Cool-season (bluegrass, fescue, ryegrass)</option>
+                  <option value="warm">Warm-season (bermuda, zoysia)</option>
+                </select>
+              </label>
+              <label>Mow Threshold (GP-days)
+                <input type="number" id="customer-mow-threshold" min="0.5" step="0.5" />
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" id="customer-irrigated" /> Irrigated - sprinklers keep it watered, so dry spells don't slow it down
+              </label>
+              <p id="customer-weather-place" class="hint-text"></p>
+            </div>
             <label>Notes
               <textarea id="customer-notes" rows="2"></textarea>
             </label>
@@ -1173,6 +1195,12 @@
           <label>Mow Threshold (GP-days)
             <input type="number" id="mow-threshold" value="5" min="0.5" step="0.5" />
           </label>
+          <label class="checkbox-label">
+            <input type="checkbox" id="rain-adjust" /> Dry spells slow growth
+          </label>
+          <label>Rain for Full Growth (in/week)
+            <input type="number" id="rain-full-growth" min="0.1" step="0.1" />
+          </label>
           <label>Crabgrass Preventer - Start GDD50
             <input type="number" id="crabgrass-gdd-start" min="0" step="10" />
           </label>
@@ -1191,8 +1219,11 @@
         <p class="hint-text">
           Location: Dayton, OH (lat 39.7589, lon -84.1916). Data source: Open-Meteo (no API key required).
           Growth Potential (GP) estimates how fast the grass is growing today, from 0-100%, based on temperature.
-          A customer's lawn is flagged "ready to mow" once their accumulated GP since the last visit crosses the threshold above -
+          A customer's lawn is flagged "ready to mow" once their accumulated GP since the last mow crosses the threshold above -
           tune the threshold up or down based on how it matches what you see in the yard.
+          With "Dry spells slow growth" on, each day's GP is scaled by the rain over the last two weeks: full speed with at least
+          the rain above, easing down to 30% with none (irrigated lawns are never slowed). Ready to Mow uses the weather at each lawn's own
+          address, and a customer can have their own grass type and threshold (Settings → Customers).
         </p>
         <div class="card">
           <div class="view-header">

@@ -14,7 +14,7 @@ import { loadAreas, initAreasView, refreshAreasView } from "./areas.js";
 import { loadYardFeatures, initYardFeaturesView, refreshYardFeaturesView } from "./yardFeatures.js";
 import { loadProducts, initProductsView, refreshProductsView } from "./products.js";
 import { loadPurchases, initPurchasesView, refreshPurchasesView } from "./productPurchases.js";
-import { initWeatherView, startBackgroundWeatherSync } from "./weatherView.js";
+import { initWeatherView, startBackgroundWeatherSync, syncLawns } from "./weatherView.js";
 import { refreshDashboard, initDashboardView } from "./dashboard.js";
 import { initEventLogView } from "./eventLog.js";
 
@@ -59,6 +59,9 @@ async function showApp() {
   document.addEventListener("weather:synced", () => refreshDashboard());
   initView("dashboard");
   startBackgroundWeatherSync();
+  // A new or changed address gets looked up and its weather fetched.
+  document.addEventListener("customers:changed", syncLawns);
+  document.addEventListener("locations:changed", syncLawns);
 }
 
 function initView(view) {

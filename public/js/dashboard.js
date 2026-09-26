@@ -1,9 +1,9 @@
-import { getCustomers, getCustomerName } from "./customers.js";
+import { getCustomers, getActiveCustomers, getCustomerName } from "./customers.js";
 import { getCustomerGroups } from "./customerGroups.js";
 import { getVisits, getLastMowedVisit, PATTERN_LABELS } from "./mowLog.js";
 import { getLowStockProducts } from "./products.js";
 import { refreshWeatherView } from "./weatherView.js";
-import { last7DaysRainfall, profileFor } from "./growthPotential.js";
+import { last7DaysRainfall } from "./growthPotential.js";
 import { computeMowStatus } from "./mowReadiness.js";
 import { getTreatmentStatuses, TREATMENT_STATE_BADGE } from "./lawnTreatments.js";
 import { getSettings } from "./settings.js";
@@ -13,6 +13,7 @@ import { openLogEventFor } from "./eventLog.js";
 import { startRun } from "./runSheet.js";
 import { patternGlyph, mowerSummary } from "./visitDefaults.js";
 import { getEquipmentName } from "./equipment.js";
+import { loadLawnWeather } from "./lawnWeather.js";
 import { passCount, cutLabel } from "./cuts.js";
 
 let listenersBound = false;
@@ -42,6 +43,7 @@ export async function refreshDashboard() {
   renderGroupMowPatterns();
   renderMultiCutStat();
   byId("ready-to-mow-list").innerHTML = "<li>Loading…</li>";
+  byId("coming-up-list").innerHTML = "<li>Loading…</li>";
   refreshWeatherStats().catch((err) => console.error("Failed to refresh weather-dependent dashboard stats", err));
 }
 
@@ -110,14 +112,12 @@ async function refreshWeatherStats() {
   byId("stat-avg-gp").textContent = recent.length ? `${(avgRecentGP * 100).toFixed(0)}%` : "–";
   byId("stat-weekly-rain").textContent = `${last7DaysRainfall(days, todayStr()).toFixed(2)}"`;
 
-  const mowStatus = computeMowStatus(getCustomers(), getVisits(), days, {
-    grassProfile: profileFor(settings.grassType),
-    mowThresholdGPDays: settings.mowThresholdGPDays,
-  });
+  // Each lawn's own weather, grass type and threshold (see mowReadiness.js).
+  const weatherFor = await loadLawnWeather(days);
+  const mowStatus = computeMowStatus(getActiveCustomers(), getVisits(), weatherFor, settings);
   renderReadyToMow(mowStatus);
-  byId("stat-ready-to-mow").textContent = String(
-    [...mowStatus.values()].filter((s) => s.ready).length
-  );
+  renderComingUp(mowStatus);
+  byId("stat-ready-to-mow").textContent = String([...mowStatus.values()].filter((s) => s.ready).length);
   renderTreatmentStatus(days, settings);
 }
 
@@ -137,46 +137,68 @@ function renderTreatmentStatus(days, settings) {
 
 const YARD_TASK_LABELS = { mowed: "Mowed", trimmed: "Trimmed", edged: "Edged" };
 
-// Ready customers, bundled by Customer Group since neighbors get mowed
-// together (a customer in several groups goes with the first). Anyone ready
-// who isn't in a group gets a row of their own. Most overdue first.
-function readyUnits(mowStatus) {
-  const readyIds = new Set(getCustomers().filter((c) => mowStatus.get(c.id)?.ready).map((c) => c.id));
+// Customers bundled by Customer Group, since neighbors get mowed together
+// (a customer in several groups goes with the first); anyone not in a group
+// gets a row of their own. A unit's status is its lead member's: the first
+// after sorting the members' statuses with leadFirst. Units come out in
+// the same order.
+function unitsFor(ids, mowStatus, keyPrefix, leadFirst = () => 0) {
+  const wanted = new Set(ids);
   const placed = new Set();
   const units = [];
   for (const g of getCustomerGroups()) {
-    const members = (g.customerIds || []).filter((id) => readyIds.has(id) && !placed.has(id));
+    const members = (g.customerIds || []).filter((id) => wanted.has(id) && !placed.has(id));
     if (!members.length) continue;
     members.forEach((id) => placed.add(id));
-    units.push({ key: `group:${g.id}`, groupId: g.id, name: g.name, customerIds: members });
+    units.push({ key: `${keyPrefix}:group:${g.id}`, groupId: g.id, name: g.name, customerIds: members });
   }
   for (const c of getCustomers()) {
-    if (readyIds.has(c.id) && !placed.has(c.id)) units.push({ key: `customer:${c.id}`, groupId: null, name: c.name, customerIds: [c.id] });
+    if (wanted.has(c.id) && !placed.has(c.id)) units.push({ key: `${keyPrefix}:customer:${c.id}`, groupId: null, name: c.name, customerIds: [c.id] });
   }
   return units
-    .map((u) => ({ ...u, status: u.customerIds.map((id) => mowStatus.get(id)).sort((a, b) => b.accumulatedGP - a.accumulatedGP)[0] }))
-    .sort((a, b) => b.status.accumulatedGP - a.status.accumulatedGP);
+    .map((u) => ({ ...u, status: u.customerIds.map((id) => mowStatus.get(id)).sort(leadFirst)[0] }))
+    .sort((a, b) => leadFirst(a.status, b.status));
 }
 
-// Each row previews what "Log mow" fills the Log Event form in with.
-function renderReadyToMow(mowStatus) {
-  const units = readyUnits(mowStatus);
-  readyUnitsByKey = new Map(units.map((u) => [u.key, u]));
-  byId("ready-to-mow-list").innerHTML =
-    units
-      .map((u) => {
-        const plan = quickLogPlan(u.customerIds);
-        const tasks = Object.keys(YARD_TASK_LABELS)
-          .filter((t) => plan.tasks[t])
-          .map((t) => YARD_TASK_LABELS[t])
-          .join(", ");
-        const who = u.groupId ? `${u.customerIds.map((id) => getCustomerName(id)).join(", ")} · ` : "";
-        return `
+function idsWhere(mowStatus, test) {
+  return [...mowStatus].filter(([, s]) => test(s)).map(([id]) => id);
+}
+
+// Most overdue first - how far past its own threshold, since lawns can have
+// different ones.
+const mostOverdue = (a, b) => b.accumulatedGP / b.threshold - a.accumulatedGP / a.threshold;
+// Soonest ready first; lawns not growing enough to say go last.
+const soonest = (a, b) => (a.estimatedDaysUntilReady ?? Infinity) - (b.estimatedDaysUntilReady ?? Infinity) || mostOverdue(a, b);
+
+const formatGp = (n) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
+
+function lastMowedText(status) {
+  const n = status.daysSinceMow;
+  const ago = n === 0 ? "today" : n === 1 ? "yesterday" : `${n} days ago`;
+  return `last mowed ${formatDateDisplay(status.lastMowDate)} (${ago})`;
+}
+
+function gpProgressText(status) {
+  return `${status.accumulatedGP.toFixed(1)} of ${formatGp(status.threshold)} GP-days`;
+}
+
+function whoText(unit) {
+  return unit.groupId ? `${unit.customerIds.map((id) => getCustomerName(id)).join(", ")} · ` : "";
+}
+
+// A Ready to Mow row: what "Log mow" fills the Log Event form in with.
+function readyRowHtml(u, detail) {
+  const plan = quickLogPlan(u.customerIds);
+  const tasks = Object.keys(YARD_TASK_LABELS)
+    .filter((t) => plan.tasks[t])
+    .map((t) => YARD_TASK_LABELS[t])
+    .join(", ");
+  return `
       <li class="ready-row">
         <div class="ready-row-main">
           <div class="ready-row-text">
             <strong>${escapeHtml(u.name)}</strong>
-            <span class="hint-text">${escapeHtml(who)}last mowed ${formatDateDisplay(u.status.lastMowDate)} · ${u.status.accumulatedGP.toFixed(1)} GP-days</span>
+            <span class="hint-text">${escapeHtml(whoText(u) + detail)}</span>
           </div>
           <div class="ready-row-actions">
             ${u.groupId ? `<button type="button" class="ghost-btn" data-start-run="${escapeHtml(u.groupId)}">Run sheet</button>` : ""}
@@ -187,8 +209,57 @@ function renderReadyToMow(mowStatus) {
           .map((c) => `<span class="pattern-label">${patternGlyph(c.pattern, 14)}${escapeHtml(PATTERN_LABELS[c.pattern] || c.pattern)}</span>`)
           .join('<span aria-hidden="true">→</span>')} · ${escapeHtml(planMowerText(plan))}</span>
       </li>`;
+}
+
+// Lawns past their threshold, most overdue first, then any active customer
+// with no mow logged yet (so their first one gets recorded).
+function renderReadyToMow(mowStatus) {
+  const ready = unitsFor(idsWhere(mowStatus, (s) => s.ready), mowStatus, "ready", mostOverdue);
+  const unmowed = unitsFor(idsWhere(mowStatus, (s) => s.neverMowed), mowStatus, "new");
+  readyUnitsByKey = new Map([...ready, ...unmowed].map((u) => [u.key, u]));
+  const readyRows = ready.map((u) => readyRowHtml(u, `${lastMowedText(u.status)} · ${gpProgressText(u.status)}`)).join("");
+  const unmowedRows = unmowed.length
+    ? `<li class="ready-subhead">No mow logged yet</li>${unmowed.map((u) => readyRowHtml(u, "Log a mow to start tracking this lawn")).join("")}`
+    : "";
+  byId("ready-to-mow-list").innerHTML = readyRows || unmowedRows ? readyRows + unmowedRows : "<li>No lawns ready to mow yet.</li>";
+}
+
+const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+// "Ready Tuesday" within the forecast; further out it's a rougher guess.
+function readyWhenText(status) {
+  const n = status.estimatedDaysUntilReady;
+  if (n == null) return "Not growing much right now";
+  if (!status.estimateFromForecast) return n > 21 ? "Ready in 3+ weeks" : `Ready in about ${n} days`;
+  if (n === 1) return "Ready tomorrow";
+  if (n < 7) return `Ready ${WEEKDAYS[new Date(`${status.estimatedDate}T00:00:00`).getDay()]}`;
+  return `Ready in ${n} days`;
+}
+
+// Mowed lawns not ready yet, soonest first, with when each should be.
+function renderComingUp(mowStatus) {
+  const units = unitsFor(idsWhere(mowStatus, (s) => !s.ready && !s.neverMowed), mowStatus, "soon", soonest);
+  byId("coming-up-list").innerHTML =
+    units
+      .map((u) => {
+        const pct = Math.min(100, Math.round((u.status.accumulatedGP / u.status.threshold) * 100));
+        return `
+      <li class="coming-row">
+        <div class="coming-row-main">
+          <div class="ready-row-text">
+            <strong>${escapeHtml(u.name)}</strong>
+            <span class="hint-text">${escapeHtml(whoText(u) + lastMowedText(u.status))}</span>
+          </div>
+          <div class="coming-when">
+            <strong>${escapeHtml(readyWhenText(u.status))}</strong>
+            <span class="hint-text">${escapeHtml(gpProgressText(u.status))}</span>
+          </div>
+        </div>
+        <div class="gp-progress" role="progressbar" aria-label="${escapeHtml(u.name)} growth since last mow" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><span style="width: ${pct}%"></span></div>
+      </li>`;
       })
-      .join("") || "<li>No lawns ready to mow yet.</li>";
+      .join("") ||
+    `<li class="hint-text">${[...mowStatus.values()].some((s) => s.ready) ? "Nothing else coming up - every mowed lawn is ready." : "Lawns show up here once they've been mowed."}</li>`;
 }
 
 // The mower line for a suggested mow. Cuts on different mowers (the front
