@@ -16,6 +16,13 @@ async function lookupAddress(address) {
   return res.json();
 }
 
+// Where an address is on the map: { lat, lon }, or null when there's no
+// match. Throws when the lookup itself fails (e.g. offline).
+export async function geocodeAddress(address) {
+  const [match] = await lookupAddress(address);
+  return match ? { lat: Number(match.lat), lon: Number(match.lon) } : null;
+}
+
 // Wires a "Validate" button + status line to an address <input>. Clicking
 // the button looks up the current address and reports whether it matched a
 // real US address, offering the standardized version if so. Editing the

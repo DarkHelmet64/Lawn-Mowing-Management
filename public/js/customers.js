@@ -1,6 +1,8 @@
 import { listAll, createDoc, updateDocById, deleteDocById } from "./db.js";
 import { byId, escapeHtml, formatPhoneNumber, confirmAction } from "./utils.js";
 import { wireAddressValidation } from "./addressValidation.js";
+import { getSettings } from "./settings.js";
+import { lawnWeatherText } from "./lawnWeather.js";
 
 const COLLECTION = "customers";
 let cache = [];
@@ -13,6 +15,11 @@ export async function loadCustomers() {
 
 export function getCustomers() {
   return cache;
+}
+
+// Customers still being served (not unchecked as Active).
+export function getActiveCustomers() {
+  return cache.filter((c) => c.active !== false);
 }
 
 export function getCustomerName(id) {
@@ -84,7 +91,20 @@ function openForm(customer = null) {
   byId("customer-frequency").value = customer?.frequency || "weekly";
   byId("customer-notes").value = customer?.notes || "";
   byId("customer-active").checked = customer?.active !== false;
+  byId("customer-grass-type").value = customer?.grassType || "";
+  byId("customer-mow-threshold").value = customer?.mowThresholdGPDays ?? "";
+  byId("customer-irrigated").checked = !!customer?.irrigated;
+  byId("customer-weather-place").textContent = customer ? lawnWeatherText(customer) : "";
+  showMowingDefaults();
   byId("delete-customer-btn").classList.toggle("hidden", !customer);
+}
+
+// Blank grass type and threshold mean "use the Weather & Growth settings" -
+// say what those are.
+async function showMowingDefaults() {
+  const settings = await getSettings();
+  byId("customer-grass-default").textContent = `Default (${settings.grassType === "warm" ? "Warm-season" : "Cool-season"})`;
+  byId("customer-mow-threshold").placeholder = `Default (${settings.mowThresholdGPDays})`;
 }
 
 function closeForm() {
@@ -114,6 +134,9 @@ async function handleSubmit(e) {
     frequency: byId("customer-frequency").value,
     notes: byId("customer-notes").value.trim(),
     active: byId("customer-active").checked,
+    grassType: byId("customer-grass-type").value || null,
+    mowThresholdGPDays: Number(byId("customer-mow-threshold").value) || null,
+    irrigated: byId("customer-irrigated").checked,
   };
   if (id) await updateDocById(COLLECTION, id, data);
   else await createDoc(COLLECTION, data);

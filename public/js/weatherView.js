@@ -1,4 +1,5 @@
 import { syncWeather, loadCachedWeather } from "./weather.js";
+import { syncLawnWeather } from "./lawnWeather.js";
 import { getSettings, saveSettings } from "./settings.js";
 import {
   growthPotentialSeries,
@@ -123,13 +124,31 @@ export function startBackgroundWeatherSync() {
   backgroundSyncStarted = true;
   liveSyncAndRender()
     .then((result) => document.dispatchEvent(new CustomEvent("weather:synced", { detail: result })))
-    .catch((err) => console.error("Background weather sync failed", err));
+    .catch((err) => console.error("Background weather sync failed", err))
+    .then(syncLawns);
+}
+
+// Finds any new lawn addresses on the map and fetches the weather there
+// (see lawnWeather.js), in the background, firing "weather:synced" again if
+// anything changed.
+export function syncLawns() {
+  return syncLawnWeather(FETCH_SINCE)
+    .then((changed) => {
+      if (changed) document.dispatchEvent(new CustomEvent("weather:synced"));
+    })
+    .catch((err) => console.error("Lawn weather sync failed", err));
 }
 
 export async function initWeatherView() {
   const settings = await getSettings();
   byId("grass-type").value = settings.grassType;
   byId("mow-threshold").value = settings.mowThresholdGPDays;
+  byId("rain-adjust").checked = settings.rainAdjust !== false;
+  byId("rain-full-growth").value = settings.rainFullGrowthIn;
+  byId("rain-full-growth").disabled = !byId("rain-adjust").checked;
+  byId("rain-adjust").addEventListener("change", () => {
+    byId("rain-full-growth").disabled = !byId("rain-adjust").checked;
+  });
   byId("crabgrass-gdd-start").value = settings.crabgrassGddStart;
   byId("crabgrass-gdd-end").value = settings.crabgrassGddEnd;
   byId("weedfeed-gdd-start").value = settings.weedFeedGddStart;
@@ -139,6 +158,8 @@ export async function initWeatherView() {
     await saveSettings({
       grassType: byId("grass-type").value,
       mowThresholdGPDays: Number(byId("mow-threshold").value),
+      rainAdjust: byId("rain-adjust").checked,
+      rainFullGrowthIn: Number(byId("rain-full-growth").value) || 1,
       crabgrassGddStart: Number(byId("crabgrass-gdd-start").value),
       crabgrassGddEnd: Number(byId("crabgrass-gdd-end").value),
       weedFeedGddStart: Number(byId("weedfeed-gdd-start").value),

@@ -1748,6 +1748,60 @@ form {
   border-top: 1px solid var(--surface-muted);
 }
 
+.ready-subhead {
+  padding: 14px 0 2px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.ready-row + .ready-subhead {
+  border-top: 1px solid var(--surface-muted);
+}
+
+.coming-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 0;
+}
+
+.coming-row + .coming-row {
+  border-top: 1px solid var(--surface-muted);
+}
+
+.coming-row-main {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.coming-when {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.gp-progress {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--surface-muted);
+  overflow: hidden;
+}
+
+.gp-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--primary);
+}
+
 .ready-row-main {
   display: flex;
   align-items: center;
