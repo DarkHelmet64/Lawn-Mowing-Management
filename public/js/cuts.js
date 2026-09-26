@@ -17,8 +17,10 @@ import { PATTERN_LABELS, nextPattern, patternStripes } from "./patterns.js";
 // rotation follows), and its areaIds cover every area cut. A single cut
 // stores no `cuts` list.
 //
-// A "double cut" means some area was cut twice (a triple, three times) -
-// see passCount - not simply that there were two cuts.
+// Cuts are numbered per area: the first cut of the front yard is its cut 1
+// and the next one over it cut 2 - a double cut - while the back yard's
+// only cut is its cut 1 (see cutNumbers). A "double cut" means some area
+// was cut twice (a triple, three times), not simply that there were two cuts.
 
 export const MAX_CUTS = 6;
 
@@ -54,13 +56,28 @@ function passesByArea(cuts, areaKey = "areaIds") {
   return { everywhere, counts };
 }
 
+// Each cut's number for its own areas: 1 the first time an area is cut, 2
+// the next time (the double cut), and so on. A cut over areas cut different
+// numbers of times takes the highest.
+export function cutNumbers(cuts, areaKey = "areaIds") {
+  let everywhere = 0;
+  const counts = new Map();
+  return cuts.map((c) => {
+    const areas = c[areaKey] || [];
+    if (!areas.length) {
+      everywhere++;
+      return (counts.size ? Math.max(...counts.values()) : 0) + everywhere;
+    }
+    for (const a of areas) counts.set(a, (counts.get(a) || 0) + 1);
+    return Math.max(...areas.map((a) => counts.get(a))) + everywhere;
+  });
+}
+
 // How many times the most-cut area was cut: 1 for a normal mow, 2 for a
 // double cut, 3 for a triple. Takes a visit, or a list of cuts.
 export function passCount(visitOrCuts, areaKey = "areaIds") {
   const cuts = Array.isArray(visitOrCuts) ? visitOrCuts : visitCuts(visitOrCuts);
-  if (cuts.length <= 1) return cuts.length;
-  const { everywhere, counts } = passesByArea(cuts, areaKey);
-  return counts.size ? Math.max(...counts.values()) + everywhere : everywhere;
+  return cuts.length ? Math.max(...cutNumbers(cuts, areaKey)) : 0;
 }
 
 // The areas that were cut more than once.
@@ -112,7 +129,9 @@ function patternOptions(name, selected) {
 // so a single cut looks exactly as it did before. Each added cut starts from
 // the previous one - same mower, settings and areas, next pattern in the
 // rotation - and can then be pointed at other areas or another mower.
-// getAreas returns [{id, name}] for the area chips.
+// getAreas returns [{id, name}] for the area chips. Each cut's heading
+// carries its number for its areas, so call relabel() when the form's own
+// areas change.
 export function createCutEditor({ container, addButton, namePrefix, getAreas, getFirstCut, onChange = () => {} }) {
   let cuts = [];
 
@@ -136,7 +155,6 @@ export function createCutEditor({ container, addButton, namePrefix, getAreas, ge
     const areas = getAreas();
     container.innerHTML = cuts
       .map((c, i) => {
-        const n = i + 2;
         const areaChips = areas
           .map(
             (a) =>
@@ -146,11 +164,11 @@ export function createCutEditor({ container, addButton, namePrefix, getAreas, ge
         return `
         <div class="cut-block">
           <div class="cut-block-head">
-            <span class="cut-block-title">Cut ${n}</span>
-            <button type="button" class="link-btn" data-remove-cut="${i}" aria-label="Remove cut ${n}">Remove</button>
+            <span class="cut-block-title"></span>
+            <button type="button" class="link-btn" data-remove-cut="${i}">Remove</button>
           </div>
           <div class="field-block"><span class="field-label">Areas</span><div class="chip-group">${areaChips || `<p class="hint-text">No areas set up at this location.</p>`}</div></div>
-          <div class="pattern-options" role="radiogroup" aria-label="Cut ${n} pattern">${patternOptions(`${namePrefix}-${i}`, c.pattern)}</div>
+          <div class="pattern-options" role="radiogroup">${patternOptions(`${namePrefix}-${i}`, c.pattern)}</div>
           <div class="cut-settings">
             <label>Mower <select data-cut-field="equipmentId" data-cut-index="${i}"></select></label>
             <label>Deck Height <select data-cut-field="deckHeight"></select></label>
@@ -169,10 +187,27 @@ export function createCutEditor({ container, addButton, namePrefix, getAreas, ge
       populateGroundSpeedSelect(block.querySelector('[data-cut-field="groundSpeed"]'), mowerSelect.value, c.groundSpeed);
       populateBladeSpeedSelect(block.querySelector('[data-cut-field="bladeSpeed"]'), mowerSelect.value, c.bladeSpeed);
     });
+    relabel();
     container.classList.toggle("hidden", !cuts.length);
     const total = cuts.length + 1;
     addButton.classList.toggle("hidden", total >= MAX_CUTS);
     addButton.textContent = total === 1 ? "+ Add a second cut" : "+ Add another cut";
+  }
+
+  // "Cut 2 · Front Yard": the cut's number for its areas (see cutNumbers),
+  // which changes as areas are picked here or in cut 1.
+  function relabel() {
+    const blocks = [...container.querySelectorAll(".cut-block")];
+    const areaIds = blocks.map((block) => [...block.querySelectorAll(".cut-area-checkbox:checked")].map((cb) => cb.value));
+    const numbers = cutNumbers([getFirstCut(), ...areaIds.map((ids) => ({ areaIds: ids }))]).slice(1);
+    const names = new Map(getAreas().map((a) => [a.id, a.name]));
+    blocks.forEach((block, i) => {
+      const areaText = areaIds[i].map((id) => names.get(id)).filter(Boolean).join(", ");
+      const label = `Cut ${numbers[i]}${areaText ? ` · ${areaText}` : ""}`;
+      block.querySelector(".cut-block-title").innerHTML = `Cut ${numbers[i]}${areaText ? ` <span class="cut-area-tag">· ${escapeHtml(areaText)}</span>` : ""}`;
+      block.querySelector("[data-remove-cut]").setAttribute("aria-label", `Remove ${label}`);
+      block.querySelector(".pattern-options").setAttribute("aria-label", `${label} pattern`);
+    });
   }
 
   function add() {
@@ -210,6 +245,8 @@ export function createCutEditor({ container, addButton, namePrefix, getAreas, ge
       cuts[i] = { ...cuts[i], deckHeight: eq?.defaultDeckHeight ?? null, groundSpeed: eq?.defaultGroundSpeed ?? null, bladeSpeed: eq?.defaultBladeSpeed ?? null };
       render();
       container.querySelector(`[data-cut-field="equipmentId"][data-cut-index="${i}"]`)?.focus();
+    } else if (e.target.closest(".cut-area-checkbox")) {
+      relabel();
     }
     onChange();
   });
@@ -241,6 +278,7 @@ export function createCutEditor({ container, addButton, namePrefix, getAreas, ge
       }
       render();
     },
+    relabel,
     count() {
       return cuts.length;
     },

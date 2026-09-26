@@ -38,7 +38,9 @@ API in the browser and cached in Firestore.
   second cut" (then another) on a mow in Log Event, the run sheet, or when
   editing a visit in History. Each cut has its own areas, pattern, mower,
   deck height and speeds, so the front yard can be cut twice with one mower
-  while the back yard gets one pass with another. A double (or triple) cut
+  while the back yard gets one pass with another. Cuts are numbered per
+  area: the front yard's first pass is its cut 1 and its second pass cut 2,
+  while the back yard's only pass is its cut 1. A double (or triple) cut
   means some area was cut twice (or three times): front twice and back once
   is a double cut on the front yard. The visit's pattern is the final
   cut's, so the rotation follows the stripes that show. On the run sheet,

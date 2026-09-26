@@ -288,7 +288,10 @@ export function initVisitForm() {
     refreshAreaOptions();
     updateWhenSummary();
   });
-  byId("visit-area-list").addEventListener("change", refreshFeatureOptions);
+  byId("visit-area-list").addEventListener("change", () => {
+    refreshFeatureOptions();
+    cutEditor.relabel();
+  });
   byId("visit-mowed").addEventListener("change", updateMowedFieldsVisibility);
   byId("visit-equipment").addEventListener("change", () => {
     // A different mower starts from its own configured defaults.

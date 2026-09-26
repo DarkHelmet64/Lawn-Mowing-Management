@@ -580,6 +580,7 @@ export function initEventLogView() {
     getFirstCut: firstCut,
     onChange: updateCutLabels,
   });
+  byId("event-area-list-yardwork").addEventListener("change", () => cutEditor.relabel());
   document.querySelectorAll('#log-event-form input[name="event-pattern"]').forEach((r) =>
     r.addEventListener("change", () => {
       patternTouched = true;

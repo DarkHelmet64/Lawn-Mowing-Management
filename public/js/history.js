@@ -20,7 +20,7 @@ import { getProductName, getProductById } from "./products.js";
 import { openLogEventFor } from "./eventLog.js";
 import { countDuplicates, combineDuplicates } from "./duplicates.js";
 import { createdMs, mowHistory, nextPattern, patternGlyph } from "./visitDefaults.js";
-import { visitCuts, passCount, multiCutAreaIds, cutLabel } from "./cuts.js";
+import { visitCuts, cutNumbers, passCount, multiCutAreaIds, cutLabel } from "./cuts.js";
 
 // History replaces the separate Yard Work and Spray Log pages: every visit
 // and spray in one place, browsable five ways (Days, Groups, Calendar,
@@ -253,9 +253,12 @@ function visitDetails(v) {
     detailItem("Time of day", TIME_OF_DAY_LABELS[v.timeOfDay]),
     detailItem("Location", getLocationLabel(v.locationId)),
   ].join("");
+  // Numbered per area: the front yard's second cut is its cut 2 even if the
+  // back yard was cut in between.
+  const numbers = cutNumbers(cuts);
   const cutList = multi
     ? `<ol class="cut-detail-list">${cuts
-        .map((c, i) => `<li><span class="cut-detail-label">Cut ${i + 1}</span><span>${escapeHtml(cutSummaryText(c, { withMower: !oneMower }))}</span></li>`)
+        .map((c, i) => `<li><span class="cut-detail-label">Cut ${numbers[i]}</span><span>${escapeHtml(cutSummaryText(c, { withMower: !oneMower }))}</span></li>`)
         .join("")}</ol>`
     : "";
   return `

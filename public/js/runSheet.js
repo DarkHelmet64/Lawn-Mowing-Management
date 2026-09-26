@@ -384,7 +384,7 @@ async function saveRun() {
     detail: !anyMowed
       ? ""
       : extraCuts.length
-      ? `${passCount(runCuts) > 1 ? cutLabel(passCount(runCuts)) : `${runCuts.length} cuts`} · ${runCuts.map((c) => PATTERN_LABELS[c.pattern] || c.pattern).join(" then ")}`
+      ? `${passCount(runCuts) > 1 ? cutLabel(passCount(runCuts)) : "Areas mowed separately"} · ${runCuts.map((c) => PATTERN_LABELS[c.pattern] || c.pattern).join(" then ")}`
       : `${PATTERN_LABELS[pattern] || pattern} · ${mowerSummary(mower)}`,
     actions: [
       {
@@ -435,6 +435,7 @@ export function initRunSheetView() {
       });
     });
     for (const id of ["run-height", "run-ground-speed", "run-blade-speed"]) byId(id).addEventListener("change", updateMowerSummary);
+    byId("run-cut1-areas").addEventListener("change", () => cuts().relabel());
     byId("run-date").addEventListener("change", updateWhenSummary);
     byId("run-time-of-day").addEventListener("change", () => {
       setRadio("run-grass", grassDefault(byId("run-time-of-day").value));

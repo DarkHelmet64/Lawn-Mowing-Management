@@ -183,7 +183,7 @@ function renderReadyToMow(mowStatus) {
             <button type="button" class="primary-btn" data-log-mow="${escapeHtml(u.key)}">Log mow</button>
           </div>
         </div>
-        <span class="ready-saves">Suggested: ${escapeHtml(tasks)}${plan.cuts ? ` · ${passCount(plan.cuts, "areaNames") > 1 ? cutLabel(passCount(plan.cuts, "areaNames")) : `${plan.cuts.length} cuts`}` : ""} · ${(plan.cuts || [plan])
+        <span class="ready-saves">Suggested: ${escapeHtml(tasks)}${plan.cuts ? ` · ${passCount(plan.cuts, "areaNames") > 1 ? cutLabel(passCount(plan.cuts, "areaNames")) : "Areas mowed separately"}` : ""} · ${(plan.cuts || [plan])
           .map((c) => `<span class="pattern-label">${patternGlyph(c.pattern, 14)}${escapeHtml(PATTERN_LABELS[c.pattern] || c.pattern)}</span>`)
           .join('<span aria-hidden="true">→</span>')} · ${escapeHtml(planMowerText(plan))}</span>
       </li>`;
