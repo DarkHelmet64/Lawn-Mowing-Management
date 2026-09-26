@@ -105,7 +105,7 @@
                 </div>
               </div>
               <div class="field-block">
-                <span class="field-label">Areas</span>
+                <span class="field-label" id="event-yard-areas-label">Areas</span>
                 <div id="event-area-list-yardwork" class="chip-group"></div>
               </div>
               <div id="event-mowed-fields" class="field-stack">
@@ -146,6 +146,7 @@
                 </div>
                 <div id="event-extra-cuts" class="cut-list hidden"></div>
                 <button type="button" id="event-add-cut-btn" class="link-btn add-cut-btn">+ Add a second cut</button>
+                <p class="hint-text cut-hint">A cut can cover just some areas, with its own mower and height - e.g. the front yard cut twice, the back yard once with another mower.</p>
                 <div class="field-block">
                   <span class="field-label" id="event-grass-label">Grass</span>
                   <div class="segmented segmented-full" role="radiogroup" aria-labelledby="event-grass-label">
@@ -298,6 +299,10 @@
         </div>
         <section class="card run-shared">
           <h3 class="form-section-title">Same for every house</h3>
+          <div id="run-cut1-areas-block" class="field-block hidden">
+            <span class="field-label">Cut 1 areas</span>
+            <div id="run-cut1-areas" class="chip-group"></div>
+          </div>
           <div class="field-block">
             <div class="field-label-row">
               <span class="field-label" id="run-pattern-label">Mow pattern</span>
@@ -335,6 +340,7 @@
           </div>
           <div id="run-extra-cuts" class="cut-list hidden"></div>
           <button type="button" id="run-add-cut-btn" class="link-btn add-cut-btn">+ Add a second cut</button>
+          <p class="hint-text cut-hint">A cut can cover just some areas, with its own mower and height - e.g. the front yard cut twice, the back yard once with another mower.</p>
           <div class="field-block">
             <span class="field-label" id="run-grass-label">Grass</span>
             <div class="segmented segmented-full" role="radiogroup" aria-labelledby="run-grass-label">
@@ -940,7 +946,7 @@
                 </div>
               </div>
               <div class="field-block">
-                <span class="field-label">Areas</span>
+                <span class="field-label" id="visit-areas-label">Areas</span>
                 <div id="visit-area-list" class="chip-group"></div>
               </div>
               <label>Plant / Object
@@ -983,6 +989,7 @@
               </div>
               <div id="visit-extra-cuts" class="cut-list hidden"></div>
               <button type="button" id="visit-add-cut-btn" class="link-btn add-cut-btn">+ Add a second cut</button>
+              <p class="hint-text cut-hint">A cut can cover just some areas, with its own mower and height - e.g. the front yard cut twice, the back yard once with another mower.</p>
               <div class="field-block">
                 <span class="field-label" id="visit-grass-label">Grass</span>
                 <div class="segmented segmented-full" role="radiogroup" aria-labelledby="visit-grass-label">

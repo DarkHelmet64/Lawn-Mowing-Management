@@ -34,14 +34,19 @@ API in the browser and cached in Firestore.
   tick each house done (or skip it) as you go, adjust tasks, extra work or
   areas per house, and save every finished house at the end. Start one from
   Group Mow Patterns or a group's Ready to Mow row.
-- **Double and triple cuts** — "+ Add a second cut" (then a third) on a mow
-  in Log Event, the run sheet, or when editing a visit in History. Each cut
-  has its own pattern, deck height, speeds and (except on the run sheet)
-  areas; the visit's pattern is the final cut's, so the rotation follows
-  the stripes that show. The Dashboard counts this year's double/triple
-  cuts, History's Customer view counts them per customer or group, and
-  History's Multi-cut filter lists them. Ready to Mow's Log mow fills in a
-  double/triple cut if that's what was done last time.
+- **Cuts: areas mowed differently, double and triple cuts** — "+ Add a
+  second cut" (then another) on a mow in Log Event, the run sheet, or when
+  editing a visit in History. Each cut has its own areas, pattern, mower,
+  deck height and speeds, so the front yard can be cut twice with one mower
+  while the back yard gets one pass with another. A double (or triple) cut
+  means some area was cut twice (or three times): front twice and back once
+  is a double cut on the front yard. The visit's pattern is the final
+  cut's, so the rotation follows the stripes that show. On the run sheet,
+  cuts pick areas by name ("Front Yard") and each house gets the cuts that
+  match its own areas. The Dashboard counts this year's double/triple cuts,
+  History's Customer view counts them per customer or group, and History's
+  Multi-cut filter lists them. Ready to Mow's Log mow fills in the same
+  cuts (areas, mowers and all) if that's what was done last time.
 - **History** — every yard work visit and spray in one place. Yard work
   records what was done (mowed, trimmed, edged, pruned, bushes trimmed,
   mulched), the mowing pattern used (parallel, perpendicular, diagonal left,

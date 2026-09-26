@@ -3,7 +3,7 @@ import { getEquipment, getEquipmentById, mowerSummary } from "./equipment.js";
 
 export { mowerSummary };
 import { getLocationsForCustomer } from "./locations.js";
-import { getAreasForLocation, areaAppliesToEventTypes, recordAreaIds } from "./areas.js";
+import { getAreasForLocation, areaAppliesToEventTypes, recordAreaIds, getAreaName } from "./areas.js";
 import { PATTERN_ROTATION, nextPattern, rotatePattern, patternGlyph } from "./patterns.js";
 import { visitCuts } from "./cuts.js";
 
@@ -76,18 +76,22 @@ export function grassDefault(timeOfDay) {
 
 const NO_MOWER = { equipmentId: null, deckHeight: null, groundSpeed: null, bladeSpeed: null };
 
+function inService(equipmentId) {
+  const eq = getEquipmentById(equipmentId);
+  return eq?.type === "mower" && eq.active !== false;
+}
+
 // The mower and its settings from the most recent mow of any of these
-// customers (if that mower is still in service). Otherwise, when there's
-// only one active mower, that mower with its own configured defaults.
+// customers (if that mower is still in service) - its first cut's, since the
+// form's own mower fields are the first cut. Otherwise, when there's only
+// one active mower, that mower with its own configured defaults.
 export function mowerSettings(customerIds) {
   const ids = new Set(customerIds);
   const last = getVisits()
-    .filter((v) => ids.has(v.customerId) && v.mowed && v.equipmentId)
+    .filter((v) => ids.has(v.customerId) && v.mowed)
     .sort(newestFirst)
-    .find((v) => {
-      const eq = getEquipmentById(v.equipmentId);
-      return eq?.type === "mower" && eq.active !== false;
-    });
+    .map((v) => visitCuts(v).find((c) => inService(c.equipmentId)))
+    .find(Boolean);
   if (last) {
     return {
       equipmentId: last.equipmentId,
@@ -128,10 +132,12 @@ export function repeatVisitFor(customerId) {
   };
 }
 
-// When the latest mow among these customers was a double/triple cut, the
-// same cuts again: same heights and speeds, with the first cut on
-// firstPattern and each later cut keeping its angle to the first (a
-// checkerboard stays a checkerboard). null when that mow was a single cut.
+// When the latest mow among these customers had more than one cut (a double
+// cut, or areas mowed differently), the same cuts again: same mowers,
+// heights, speeds and areas (by name, since area ids belong to one
+// location), with the first cut on firstPattern and each later cut keeping
+// its angle to the first (a checkerboard stays a checkerboard). null when
+// that mow was a single cut.
 export function repeatCuts(customerIds, firstPattern) {
   const ids = new Set(customerIds);
   const last = getVisits()
@@ -143,6 +149,13 @@ export function repeatCuts(customerIds, firstPattern) {
   return cuts.map((c, i) => {
     const step = PATTERN_ROTATION.indexOf(c.pattern);
     const pattern = i === 0 ? firstPattern : base === -1 || step === -1 ? c.pattern : rotatePattern(firstPattern, step - base) || c.pattern;
-    return { pattern, deckHeight: c.deckHeight ?? null, groundSpeed: c.groundSpeed ?? null, bladeSpeed: c.bladeSpeed ?? null };
+    return {
+      pattern,
+      equipmentId: c.equipmentId ?? null,
+      deckHeight: c.deckHeight ?? null,
+      groundSpeed: c.groundSpeed ?? null,
+      bladeSpeed: c.bladeSpeed ?? null,
+      areaNames: (c.areaIds || []).map(getAreaName).filter(Boolean),
+    };
   });
 }

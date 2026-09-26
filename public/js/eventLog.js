@@ -175,6 +175,7 @@ function applyMowerSettings({ equipmentId, deckHeight, groundSpeed, bladeSpeed }
 function firstCut() {
   return {
     pattern: radioValue("event-pattern"),
+    equipmentId: byId("event-equipment").value || null,
     deckHeight: byId("event-height").value ? Number(byId("event-height").value) : null,
     groundSpeed: byId("event-ground-speed").value || null,
     bladeSpeed: byId("event-blade-speed").value || null,
@@ -185,8 +186,9 @@ function firstCut() {
 // Once there's a second cut, the main fields read as "cut 1".
 function updateCutLabels() {
   const multi = cutEditor?.count() > 0;
+  byId("event-yard-areas-label").textContent = multi ? "Cut 1 areas" : "Areas";
   byId("event-pattern-label").textContent = multi ? "Cut 1 pattern" : "Mow pattern";
-  byId("event-mower-label").textContent = multi ? "Mower · cut 1 settings" : "Mower";
+  byId("event-mower-label").textContent = multi ? "Cut 1 mower" : "Mower";
 }
 
 // Picking a different mower by hand starts from that mower's own defaults.
@@ -363,14 +365,26 @@ function applyPlan({ tasks, cuts, locationId, areaIds }) {
     });
   }
   if (cuts?.length > 1) {
-    const mowerId = byId("event-equipment").value;
-    setRadio("event-pattern", cuts[0].pattern);
-    populateDeckHeightSelect(byId("event-height"), mowerId, cuts[0].deckHeight ?? null);
-    populateGroundSpeedSelect(byId("event-ground-speed"), mowerId, cuts[0].groundSpeed ?? null);
-    populateBladeSpeedSelect(byId("event-blade-speed"), mowerId, cuts[0].bladeSpeed ?? null);
-    updateMowerSummary();
-    const cutAreas = checkedAreaIds("yardwork");
-    cutEditor.set(cuts.slice(1).map((c) => ({ ...c, areaIds: cutAreas })));
+    // Areas come across by name; a cut whose names don't exist here covers
+    // the same areas as cut 1.
+    const areasHere = getAreasForLocation(byId("event-location").value).filter((a) => areaAppliesToEventTypes(a, ["yardwork"]));
+    const idsFor = (names, fallback) => {
+      const ids = areasHere.filter((a) => names?.includes(a.name)).map((a) => a.id);
+      return ids.length ? ids : fallback;
+    };
+    const [first, ...rest] = cuts;
+    applyMowerSettings({
+      equipmentId: first.equipmentId || byId("event-equipment").value,
+      deckHeight: first.deckHeight,
+      groundSpeed: first.groundSpeed,
+      bladeSpeed: first.bladeSpeed,
+    });
+    setRadio("event-pattern", first.pattern);
+    const cut1Areas = idsFor(first.areaNames, checkedAreaIds("yardwork"));
+    document.querySelectorAll("#event-area-list-yardwork .event-area-checkbox").forEach((cb) => {
+      cb.checked = cut1Areas.includes(cb.value);
+    });
+    cutEditor.set(rest.map((c) => ({ ...c, areaIds: idsFor(c.areaNames, cut1Areas) })));
   }
   updateMowedFieldsVisibility();
 }
@@ -422,14 +436,13 @@ async function handleSubmit(e) {
     // A mow saves its cuts (see cuts.js); trim/edge alone has none of that.
     const cutData = mowed
       ? cutFields([firstCut(), ...cutEditor.get()])
-      : { pattern: null, deckHeight: null, groundSpeed: null, bladeSpeed: null, areaIds: checkedAreaIds("yardwork"), cuts: null };
+      : { pattern: null, equipmentId: null, deckHeight: null, groundSpeed: null, bladeSpeed: null, areaIds: checkedAreaIds("yardwork"), cuts: null };
     yardworkFields = {
       mowed,
       trimmed: byId("event-trimmed").checked,
       edged: byId("event-edged").checked,
       ...cutData,
       grassCondition: mowed ? radioValue("event-grass") : null,
-      equipmentId: (mowed && byId("event-equipment").value) || null,
     };
     if (!yardworkFields.mowed && !yardworkFields.trimmed && !yardworkFields.edged) {
       alert("Select at least one yard work task.");
@@ -563,7 +576,6 @@ export function initEventLogView() {
     container: byId("event-extra-cuts"),
     addButton: byId("event-add-cut-btn"),
     namePrefix: "event-cut",
-    getMowerId: () => byId("event-equipment").value,
     getAreas: () => getAreasForLocation(byId("event-location").value).filter((a) => areaAppliesToEventTypes(a, ["yardwork"])),
     getFirstCut: firstCut,
     onChange: updateCutLabels,

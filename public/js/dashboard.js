@@ -12,7 +12,8 @@ import { quickLogPlan } from "./quickLog.js";
 import { openLogEventFor } from "./eventLog.js";
 import { startRun } from "./runSheet.js";
 import { patternGlyph, mowerSummary } from "./visitDefaults.js";
-import { cutCount, cutLabel } from "./cuts.js";
+import { getEquipmentName } from "./equipment.js";
+import { passCount, cutLabel } from "./cuts.js";
 
 let listenersBound = false;
 // Ready to Mow rows currently on screen, by key, for the Log mow buttons.
@@ -75,7 +76,7 @@ function renderMultiCutStat() {
   const yearStart = `${todayStr().slice(0, 4)}-01-01`;
   const counts = getVisits()
     .filter((v) => v.mowed && v.date >= yearStart)
-    .map(cutCount)
+    .map((v) => passCount(v))
     .filter((n) => n >= 2);
   const doubles = counts.filter((n) => n === 2).length;
   const triples = counts.filter((n) => n >= 3).length;
@@ -182,12 +183,20 @@ function renderReadyToMow(mowStatus) {
             <button type="button" class="primary-btn" data-log-mow="${escapeHtml(u.key)}">Log mow</button>
           </div>
         </div>
-        <span class="ready-saves">Suggested: ${escapeHtml(tasks)}${plan.cuts ? ` · ${cutLabel(plan.cuts.length)}` : ""} · ${(plan.cuts || [plan])
+        <span class="ready-saves">Suggested: ${escapeHtml(tasks)}${plan.cuts ? ` · ${passCount(plan.cuts, "areaNames") > 1 ? cutLabel(passCount(plan.cuts, "areaNames")) : `${plan.cuts.length} cuts`}` : ""} · ${(plan.cuts || [plan])
           .map((c) => `<span class="pattern-label">${patternGlyph(c.pattern, 14)}${escapeHtml(PATTERN_LABELS[c.pattern] || c.pattern)}</span>`)
-          .join('<span aria-hidden="true">→</span>')} · ${escapeHtml(mowerSummary(plan.mower))}</span>
+          .join('<span aria-hidden="true">→</span>')} · ${escapeHtml(planMowerText(plan))}</span>
       </li>`;
       })
       .join("") || "<li>No lawns ready to mow yet.</li>";
+}
+
+// The mower line for a suggested mow. Cuts on different mowers (the front
+// on one, the back on another) list each mower rather than one's settings.
+function planMowerText(plan) {
+  if (!plan.cuts) return mowerSummary(plan.mower);
+  const mowers = [...new Set(plan.cuts.map((c) => c.equipmentId).filter(Boolean))];
+  return mowers.length > 1 ? mowers.map((id) => getEquipmentName(id) || "Unknown mower").join(" + ") : mowerSummary(plan.cuts[0]);
 }
 
 // Opens Log Event filled in for this row's customers, to check and save.

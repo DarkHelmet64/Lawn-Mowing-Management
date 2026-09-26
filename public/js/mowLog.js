@@ -116,6 +116,7 @@ function refreshAreaOptions(checkedIds = checkedAreaIdsIn(byId("visit-area-list"
 function firstCut() {
   return {
     pattern: radioValue("visit-pattern"),
+    equipmentId: byId("visit-equipment").value || null,
     deckHeight: byId("visit-height").value ? Number(byId("visit-height").value) : null,
     groundSpeed: byId("visit-ground-speed").value || null,
     bladeSpeed: byId("visit-blade-speed").value || null,
@@ -125,9 +126,10 @@ function firstCut() {
 
 // Once there's a second cut, the main fields read as "cut 1".
 function updateCutLabels() {
-  const multi = cutEditor?.count() > 0;
+  const multi = cutEditor?.count() > 0 && byId("visit-mowed").checked;
+  byId("visit-areas-label").textContent = multi ? "Cut 1 areas" : "Areas";
   byId("visit-pattern-label").textContent = multi ? "Cut 1 pattern" : "Mow pattern";
-  byId("visit-mower-label").textContent = multi ? "Mower · cut 1 settings" : "Mower";
+  byId("visit-mower-label").textContent = multi ? "Cut 1 mower" : "Mower";
 }
 
 function refreshFeatureOptions() {
@@ -139,6 +141,7 @@ function refreshFeatureOptions() {
 function updateMowedFieldsVisibility() {
   const mowed = byId("visit-mowed").checked;
   byId("visit-mowed-fields").classList.toggle("hidden", !mowed);
+  updateCutLabels();
 }
 
 function populateMowerFields(equipmentId, { deckHeight = null, groundSpeed = null, bladeSpeed = null } = {}) {
@@ -180,7 +183,7 @@ export function openVisitForm(visit = null) {
   // Equipment on a record that isn't a mower (e.g. a trimmer on an extra
   // yard work visit) still shows, so it isn't lost on save.
   const eq = getEquipmentById(visit?.equipmentId);
-  populateMowerFields(visit?.equipmentId, cut1);
+  populateMowerFields(cut1.equipmentId ?? visit?.equipmentId, cut1);
   if (eq && eq.type !== "mower") {
     populateEquipmentSelect(byId("visit-equipment"));
     byId("visit-equipment").value = eq.id;
@@ -226,7 +229,15 @@ async function handleSubmit(e) {
   const mowed = byId("visit-mowed").checked;
   const cutData = mowed
     ? cutFields([firstCut(), ...cutEditor.get()])
-    : { pattern: null, deckHeight: null, groundSpeed: null, bladeSpeed: null, areaIds: checkedAreaIdsIn(byId("visit-area-list")), cuts: null };
+    : {
+        pattern: null,
+        deckHeight: null,
+        groundSpeed: null,
+        bladeSpeed: null,
+        areaIds: checkedAreaIdsIn(byId("visit-area-list")),
+        cuts: null,
+        equipmentId: byId("visit-equipment").value || null,
+      };
   const data = {
     customerId,
     date: byId("visit-date").value,
@@ -244,7 +255,6 @@ async function handleSubmit(e) {
     // is the source of truth for this record.
     areaId: null,
     featureId: byId("visit-feature").value || null,
-    equipmentId: byId("visit-equipment").value || null,
     notes: byId("visit-notes").value.trim(),
   };
   if (id) await updateDocById(COLLECTION, id, data);
@@ -298,7 +308,6 @@ export function initVisitForm() {
     container: byId("visit-extra-cuts"),
     addButton: byId("visit-add-cut-btn"),
     namePrefix: "visit-cut",
-    getMowerId: () => byId("visit-equipment").value,
     getAreas: () => getAreasForLocation(byId("visit-location").value).filter((a) => areaAppliesToEventTypes(a, ["yardwork"])),
     getFirstCut: firstCut,
     onChange: updateCutLabels,
