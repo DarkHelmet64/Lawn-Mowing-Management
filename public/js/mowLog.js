@@ -1,19 +1,21 @@
 import { listAll, createDoc, updateDocById, deleteDocById } from "./db.js";
-import { byId, todayStr, confirmAction } from "./utils.js";
-import { getCustomers, populateCustomerSelect } from "./customers.js";
+import { byId, todayStr, confirmAction, setPanelOpen, whenSummaryText } from "./utils.js";
+import { getCustomers, customerChipsHtml } from "./customers.js";
 import {
   populateEquipmentSelect,
   populateDeckHeightSelect,
   populateGroundSpeedSelect,
   populateBladeSpeedSelect,
+  getEquipmentById,
+  mowerSummary,
 } from "./equipment.js";
-import { populateLocationSelect } from "./locations.js";
+import { populateLocationSelect, getLocationLabel } from "./locations.js";
 import { recordAreaIds, renderAreaChecklist, checkedAreaIdsIn, getAreasForLocation, areaAppliesToEventTypes } from "./areas.js";
 import { createCutEditor, visitCuts, cutFields } from "./cuts.js";
 import { populateYardFeatureSelect } from "./yardFeatures.js";
 
-// Yard work visits: the data cache plus the Edit Visit form. How visits are
-// listed and browsed lives on the History page (history.js).
+// Yard work visits: the data cache plus the Edit Visit form (laid out like
+// Log Event). How visits are listed and browsed lives in history.js.
 const COLLECTION = "mowVisits";
 let cache = [];
 let listenersBound = false;
@@ -65,9 +67,41 @@ function recordsChanged() {
   document.dispatchEvent(new CustomEvent("records:changed"));
 }
 
+function radioValue(name) {
+  return document.querySelector(`#visit-form input[name="${name}"]:checked`)?.value || null;
+}
+
+function setRadio(name, value) {
+  document.querySelectorAll(`#visit-form input[name="${name}"]`).forEach((r) => {
+    r.checked = r.value === value;
+  });
+}
+
+function selectedCustomerId() {
+  return radioValue("visit-customer");
+}
+
+function updateWhenSummary() {
+  byId("visit-when-summary").textContent = whenSummaryText(
+    byId("visit-date").value,
+    TIME_OF_DAY_LABELS[byId("visit-time-of-day").value],
+    getLocationLabel(byId("visit-location").value)
+  );
+}
+
+function updateMowerSummary() {
+  byId("visit-mower-summary").textContent = mowerSummary({
+    equipmentId: byId("visit-equipment").value,
+    deckHeight: byId("visit-height").value,
+    groundSpeed: byId("visit-ground-speed").value,
+    bladeSpeed: byId("visit-blade-speed").value,
+  });
+}
+
 function refreshLocationOptions() {
-  populateLocationSelect(byId("visit-location"), byId("visit-customer").value);
+  populateLocationSelect(byId("visit-location"), selectedCustomerId());
   refreshAreaOptions();
+  updateWhenSummary();
 }
 
 // Re-rendering on a location change keeps whichever areas were already
@@ -81,7 +115,8 @@ function refreshAreaOptions(checkedIds = checkedAreaIdsIn(byId("visit-area-list"
 // Cut 1 of the mow, from the main pattern, setting and area fields.
 function firstCut() {
   return {
-    pattern: byId("visit-pattern").value,
+    pattern: radioValue("visit-pattern"),
+    equipmentId: byId("visit-equipment").value || null,
     deckHeight: byId("visit-height").value ? Number(byId("visit-height").value) : null,
     groundSpeed: byId("visit-ground-speed").value || null,
     bladeSpeed: byId("visit-blade-speed").value || null,
@@ -89,29 +124,51 @@ function firstCut() {
   };
 }
 
+// Once there's a second cut, the main fields read as "cut 1".
 function updateCutLabels() {
-  byId("visit-pattern-label").textContent = cutEditor?.count() > 0 ? "Cut 1 Pattern" : "Mow Pattern";
+  const multi = cutEditor?.count() > 0 && byId("visit-mowed").checked;
+  byId("visit-areas-label").textContent = multi ? "Cut 1 areas" : "Areas";
+  byId("visit-pattern-label").textContent = multi ? "Cut 1 pattern" : "Mow pattern";
+  byId("visit-mower-label").textContent = multi ? "Cut 1 mower" : "Mower";
 }
 
 function refreshFeatureOptions() {
   populateYardFeatureSelect(byId("visit-feature"), checkedAreaIdsIn(byId("visit-area-list")));
 }
 
-// Mow Pattern/Deck Height/Ground Speed/Blade Speed/Grass Condition (and the
-// Mower Used filter) only apply when Mowed itself is checked - matches the
-// Log Event form's behavior.
+// The Mowing section (pattern, mower, cuts, grass) only applies when Mowed
+// itself is checked - matches the Log Event form.
 function updateMowedFieldsVisibility() {
   const mowed = byId("visit-mowed").checked;
   byId("visit-mowed-fields").classList.toggle("hidden", !mowed);
-  populateEquipmentSelect(byId("visit-equipment"), { typeFilter: mowed ? "mower" : null });
+  updateCutLabels();
+}
+
+function populateMowerFields(equipmentId, { deckHeight = null, groundSpeed = null, bladeSpeed = null } = {}) {
+  populateEquipmentSelect(byId("visit-equipment"), { typeFilter: "mower" });
+  byId("visit-equipment").value = equipmentId || "";
+  const id = byId("visit-equipment").value;
+  populateDeckHeightSelect(byId("visit-height"), id, deckHeight);
+  populateGroundSpeedSelect(byId("visit-ground-speed"), id, groundSpeed);
+  populateBladeSpeedSelect(byId("visit-blade-speed"), id, bladeSpeed);
+  updateMowerSummary();
+}
+
+function showNotes(show) {
+  byId("visit-notes-field").classList.toggle("hidden", !show);
+  byId("visit-add-note-btn").classList.toggle("hidden", show);
 }
 
 export function openVisitForm(visit = null) {
   byId("visit-form-card").classList.remove("hidden");
-  populateCustomerSelect(byId("visit-customer"));
   byId("visit-id").value = visit?.id || "";
-  byId("visit-customer").value = visit?.customerId || getCustomers()[0]?.id || "";
+  byId("visit-customer-list").innerHTML = customerChipsHtml({
+    name: "visit-customer",
+    type: "radio",
+    checkedIds: [visit?.customerId || getCustomers()[0]?.id].filter(Boolean),
+  });
   byId("visit-date").value = visit?.date || todayStr();
+  byId("visit-time-of-day").value = visit?.timeOfDay || "";
   byId("visit-mowed").checked = visit?.mowed ?? true;
   byId("visit-trimmed").checked = visit?.trimmed ?? true;
   byId("visit-edged").checked = visit?.edged ?? false;
@@ -122,15 +179,22 @@ export function openVisitForm(visit = null) {
   // listed below them.
   const cuts = visit ? visitCuts(visit) : [];
   const cut1 = cuts[0] || {};
-  byId("visit-pattern").value = cut1.pattern || visit?.pattern || "parallel";
-  populateDeckHeightSelect(byId("visit-height"), visit?.equipmentId || "", cut1.deckHeight ?? null);
-  populateGroundSpeedSelect(byId("visit-ground-speed"), visit?.equipmentId || "", cut1.groundSpeed ?? null);
-  populateBladeSpeedSelect(byId("visit-blade-speed"), visit?.equipmentId || "", cut1.bladeSpeed ?? null);
-  updateMowedFieldsVisibility();
-  byId("visit-equipment").value = visit?.equipmentId || "";
-  byId("visit-time-of-day").value = visit?.timeOfDay || "";
-  byId("visit-grass-condition").value = visit?.grassCondition || "";
+  setRadio("visit-pattern", cut1.pattern || visit?.pattern || "parallel");
+  // Equipment on a record that isn't a mower (e.g. a trimmer on an extra
+  // yard work visit) still shows, so it isn't lost on save.
+  const eq = getEquipmentById(visit?.equipmentId);
+  populateMowerFields(cut1.equipmentId ?? visit?.equipmentId, cut1);
+  if (eq && eq.type !== "mower") {
+    populateEquipmentSelect(byId("visit-equipment"));
+    byId("visit-equipment").value = eq.id;
+    updateMowerSummary();
+  }
+  setRadio("visit-grass", visit?.grassCondition || "");
   byId("visit-notes").value = visit?.notes || "";
+  showNotes(Boolean(visit?.notes));
+  updateMowedFieldsVisibility();
+  setPanelOpen("visit-when-panel", false);
+  setPanelOpen("visit-mower-panel", false);
 
   cutEditor.clear();
   refreshLocationOptions();
@@ -138,6 +202,7 @@ export function openVisitForm(visit = null) {
   refreshAreaOptions(cuts.length > 1 ? cut1.areaIds || [] : recordAreaIds(visit));
   cutEditor.set(cuts.slice(1));
   if (visit?.featureId) byId("visit-feature").value = visit.featureId;
+  updateWhenSummary();
   byId("visit-form-card").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
@@ -155,13 +220,26 @@ export async function deleteVisit(id) {
 
 async function handleSubmit(e) {
   e.preventDefault();
+  const customerId = selectedCustomerId();
+  if (!customerId) {
+    alert("Pick the customer this visit was for.");
+    return;
+  }
   const id = byId("visit-id").value;
   const mowed = byId("visit-mowed").checked;
   const cutData = mowed
     ? cutFields([firstCut(), ...cutEditor.get()])
-    : { pattern: null, deckHeight: null, groundSpeed: null, bladeSpeed: null, areaIds: checkedAreaIdsIn(byId("visit-area-list")), cuts: null };
+    : {
+        pattern: null,
+        deckHeight: null,
+        groundSpeed: null,
+        bladeSpeed: null,
+        areaIds: checkedAreaIdsIn(byId("visit-area-list")),
+        cuts: null,
+        equipmentId: byId("visit-equipment").value || null,
+      };
   const data = {
-    customerId: byId("visit-customer").value,
+    customerId,
     date: byId("visit-date").value,
     mowed,
     trimmed: byId("visit-trimmed").checked,
@@ -170,14 +248,13 @@ async function handleSubmit(e) {
     trimmedBushes: byId("visit-trimmed-bushes").checked,
     mulched: byId("visit-mulched").checked,
     timeOfDay: byId("visit-time-of-day").value || null,
-    grassCondition: byId("visit-grass-condition").value || null,
+    grassCondition: mowed ? radioValue("visit-grass") : null,
     locationId: byId("visit-location").value || null,
     ...cutData,
     // Clears the single-area field older records carry, now that areaIds
     // is the source of truth for this record.
     areaId: null,
     featureId: byId("visit-feature").value || null,
-    equipmentId: byId("visit-equipment").value || null,
     notes: byId("visit-notes").value.trim(),
   };
   if (id) await updateDocById(COLLECTION, id, data);
@@ -191,21 +268,49 @@ export function initVisitForm() {
   if (listenersBound) return;
   byId("cancel-visit-btn").addEventListener("click", closeForm);
   byId("visit-form").addEventListener("submit", handleSubmit);
-  byId("visit-customer").addEventListener("change", refreshLocationOptions);
-  byId("visit-location").addEventListener("change", () => refreshAreaOptions());
-  byId("visit-area-list").addEventListener("change", refreshFeatureOptions);
+  byId("visit-form").addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-toggle-panel]");
+    if (btn) setPanelOpen(btn.dataset.togglePanel, byId(btn.dataset.togglePanel).classList.contains("hidden"));
+  });
+  // Switching the record to another customer starts at their first location.
+  byId("visit-customer-list").addEventListener("change", () => {
+    refreshLocationOptions();
+    const first = byId("visit-location").options[1];
+    if (first) {
+      byId("visit-location").value = first.value;
+      refreshAreaOptions();
+      updateWhenSummary();
+    }
+  });
+  byId("visit-date").addEventListener("change", updateWhenSummary);
+  byId("visit-time-of-day").addEventListener("change", updateWhenSummary);
+  byId("visit-location").addEventListener("change", () => {
+    refreshAreaOptions();
+    updateWhenSummary();
+  });
+  byId("visit-area-list").addEventListener("change", () => {
+    refreshFeatureOptions();
+    cutEditor.relabel();
+  });
   byId("visit-mowed").addEventListener("change", updateMowedFieldsVisibility);
   byId("visit-equipment").addEventListener("change", () => {
-    populateDeckHeightSelect(byId("visit-height"), byId("visit-equipment").value);
-    populateGroundSpeedSelect(byId("visit-ground-speed"), byId("visit-equipment").value);
-    populateBladeSpeedSelect(byId("visit-blade-speed"), byId("visit-equipment").value);
+    // A different mower starts from its own configured defaults.
+    const eq = getEquipmentById(byId("visit-equipment").value);
+    populateDeckHeightSelect(byId("visit-height"), byId("visit-equipment").value, eq?.defaultDeckHeight ?? null);
+    populateGroundSpeedSelect(byId("visit-ground-speed"), byId("visit-equipment").value, eq?.defaultGroundSpeed ?? null);
+    populateBladeSpeedSelect(byId("visit-blade-speed"), byId("visit-equipment").value, eq?.defaultBladeSpeed ?? null);
+    updateMowerSummary();
     cutEditor.refresh();
+  });
+  for (const id of ["visit-height", "visit-ground-speed", "visit-blade-speed"]) byId(id).addEventListener("change", updateMowerSummary);
+  byId("visit-add-note-btn").addEventListener("click", () => {
+    showNotes(true);
+    byId("visit-notes").focus();
   });
   cutEditor = createCutEditor({
     container: byId("visit-extra-cuts"),
     addButton: byId("visit-add-cut-btn"),
     namePrefix: "visit-cut",
-    getMowerId: () => byId("visit-equipment").value,
     getAreas: () => getAreasForLocation(byId("visit-location").value).filter((a) => areaAppliesToEventTypes(a, ["yardwork"])),
     getFirstCut: firstCut,
     onChange: updateCutLabels,

@@ -1,6 +1,6 @@
 import { createDoc } from "./db.js";
-import { byId, escapeHtml, todayStr, formatDateDisplay, setPanelOpen } from "./utils.js";
-import { getCustomers, getCustomerName } from "./customers.js";
+import { byId, escapeHtml, todayStr, formatDateDisplay, setPanelOpen, whenSummaryText } from "./utils.js";
+import { getCustomers, getCustomerName, customerChipsHtml } from "./customers.js";
 import { getCustomerGroups } from "./customerGroups.js";
 import {
   populateEquipmentSelect,
@@ -26,8 +26,6 @@ import {
   mowerSummary,
 } from "./visitDefaults.js";
 
-const CHECK_ICON = `<svg class="chip-check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg>`;
-
 // Set once a pattern or mower is picked by hand, so changing who's checked
 // stops replacing that choice with a fresh suggestion.
 let patternTouched = false;
@@ -52,18 +50,12 @@ function firstCheckedCustomerId() {
 // normal open; "Save & log another" passes false so the next entry starts
 // with nobody checked, forcing a deliberate pick of who's next.
 function renderCustomerList(preselectFirst = true) {
-  const customers = getCustomers();
-  byId("event-customer-list").innerHTML = customers.length
-    ? customers
-        .map(
-          (c, i) => `
-      <label class="chip-toggle">
-        <input type="checkbox" class="event-customer-checkbox" value="${escapeHtml(c.id)}" ${preselectFirst && i === 0 ? "checked" : ""} />
-        <span>${CHECK_ICON}${escapeHtml(c.name)}</span>
-      </label>`
-        )
-        .join("")
-    : `<p class="hint-text">Add a customer first.</p>`;
+  const first = getCustomers()[0]?.id;
+  byId("event-customer-list").innerHTML = customerChipsHtml({
+    name: "event-customer",
+    checkedIds: preselectFirst && first ? [first] : [],
+    inputClass: "event-customer-checkbox",
+  });
 }
 
 function groupMembers(group) {
@@ -183,6 +175,7 @@ function applyMowerSettings({ equipmentId, deckHeight, groundSpeed, bladeSpeed }
 function firstCut() {
   return {
     pattern: radioValue("event-pattern"),
+    equipmentId: byId("event-equipment").value || null,
     deckHeight: byId("event-height").value ? Number(byId("event-height").value) : null,
     groundSpeed: byId("event-ground-speed").value || null,
     bladeSpeed: byId("event-blade-speed").value || null,
@@ -193,8 +186,9 @@ function firstCut() {
 // Once there's a second cut, the main fields read as "cut 1".
 function updateCutLabels() {
   const multi = cutEditor?.count() > 0;
+  byId("event-yard-areas-label").textContent = multi ? "Cut 1 areas" : "Areas";
   byId("event-pattern-label").textContent = multi ? "Cut 1 pattern" : "Mow pattern";
-  byId("event-mower-label").textContent = multi ? "Mower · cut 1 settings" : "Mower";
+  byId("event-mower-label").textContent = multi ? "Cut 1 mower" : "Mower";
 }
 
 // Picking a different mower by hand starts from that mower's own defaults.
@@ -220,12 +214,11 @@ function applyGrassConditionDefault() {
 }
 
 function updateWhenSummary() {
-  const date = byId("event-date").value;
-  const [y, m, d] = date ? date.split("-").map(Number) : [];
-  const weekday = date ? new Date(y, m - 1, d).toLocaleDateString("en-US", { weekday: "short" }) : "";
-  const dayText = !date ? "No date" : date === todayStr() ? `Today, ${weekday} ${formatDateDisplay(date).slice(0, 5)}` : `${weekday} ${formatDateDisplay(date)}`;
-  const parts = [dayText, TIME_OF_DAY_LABELS[byId("event-time-of-day").value], getLocationLabel(byId("event-location").value)];
-  byId("event-when-summary").textContent = parts.filter(Boolean).join(" · ");
+  byId("event-when-summary").textContent = whenSummaryText(
+    byId("event-date").value,
+    TIME_OF_DAY_LABELS[byId("event-time-of-day").value],
+    getLocationLabel(byId("event-location").value)
+  );
 }
 
 function updateSaveLabel() {
@@ -372,14 +365,26 @@ function applyPlan({ tasks, cuts, locationId, areaIds }) {
     });
   }
   if (cuts?.length > 1) {
-    const mowerId = byId("event-equipment").value;
-    setRadio("event-pattern", cuts[0].pattern);
-    populateDeckHeightSelect(byId("event-height"), mowerId, cuts[0].deckHeight ?? null);
-    populateGroundSpeedSelect(byId("event-ground-speed"), mowerId, cuts[0].groundSpeed ?? null);
-    populateBladeSpeedSelect(byId("event-blade-speed"), mowerId, cuts[0].bladeSpeed ?? null);
-    updateMowerSummary();
-    const cutAreas = checkedAreaIds("yardwork");
-    cutEditor.set(cuts.slice(1).map((c) => ({ ...c, areaIds: cutAreas })));
+    // Areas come across by name; a cut whose names don't exist here covers
+    // the same areas as cut 1.
+    const areasHere = getAreasForLocation(byId("event-location").value).filter((a) => areaAppliesToEventTypes(a, ["yardwork"]));
+    const idsFor = (names, fallback) => {
+      const ids = areasHere.filter((a) => names?.includes(a.name)).map((a) => a.id);
+      return ids.length ? ids : fallback;
+    };
+    const [first, ...rest] = cuts;
+    applyMowerSettings({
+      equipmentId: first.equipmentId || byId("event-equipment").value,
+      deckHeight: first.deckHeight,
+      groundSpeed: first.groundSpeed,
+      bladeSpeed: first.bladeSpeed,
+    });
+    setRadio("event-pattern", first.pattern);
+    const cut1Areas = idsFor(first.areaNames, checkedAreaIds("yardwork"));
+    document.querySelectorAll("#event-area-list-yardwork .event-area-checkbox").forEach((cb) => {
+      cb.checked = cut1Areas.includes(cb.value);
+    });
+    cutEditor.set(rest.map((c) => ({ ...c, areaIds: idsFor(c.areaNames, cut1Areas) })));
   }
   updateMowedFieldsVisibility();
 }
@@ -431,14 +436,13 @@ async function handleSubmit(e) {
     // A mow saves its cuts (see cuts.js); trim/edge alone has none of that.
     const cutData = mowed
       ? cutFields([firstCut(), ...cutEditor.get()])
-      : { pattern: null, deckHeight: null, groundSpeed: null, bladeSpeed: null, areaIds: checkedAreaIds("yardwork"), cuts: null };
+      : { pattern: null, equipmentId: null, deckHeight: null, groundSpeed: null, bladeSpeed: null, areaIds: checkedAreaIds("yardwork"), cuts: null };
     yardworkFields = {
       mowed,
       trimmed: byId("event-trimmed").checked,
       edged: byId("event-edged").checked,
       ...cutData,
       grassCondition: mowed ? radioValue("event-grass") : null,
-      equipmentId: (mowed && byId("event-equipment").value) || null,
     };
     if (!yardworkFields.mowed && !yardworkFields.trimmed && !yardworkFields.edged) {
       alert("Select at least one yard work task.");
@@ -572,11 +576,11 @@ export function initEventLogView() {
     container: byId("event-extra-cuts"),
     addButton: byId("event-add-cut-btn"),
     namePrefix: "event-cut",
-    getMowerId: () => byId("event-equipment").value,
     getAreas: () => getAreasForLocation(byId("event-location").value).filter((a) => areaAppliesToEventTypes(a, ["yardwork"])),
     getFirstCut: firstCut,
     onChange: updateCutLabels,
   });
+  byId("event-area-list-yardwork").addEventListener("change", () => cutEditor.relabel());
   document.querySelectorAll('#log-event-form input[name="event-pattern"]').forEach((r) =>
     r.addEventListener("change", () => {
       patternTouched = true;

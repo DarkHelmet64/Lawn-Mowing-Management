@@ -10,7 +10,7 @@ import {
   getEquipmentById,
 } from "./equipment.js";
 import { getLocations } from "./locations.js";
-import { getAreasForLocation, areaAppliesToEventTypes, getAreaNames } from "./areas.js";
+import { getAreasForLocation, areaAppliesToEventTypes, getAreaNames, getAreaName } from "./areas.js";
 import { loadVisits, PATTERN_LABELS, TIME_OF_DAY_LABELS } from "./mowLog.js";
 import {
   repeatVisitFor,
@@ -21,7 +21,7 @@ import {
   grassDefault,
 } from "./visitDefaults.js";
 import { undoVisits } from "./quickLog.js";
-import { createCutEditor, cutFields, cutLabel } from "./cuts.js";
+import { createCutEditor, cutFields, cutLabel, passCount } from "./cuts.js";
 import { showToast } from "./toast.js";
 import { showHistory } from "./history.js";
 
@@ -39,9 +39,34 @@ const state = {
   dirty: false,
 };
 let listenersBound = false;
-// Cuts 2 and 3 of a double/triple cut, shared by every house. Each cut
-// covers the house's own areas, so there's no area choice per cut here.
+// The 2nd and later cuts, shared by every house (see houseCuts).
 let cutEditor = null;
+
+// Houses each have their own area records, so run sheet cuts pick areas by
+// name ("Front Yard") and each house's matching areas are used when saving.
+function areaNameOptions() {
+  const names = new Set();
+  for (const h of state.houses) {
+    for (const a of getAreasForLocation(h.locationId)) if (areaAppliesToEventTypes(a, ["yardwork"])) names.add(a.name);
+  }
+  return [...names].sort().map((name) => ({ id: name, name }));
+}
+
+// Cut 1's areas only matter once there's a second cut - until then, every
+// house's own areas get the one cut.
+function cut1AreaNames() {
+  if (byId("run-cut1-areas-block").classList.contains("hidden")) return areaNameOptions().map((a) => a.id);
+  return [...byId("run-cut1-areas").querySelectorAll("input:checked")].map((cb) => cb.value);
+}
+
+function renderCut1Areas(checkedNames) {
+  byId("run-cut1-areas").innerHTML = areaNameOptions()
+    .map(
+      (a) =>
+        `<label class="chip-toggle"><input type="checkbox" value="${escapeHtml(a.id)}" ${checkedNames.includes(a.id) ? "checked" : ""} /><span>${escapeHtml(a.name)}</span></label>`
+    )
+    .join("");
+}
 
 function cuts() {
   if (!cutEditor) {
@@ -49,17 +74,30 @@ function cuts() {
       container: byId("run-extra-cuts"),
       addButton: byId("run-add-cut-btn"),
       namePrefix: "run-cut",
-      getMowerId: () => byId("run-equipment").value,
-      getFirstCut: () => ({ pattern: radioValue("run-pattern"), ...currentMower() }),
-      withAreas: false,
+      getAreas: areaNameOptions,
+      getFirstCut: () => ({ pattern: radioValue("run-pattern"), ...currentMower(), areaIds: cut1AreaNames() }),
       onChange: () => {
         const multi = cutEditor.count() > 0;
+        const block = byId("run-cut1-areas-block");
+        if (multi && block.classList.contains("hidden")) renderCut1Areas(areaNameOptions().map((a) => a.id));
+        block.classList.toggle("hidden", !multi);
         byId("run-pattern-label").textContent = multi ? "Cut 1 pattern" : "Mow pattern";
-        byId("run-mower-label").textContent = multi ? "Mower · cut 1 settings" : "Mower";
+        byId("run-mower-label").textContent = multi ? "Cut 1 mower" : "Mower";
       },
     });
   }
   return cutEditor;
+}
+
+// One house's cuts: each run cut applied to the house's areas with that
+// cut's names (a cut with no areas picked covers all of them). Cuts that
+// match none of the house's areas are left out; if none match at all, the
+// house gets cut 1 over all of its areas.
+function houseCuts(h, runCuts) {
+  const matched = runCuts
+    .map((c) => ({ ...c, areaIds: c.areaIds.length ? h.areaIds.filter((id) => c.areaIds.includes(getAreaName(id))) : h.areaIds }))
+    .filter((c) => c.areaIds.length);
+  return matched.length ? matched : [{ ...runCuts[0], areaIds: h.areaIds }];
 }
 
 function plural(n, word) {
@@ -278,6 +316,7 @@ async function saveRun() {
   const grass = radioValue("run-grass");
   const mower = currentMower();
   const extraCuts = cuts().get();
+  const runCuts = [{ pattern, ...mower, areaIds: cut1AreaNames() }, ...extraCuts];
   const btn = byId("run-save-btn");
   btn.disabled = true;
   btn.textContent = "Saving…";
@@ -289,13 +328,8 @@ async function saveRun() {
       const { mowed, trimmed, edged } = h.tasks;
       if (mowed || trimmed || edged) {
         const cutData = mowed
-          ? cutFields(
-              [{ pattern, deckHeight: mower.deckHeight, groundSpeed: mower.groundSpeed, bladeSpeed: mower.bladeSpeed }, ...extraCuts].map((c) => ({
-                ...c,
-                areaIds: h.areaIds,
-              }))
-            )
-          : { pattern: null, deckHeight: null, groundSpeed: null, bladeSpeed: null, areaIds: h.areaIds, cuts: null };
+          ? cutFields(extraCuts.length ? houseCuts(h, runCuts) : [{ pattern, ...mower, areaIds: h.areaIds }])
+          : { pattern: null, equipmentId: null, deckHeight: null, groundSpeed: null, bladeSpeed: null, areaIds: h.areaIds, cuts: null };
         ids.push(
           await createDoc("mowVisits", {
             ...base,
@@ -304,7 +338,6 @@ async function saveRun() {
             edged,
             ...cutData,
             grassCondition: mowed ? grass : null,
-            equipmentId: mowed ? mower.equipmentId : null,
             pruned: false,
             trimmedBushes: false,
             mulched: false,
@@ -351,7 +384,7 @@ async function saveRun() {
     detail: !anyMowed
       ? ""
       : extraCuts.length
-      ? `${cutLabel(extraCuts.length + 1)} · ${[pattern, ...extraCuts.map((c) => c.pattern)].map((p) => PATTERN_LABELS[p] || p).join(" then ")}`
+      ? `${passCount(runCuts) > 1 ? cutLabel(passCount(runCuts)) : "Areas mowed separately"} · ${runCuts.map((c) => PATTERN_LABELS[c.pattern] || c.pattern).join(" then ")}`
       : `${PATTERN_LABELS[pattern] || pattern} · ${mowerSummary(mower)}`,
     actions: [
       {
@@ -402,6 +435,7 @@ export function initRunSheetView() {
       });
     });
     for (const id of ["run-height", "run-ground-speed", "run-blade-speed"]) byId(id).addEventListener("change", updateMowerSummary);
+    byId("run-cut1-areas").addEventListener("change", () => cuts().relabel());
     byId("run-date").addEventListener("change", updateWhenSummary);
     byId("run-time-of-day").addEventListener("change", () => {
       setRadio("run-grass", grassDefault(byId("run-time-of-day").value));

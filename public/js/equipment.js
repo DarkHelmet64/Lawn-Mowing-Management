@@ -33,6 +33,15 @@ export function getEquipmentName(id) {
   return getEquipmentById(id)?.name || null;
 }
 
+// "Toro TimeMaster · 3" · speed 2 · High" - a mower and its settings in one line.
+export function mowerSummary({ equipmentId, deckHeight, groundSpeed, bladeSpeed }) {
+  const name = getEquipmentName(equipmentId);
+  if (!name) return "No mower selected";
+  return [name, deckHeight != null && deckHeight !== "" ? `${deckHeight}"` : "", groundSpeed ? `speed ${groundSpeed}` : "", bladeSpeed || ""]
+    .filter(Boolean)
+    .join(" · ");
+}
+
 // Deck heights are numeric, so they're comparable/sortable regardless of
 // input order. Ground/blade speed settings are often named ("Slow, Fast")
 // rather than numeric, so those keep whatever order they were entered in.

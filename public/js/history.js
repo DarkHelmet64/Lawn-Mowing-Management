@@ -20,7 +20,7 @@ import { getProductName, getProductById } from "./products.js";
 import { openLogEventFor } from "./eventLog.js";
 import { countDuplicates, combineDuplicates } from "./duplicates.js";
 import { createdMs, mowHistory, nextPattern, patternGlyph } from "./visitDefaults.js";
-import { visitCuts, cutCount, cutLabel } from "./cuts.js";
+import { visitCuts, cutNumbers, passCount, multiCutAreaIds, cutLabel } from "./cuts.js";
 
 // History replaces the separate Yard Work and Spray Log pages: every visit
 // and spray in one place, browsable five ways (Days, Groups, Calendar,
@@ -116,7 +116,7 @@ function allEntries() {
 }
 
 function isMultiCut(entry) {
-  return entry.source === "visit" && cutCount(entry.record) >= 2;
+  return entry.source === "visit" && passCount(entry.record) >= 2;
 }
 
 function matchesType(entry) {
@@ -124,14 +124,15 @@ function matchesType(entry) {
   return state.type === "all" || entryKinds(entry).includes(state.type);
 }
 
-// "Parallel · 3.5" · speed 2 · High · Front Yard, Back Yard"
-function cutSummaryText(c) {
+// "Front Yard · Parallel · Toro TimeMaster · 3.5" · speed 2 · High"
+function cutSummaryText(c, { withMower = true } = {}) {
   return [
+    getAreaNames(c.areaIds || []),
     patternLabel(c.pattern),
+    withMower ? getEquipmentName(c.equipmentId) : "",
     c.deckHeight != null ? `${c.deckHeight}"` : "",
     c.groundSpeed ? `speed ${c.groundSpeed}` : "",
     c.bladeSpeed || "",
-    getAreaNames(c.areaIds || []),
   ]
     .filter(Boolean)
     .join(" · ");
@@ -240,9 +241,11 @@ function toggleButton(key, expanded) {
 function visitDetails(v) {
   const cuts = visitCuts(v);
   const multi = cuts.length > 1;
-  // A double/triple cut lists each cut's settings below instead of one set.
+  // With more than one cut, each cut's areas and settings are listed below
+  // instead of one set - and its mower too, when the cuts used different ones.
+  const oneMower = new Set(cuts.map((c) => c.equipmentId)).size <= 1;
   const items = [
-    detailItem(v.mowed ? "Mower" : "Equipment", getEquipmentName(v.equipmentId)),
+    multi && !oneMower ? "" : detailItem(v.mowed ? "Mower" : "Equipment", getEquipmentName(v.equipmentId)),
     multi ? "" : detailItem("Deck height", v.deckHeight != null ? `${v.deckHeight}"` : ""),
     multi ? "" : detailItem("Ground speed", v.groundSpeed),
     multi ? "" : detailItem("Blade speed", v.bladeSpeed),
@@ -250,9 +253,12 @@ function visitDetails(v) {
     detailItem("Time of day", TIME_OF_DAY_LABELS[v.timeOfDay]),
     detailItem("Location", getLocationLabel(v.locationId)),
   ].join("");
+  // Numbered per area: the front yard's second cut is its cut 2 even if the
+  // back yard was cut in between.
+  const numbers = cutNumbers(cuts);
   const cutList = multi
     ? `<ol class="cut-detail-list">${cuts
-        .map((c, i) => `<li><span class="cut-detail-label">Cut ${i + 1}</span><span>${escapeHtml(cutSummaryText(c))}</span></li>`)
+        .map((c, i) => `<li><span class="cut-detail-label">Cut ${numbers[i]}</span><span>${escapeHtml(cutSummaryText(c, { withMower: !oneMower }))}</span></li>`)
         .join("")}</ol>`
     : "";
   return `
@@ -274,10 +280,20 @@ function renderVisitSection(v, expanded) {
   if (yard.length) {
     const cuts = visitCuts(v);
     const multi = cuts.length > 1;
-    rows.push(`<div class="chip-row">${yard.map((l) => chip(l, "yard")).join("")}${multi ? chip(cutLabel(cuts.length), "cut") : ""}</div>`);
-    // A double/triple cut shows each cut's pattern in order.
+    // "Double cut", or "Double cut: Front Yard" when only part of the lawn
+    // was cut twice.
+    const passes = passCount(v);
+    const doubledAreas = multiCutAreaIds(v);
+    const partial = doubledAreas.length && doubledAreas.length < recordAreaIds(v).length;
+    const cutChip = passes > 1 ? chip(`${cutLabel(passes)}${partial ? `: ${getAreaNames(doubledAreas)}` : ""}`, "cut") : "";
+    rows.push(`<div class="chip-row">${yard.map((l) => chip(l, "yard")).join("")}${cutChip}</div>`);
+    // More than one cut shows each cut's pattern in order - with its areas
+    // when the cuts covered different parts of the lawn.
+    const areasDiffer = new Set(cuts.map((c) => [...(c.areaIds || [])].sort().join())).size > 1;
     const patterns = multi
-      ? cuts.map((c) => patternBadge(c.pattern)).join('<span aria-hidden="true">→</span>')
+      ? cuts
+          .map((c) => `${patternBadge(c.pattern)}${areasDiffer && c.areaIds?.length ? `<span class="cut-area-tag">${escapeHtml(getAreaNames(c.areaIds))}</span>` : ""}`)
+          .join('<span aria-hidden="true">→</span>')
       : v.mowed && v.pattern
       ? patternBadge(v.pattern)
       : "";
@@ -340,7 +356,7 @@ function summaryLines(entry) {
   const yard = flagsDone(r, YARD_FLAGS);
   const extra = flagsDone(r, EXTRA_FLAGS);
   if (yard.length) {
-    const n = cutCount(r);
+    const n = passCount(r);
     const tasks = yard.map((t) => (t === "Mowed" && n > 1 ? `Mowed (${cutLabel(n).toLowerCase()})` : t)).join(", ");
     lines.push(`<span class="summary-line">${marker("yard")}${escapeHtml([tasks, areas].filter(Boolean).join(" · "))}</span>`);
   }
@@ -382,7 +398,7 @@ const EMPTY_FILTER_MESSAGE = `<p class="hint-text">Nothing logged for these filt
 // With the Multi-cut filter on: how many double and triple cuts are in view.
 function multiCutSummary(entries) {
   if (state.type !== "multi" || !entries.length) return "";
-  const counts = entries.map((e) => cutCount(e.record));
+  const counts = entries.map((e) => passCount(e.record));
   const doubles = counts.filter((n) => n === 2).length;
   const triples = counts.filter((n) => n >= 3).length;
   const parts = [doubles ? plural(doubles, "double cut") : "", triples ? plural(triples, "triple cut") : ""].filter(Boolean);
@@ -622,7 +638,7 @@ function renderCustomerView() {
   // Counted per mow day, like the rotation: a group mowed together is one mow.
   const yearStart = `${today.slice(0, 4)}-01-01`;
   const mowsThisYear = mows.filter((v) => v.date >= yearStart);
-  const multiThisYear = mowsThisYear.filter((v) => cutCount(v) >= 2);
+  const multiThisYear = mowsThisYear.filter((v) => passCount(v) >= 2);
   const avgGap = recent.length >= 2 ? Math.round(daysBetween(recent[recent.length - 1].date, recent[0].date) / (recent.length - 1)) : null;
   const tiles = [
     tile("Last pattern", last ? patternLabel(last.pattern) : "–", last ? dayHeading(last.date) : "No mow recorded yet", true),
@@ -639,7 +655,7 @@ function renderCustomerView() {
       "Double/triple cuts",
       String(multiThisYear.length),
       multiThisYear.length
-        ? `${multiThisYear.filter((v) => cutCount(v) === 2).length} double · ${multiThisYear.filter((v) => cutCount(v) >= 3).length} triple this year`
+        ? `${multiThisYear.filter((v) => passCount(v) === 2).length} double · ${multiThisYear.filter((v) => passCount(v) >= 3).length} triple this year`
         : "None this year"
     ),
   ].join("");

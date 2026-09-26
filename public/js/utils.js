@@ -31,6 +31,17 @@ export function byId(id) {
   return document.getElementById(id);
 }
 
+// "Today, Fri 09/25 · Morning · Home" - the collapsed When & where line.
+export function whenSummaryText(date, timeLabel, placeLabel) {
+  let dayText = "No date";
+  if (date) {
+    const [y, m, d] = date.split("-").map(Number);
+    const weekday = new Date(y, m - 1, d).toLocaleDateString("en-US", { weekday: "short" });
+    dayText = date === todayStr() ? `Today, ${weekday} ${formatDateDisplay(date).slice(0, 5)}` : `${weekday} ${formatDateDisplay(date)}`;
+  }
+  return [dayText, timeLabel, placeLabel].filter(Boolean).join(" · ");
+}
+
 // Shows or hides a collapsible panel and updates the "Change"/"Done" button
 // that controls it (the button carries data-toggle-panel="<panel id>").
 export function setPanelOpen(panelId, open) {

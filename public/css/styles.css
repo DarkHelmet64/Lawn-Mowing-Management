@@ -2050,6 +2050,12 @@ form {
   min-width: 0;
 }
 
+/* The mower gets its own row so its name isn't cut off; the three
+   settings share the row below. */
+.cut-settings label:first-child {
+  grid-column: 1 / -1;
+}
+
 .add-cut-btn {
   align-self: flex-start;
   min-height: 40px;
@@ -2061,6 +2067,12 @@ form {
   background: transparent;
   border: 1px solid var(--mark-yard);
   color: var(--chip-yard-text);
+}
+
+.cut-area-tag {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
 }
 
 .cut-detail-list {
