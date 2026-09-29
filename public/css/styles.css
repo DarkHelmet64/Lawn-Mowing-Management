@@ -1967,6 +1967,29 @@ form {
   color: var(--text-muted);
 }
 
+.run-spray {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border);
+}
+
+.run-spray-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.run-spray-fields select,
+.run-spray-fields input {
+  min-width: 0;
+}
+
+.run-spray-product {
+  grid-column: 1 / -1;
+}
+
 .run-house-meta .link-btn,
 .run-house-actions .link-btn {
   min-height: 40px;
