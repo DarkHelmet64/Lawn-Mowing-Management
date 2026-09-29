@@ -1,4 +1,4 @@
-import { createDoc } from "./db.js";
+import { createDoc, batchWrite } from "./db.js";
 import { byId, escapeHtml, todayStr, formatDateDisplay, confirmAction, setPanelOpen } from "./utils.js";
 import { getCustomers, getCustomerName } from "./customers.js";
 import { getCustomerGroupById } from "./customerGroups.js";
@@ -21,13 +21,16 @@ import {
   grassDefault,
 } from "./visitDefaults.js";
 import { undoVisits } from "./quickLog.js";
+import { loadSprays, getLastQuantityUsedForProduct, TARGET_LABELS } from "./sprayLog.js";
+import { populateProductSelect, getProductById, adjustProductQuantity } from "./products.js";
 import { createCutEditor, cutFields, cutLabel, passCount } from "./cuts.js";
 import { showToast } from "./toast.js";
 import { showHistory } from "./history.js";
 
 // A run sheet for one Customer Group (a street): pattern, mower and grass
 // are set once for everyone, then each house is ticked done (or skipped) as
-// it's finished, and every done house is saved in one go at the end.
+// it's finished, and every done house is saved in one go at the end. "+
+// Extra" on a house adds extra yard work and spraying there.
 
 const YARD_TASK_LABELS = { mowed: "Mowed", trimmed: "Trimmed", edged: "Edged" };
 const EXTRA_TASK_LABELS = { pruned: "Pruned", trimmedBushes: "Trimmed Bushes", mulched: "Mulched" };
@@ -170,6 +173,8 @@ export function startRun(groupId) {
       tasks: { ...repeat.tasks },
       extra: { pruned: false, trimmedBushes: false, mulched: false },
       showExtra: false,
+      sprayed: false,
+      spray: { ...NO_SPRAY },
       locationId: repeat.locationId,
       areaIds: [...repeat.areaIds],
       showAreas: false,
@@ -192,6 +197,47 @@ export function startRun(groupId) {
   document.dispatchEvent(new CustomEvent("app:navigate", { detail: { view: "run" } }));
 }
 
+const NO_SPRAY = { target: "weeds", productId: "", quantity: "", equipmentId: "" };
+
+// A house's spray starts as a copy of one already set up on this run -
+// neighbors usually get the same product - so only the amount may differ.
+function sprayDefaults() {
+  const other = state.houses.find((h) => h.sprayed && h.spray.productId);
+  return other ? { ...other.spray } : { ...NO_SPRAY };
+}
+
+function sprayPanelHtml(h) {
+  const id = escapeHtml(h.customerId);
+  const product = getProductById(h.spray.productId);
+  const targets = Object.entries(TARGET_LABELS)
+    .map(
+      ([value, label]) =>
+        `<label class="chip-toggle chip-spray-toggle"><input type="radio" name="run-spray-target-${id}" data-run-spray="${id}" data-field="target" value="${value}" ${h.spray.target === value ? "checked" : ""} /><span>${label}</span></label>`
+    )
+    .join("");
+  return `
+      <div class="run-spray">
+        <div class="chip-group" role="radiogroup" aria-label="Sprayed for">${targets}</div>
+        <div class="run-spray-fields">
+          <label class="run-spray-product">Product <select data-run-spray="${id}" data-field="productId"></select></label>
+          <label>Quantity${product ? ` (${escapeHtml(product.unit)})` : ""} <input type="number" step="any" min="0" inputmode="decimal" placeholder="e.g. 16" data-run-spray="${id}" data-field="quantity" value="${escapeHtml(String(h.spray.quantity))}" /></label>
+          <label>Sprayer <select data-run-spray="${id}" data-field="equipmentId"></select></label>
+        </div>
+      </div>`;
+}
+
+// The spray panels' selects, filled after each render.
+function fillSprayFields() {
+  for (const h of state.houses.filter((x) => x.sprayed)) {
+    const field = (f) => document.querySelector(`#run-houses [data-run-spray="${CSS.escape(h.customerId)}"][data-field="${f}"]`);
+    if (!field("productId")) continue;
+    populateProductSelect(field("productId"));
+    field("productId").value = h.spray.productId;
+    populateEquipmentSelect(field("equipmentId"));
+    field("equipmentId").value = h.spray.equipmentId;
+  }
+}
+
 function taskChip(customerId, field, label, checked, kind) {
   const cls = kind === "extra" ? "chip-toggle chip-extra-toggle" : "chip-toggle";
   return `<label class="${cls}"><input type="checkbox" data-run-${kind}="${escapeHtml(customerId)}" data-field="${field}" ${checked ? "checked" : ""} /><span>${label}</span></label>`;
@@ -211,10 +257,11 @@ function renderHouse(h) {
       </article>`;
   }
   const done = h.status === "done";
-  const showExtra = h.showExtra || Object.values(h.extra).some(Boolean);
+  const showExtra = h.showExtra || Object.values(h.extra).some(Boolean) || h.sprayed;
+  const sprayChip = `<label class="chip-toggle chip-spray-toggle"><input type="checkbox" data-run-sprayed="${id}" ${h.sprayed ? "checked" : ""} /><span>Sprayed</span></label>`;
   const chips = [
     ...Object.entries(YARD_TASK_LABELS).map(([f, l]) => taskChip(h.customerId, f, l, h.tasks[f], "task")),
-    ...(showExtra ? Object.entries(EXTRA_TASK_LABELS).map(([f, l]) => taskChip(h.customerId, f, l, h.extra[f], "extra")) : []),
+    ...(showExtra ? [...Object.entries(EXTRA_TASK_LABELS).map(([f, l]) => taskChip(h.customerId, f, l, h.extra[f], "extra")), sprayChip] : []),
   ].join("");
   const areaOptions = h.showAreas
     ? `<div class="chip-group run-area-chips">${
@@ -236,6 +283,7 @@ function renderHouse(h) {
         ${chips}
         ${showExtra ? "" : `<button type="button" class="add-chip-btn" data-run-action="extra" data-customer="${id}">+ Extra</button>`}
       </div>
+      ${h.sprayed ? sprayPanelHtml(h) : ""}
       <div class="run-house-meta">
         <span>${escapeHtml(getAreaNames(h.areaIds) || "No areas picked")}</span>
         <button type="button" class="link-btn" data-run-action="areas" data-customer="${id}" aria-expanded="${h.showAreas}">${h.showAreas ? "Done" : "Change areas"}</button>
@@ -261,6 +309,7 @@ function render() {
   byId("run-title").textContent = `${state.groupName} run`;
   updateWhenSummary();
   byId("run-houses").innerHTML = state.houses.map(renderHouse).join("");
+  fillSprayFields();
   updateFooter();
 }
 
@@ -290,12 +339,25 @@ function handleHouseClick(e) {
 function handleHouseChange(e) {
   const input = e.target;
   const d = input.dataset;
-  const h = house(d.runTask || d.runExtra || d.runArea);
+  const h = house(d.runTask || d.runExtra || d.runArea || d.runSprayed || d.runSpray);
   if (!h) return;
   state.dirty = true;
   if (d.runTask) h.tasks[d.field] = input.checked;
   else if (d.runExtra) h.extra[d.field] = input.checked;
-  else if (d.runArea) {
+  else if (d.runSprayed) {
+    h.sprayed = input.checked;
+    if (h.sprayed && !h.spray.productId) h.spray = sprayDefaults();
+    render();
+    document.querySelector(`#run-houses [data-run-sprayed="${CSS.escape(h.customerId)}"]`)?.focus();
+  } else if (d.runSpray) {
+    h.spray[d.field] = input.value;
+    // A different product starts from the amount last used of it.
+    if (d.field === "productId") {
+      h.spray.quantity = getLastQuantityUsedForProduct(input.value) ?? "";
+      render();
+      document.querySelector(`#run-houses [data-run-spray="${CSS.escape(h.customerId)}"][data-field="productId"]`)?.focus();
+    }
+  } else if (d.runArea) {
     h.areaIds = input.checked ? [...h.areaIds, input.value] : h.areaIds.filter((a) => a !== input.value);
     render();
     document.querySelector(`#run-houses [data-run-area="${CSS.escape(h.customerId)}"][value="${CSS.escape(input.value)}"]`)?.focus();
@@ -305,10 +367,20 @@ function handleHouseChange(e) {
 async function saveRun() {
   const done = state.houses.filter((h) => h.status === "done");
   if (!done.length) return;
-  const empty = done.find((h) => !Object.values(h.tasks).some(Boolean) && !Object.values(h.extra).some(Boolean));
+  const empty = done.find((h) => !Object.values(h.tasks).some(Boolean) && !Object.values(h.extra).some(Boolean) && !h.sprayed);
   if (empty) {
     alert(`Pick at least one task for ${getCustomerName(empty.customerId)}.`);
     return;
+  }
+  for (const h of done.filter((x) => x.sprayed)) {
+    if (!h.spray.productId) {
+      alert(`Pick the product sprayed at ${getCustomerName(h.customerId)}.`);
+      return;
+    }
+    if (!(Number(h.spray.quantity) > 0)) {
+      alert(`Enter how much was sprayed at ${getCustomerName(h.customerId)}.`);
+      return;
+    }
   }
   const date = byId("run-date").value || todayStr();
   const timeOfDay = byId("run-time-of-day").value || null;
@@ -322,6 +394,9 @@ async function saveRun() {
   btn.textContent = "Saving…";
 
   const ids = [];
+  const sprayIds = [];
+  // Product taken out of inventory, by product, for Undo to put back.
+  const used = new Map();
   try {
     for (const h of done) {
       const base = { customerId: h.customerId, date, timeOfDay, locationId: h.locationId, notes: "", featureId: null };
@@ -365,32 +440,58 @@ async function saveRun() {
           })
         );
       }
+      if (h.sprayed) {
+        const quantityUsed = Number(h.spray.quantity);
+        sprayIds.push(
+          await createDoc("sprayApplications", {
+            customerId: h.customerId,
+            date,
+            timeOfDay,
+            target: h.spray.target || "weeds",
+            productId: h.spray.productId,
+            quantityUsed,
+            locationId: h.locationId,
+            areaIds: getAreasForLocation(h.locationId)
+              .filter((a) => h.areaIds.includes(a.id) && areaAppliesToEventTypes(a, ["chemical"]))
+              .map((a) => a.id),
+            featureId: null,
+            equipmentId: h.spray.equipmentId || null,
+            notes: "",
+          })
+        );
+        const before = getProductById(h.spray.productId)?.quantityOnHand ?? 0;
+        await adjustProductQuantity(h.spray.productId, -quantityUsed);
+        const taken = before - (getProductById(h.spray.productId)?.quantityOnHand ?? 0);
+        used.set(h.spray.productId, (used.get(h.spray.productId) || 0) + taken);
+      }
     }
   } catch (err) {
     console.error("Failed to save run sheet", err);
-    await loadVisits();
+    await Promise.all([loadVisits(), loadSprays()]);
     updateFooter();
-    alert(`Saving stopped partway: ${plural(ids.length, "record")} saved. Check History, then try again for the rest.`);
+    alert(`Saving stopped partway: ${plural(ids.length + sprayIds.length, "record")} saved. Check History, then try again for the rest.`);
     return;
   }
 
   await loadVisits();
+  if (sprayIds.length) await loadSprays();
   state.dirty = false;
   const anyMowed = done.some((h) => h.tasks.mowed);
+  const mowDetail = !anyMowed
+    ? ""
+    : extraCuts.length
+    ? `${passCount(runCuts) > 1 ? cutLabel(passCount(runCuts)) : "Areas mowed separately"} · ${runCuts.map((c) => PATTERN_LABELS[c.pattern] || c.pattern).join(" then ")}`
+    : `${PATTERN_LABELS[pattern] || pattern} · ${mowerSummary(mower)}`;
   document.dispatchEvent(new CustomEvent("event:logged"));
   document.dispatchEvent(new CustomEvent("app:navigate", { detail: { view: "dashboard" } }));
   showToast({
     message: `Saved ${plural(done.length, "visit")} for ${state.groupName}`,
-    detail: !anyMowed
-      ? ""
-      : extraCuts.length
-      ? `${passCount(runCuts) > 1 ? cutLabel(passCount(runCuts)) : "Areas mowed separately"} · ${runCuts.map((c) => PATTERN_LABELS[c.pattern] || c.pattern).join(" then ")}`
-      : `${PATTERN_LABELS[pattern] || pattern} · ${mowerSummary(mower)}`,
+    detail: [mowDetail, sprayIds.length ? `Sprayed at ${plural(sprayIds.length, "house")}` : ""].filter(Boolean).join(" · "),
     actions: [
       {
         label: "Undo",
         onClick: async () => {
-          await undoVisits(ids);
+          await undoRun(ids, sprayIds, used);
           document.dispatchEvent(new CustomEvent("event:logged"));
           showToast({ message: `Removed the ${plural(done.length, "visit")} from this run.` });
         },
@@ -398,6 +499,16 @@ async function saveRun() {
       { label: "View", onClick: () => showHistory("days") },
     ],
   });
+}
+
+// The save toast's Undo: removes what the run saved and puts the product it
+// used back on the shelf.
+async function undoRun(visitIds, sprayIds, used) {
+  if (visitIds.length) await undoVisits(visitIds);
+  if (!sprayIds.length) return;
+  await batchWrite([sprayIds.map((id) => ({ type: "delete", collection: "sprayApplications", id }))]);
+  for (const [productId, quantity] of used) await adjustProductQuantity(productId, quantity);
+  await loadSprays();
 }
 
 async function exitRun() {
