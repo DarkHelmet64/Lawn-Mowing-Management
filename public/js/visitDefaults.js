@@ -2,7 +2,7 @@ import { getVisits } from "./mowLog.js";
 import { getEquipment, getEquipmentById, mowerSummary } from "./equipment.js";
 
 export { mowerSummary };
-import { getLocationsForCustomer } from "./locations.js";
+import { getLocationsForCustomer, getLocationLabel } from "./locations.js";
 import { getAreasForLocation, areaAppliesToEventTypes, recordAreaIds, getAreaName } from "./areas.js";
 import { PATTERN_ROTATION, nextPattern, rotatePattern, patternGlyph } from "./patterns.js";
 import { visitCuts } from "./cuts.js";
@@ -130,6 +130,25 @@ export function repeatVisitFor(customerId) {
     areaIds: lastAreas.length ? lastAreas : defaultAreaIds(locationId),
     tasks: last ? { mowed: true, trimmed: !!last.trimmed, edged: !!last.edged } : { mowed: true, trimmed: true, edged: true },
   };
+}
+
+// Where a customer's copy of something set up at another location goes: that
+// location if it's theirs, else theirs with the same label ("Home"), else
+// where they were last worked on (their first location for someone new).
+export function ownLocationFor(customerId, locationId) {
+  const locations = getLocationsForCustomer(customerId);
+  if (locations.some((l) => l.id === locationId)) return locationId;
+  const label = getLocationLabel(locationId);
+  return locations.find((l) => label && l.label === label)?.id ?? repeatVisitFor(customerId).locationId;
+}
+
+// The areas with the same names ("Front Yard") at another location, among
+// those set up there for any of eventTypes.
+export function sameAreasAt(areaIds, locationId, eventTypes) {
+  const names = new Set(areaIds.map(getAreaName));
+  return getAreasForLocation(locationId)
+    .filter((a) => areaAppliesToEventTypes(a, eventTypes) && names.has(a.name))
+    .map((a) => a.id);
 }
 
 // When the latest mow among these customers had more than one cut (a double

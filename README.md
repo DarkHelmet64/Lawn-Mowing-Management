@@ -78,6 +78,13 @@ API in the browser and cached in Firestore.
     recent pattern rotation, and their full visit list.
   - **Last Sprayed** — every customer sorted by how long since their last
     spray for a given target (e.g. weeds), to see who's due.
+
+  History also offers one-tap repairs for records saved by older versions,
+  shown only while there's something to repair: **Combine duplicates** (a
+  record saved per area) and **Fix records** saved at the wrong yard
+  (logging several customers at once used to put everyone's record at the
+  first customer's location - each is moved to its own customer's
+  location, with the areas of the same name).
 - **Settings** — customer records, each with a **primary contact** (name,
   phone, email — the phone auto-formats to `(XXX) XXX-XXXX`) and an address
   you can validate against real US postal data with one click; **locations**

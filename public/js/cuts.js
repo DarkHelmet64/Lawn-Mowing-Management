@@ -106,6 +106,15 @@ export function cutFields(cuts) {
   };
 }
 
+// A mow's cuts at another location, moveAreas turning each cut's areas into
+// that location's. A cut over areas not found there is left out; if none
+// are left, cut 1 stands for the whole mow.
+export function cutsMoved(cuts, moveAreas) {
+  const moved = cuts.map((c) => ({ ...c, areaIds: moveAreas(c.areaIds || []) }));
+  const kept = moved.filter((c, i) => c.areaIds.length || !cuts[i].areaIds?.length);
+  return kept.length ? kept : [{ ...moved[0], areaIds: [] }];
+}
+
 const PATTERN_SHORT = {
   parallel: "Parallel",
   perpendicular: "Perpend.",

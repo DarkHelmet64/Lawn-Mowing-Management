@@ -10,13 +10,13 @@ import {
   getEquipmentById,
 } from "./equipment.js";
 import { getLocationsForCustomer, populateLocationSelect, getLocationLabel } from "./locations.js";
-import { getAreasForLocation, areaAppliesToEventTypes, getAreaName } from "./areas.js";
+import { getAreasForLocation, areaAppliesToEventTypes } from "./areas.js";
 import { getYardFeatures } from "./yardFeatures.js";
 import { loadVisits, PATTERN_LABELS, TIME_OF_DAY_LABELS } from "./mowLog.js";
 import { loadSprays, getLastQuantityUsedForProduct } from "./sprayLog.js";
 import { EVENT_TYPE_KEYS } from "./eventTypes.js";
 import { populateProductSelect, getProductById, adjustProductQuantity } from "./products.js";
-import { createCutEditor, cutFields } from "./cuts.js";
+import { createCutEditor, cutFields, cutsMoved } from "./cuts.js";
 import {
   DEFAULT_YARDWORK_AREA_NAMES,
   patternSuggestion,
@@ -24,7 +24,8 @@ import {
   grassDefault,
   mowerSettings,
   mowerSummary,
-  repeatVisitFor,
+  ownLocationFor,
+  sameAreasAt,
 } from "./visitDefaults.js";
 
 // Set once a pattern or mower is picked by hand, so changing who's checked
@@ -417,37 +418,14 @@ function resetForNextEntry() {
   updateSaveLabel();
 }
 
-// Where a customer's copy of a multi-customer entry goes: the picked
-// location if it's theirs, else theirs with the same label ("Home"), else
-// where they were last worked on (their first location for someone new).
-function locationFor(customerId, pickedId) {
-  const locations = getLocationsForCustomer(customerId);
-  if (locations.some((l) => l.id === pickedId)) return pickedId;
-  const label = getLocationLabel(pickedId);
-  return locations.find((l) => label && l.label === label)?.id ?? repeatVisitFor(customerId).locationId;
-}
-
-// A customer's copy of the entry: their location, and a function turning
-// areas picked at the form's location into theirs - the same names
+// A customer's copy of the entry: their own location, and a function
+// turning areas picked at the form's location into theirs - the same names
 // ("Front Yard"), among their areas set up for that kind of work.
 function copyPlace(customerId, pickedId) {
-  const locationId = locationFor(customerId, pickedId);
-  const areas = (ids, type) => {
-    if (locationId === pickedId) return ids;
-    const names = new Set(ids.map(getAreaName));
-    return getAreasForLocation(locationId)
-      .filter((a) => areaAppliesToEventTypes(a, [type]) && names.has(a.name))
-      .map((a) => a.id);
-  };
-  return { locationId, areas, samePlace: locationId === pickedId };
-}
-
-// The mow's cuts at a customer's own location. A cut over areas they don't
-// have is left out; if none are left, cut 1 stands for the whole mow.
-function cutsAt(cuts, areas) {
-  const mapped = cuts.map((c) => ({ ...c, areaIds: areas(c.areaIds || [], "yardwork") }));
-  const kept = mapped.filter((c, i) => c.areaIds.length || !cuts[i].areaIds?.length);
-  return kept.length ? kept : [{ ...mapped[0], areaIds: [] }];
+  const locationId = ownLocationFor(customerId, pickedId);
+  const samePlace = locationId === pickedId;
+  const areas = (ids, type) => (samePlace ? ids : sameAreasAt(ids, locationId, [type]));
+  return { locationId, areas, samePlace };
 }
 
 // Each active event type is independent: its own areas and fields, saved as
@@ -526,7 +504,7 @@ async function handleSubmit(e) {
     for (const customerId of customerIds) {
       const place = places.get(customerId);
       const cutData = cuts
-        ? cutFields(cutsAt(cuts, place.areas))
+        ? cutFields(cutsMoved(cuts, (ids) => place.areas(ids, "yardwork")))
         : { pattern: null, equipmentId: null, deckHeight: null, groundSpeed: null, bladeSpeed: null, areaIds: place.areas(yardAreaIds, "yardwork"), cuts: null };
       await createDoc("mowVisits", {
         customerId,
