@@ -1958,13 +1958,18 @@ form {
   font-size: 14px;
 }
 
-.run-house-meta {
+.run-areas {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  font-size: 13px;
-  color: var(--text-muted);
+  flex-direction: column;
+  gap: 6px;
+}
+
+.run-extra {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border);
 }
 
 .run-spray {
@@ -1990,7 +1995,6 @@ form {
   grid-column: 1 / -1;
 }
 
-.run-house-meta .link-btn,
 .run-house-actions .link-btn {
   min-height: 40px;
   font-size: 13px;

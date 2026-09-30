@@ -24,19 +24,24 @@ API in the browser and cached in Firestore.
   pattern is pre-picked as the next one in that customer's (or group's)
   rotation, and the mower with its deck height and speeds comes from their
   last mow; date, time, location and mower settings sit behind a "Change"
-  button until you need them.
+  button until you need them. With several customers picked, areas are
+  chosen at the first one's location and every other customer's record is
+  saved at their own location with the areas of the same name ("Front
+  Yard" at theirs).
 - **Log mow (Ready to Mow)** — each lawn (or street group) that's ready gets
   a button that opens Log Event already filled in for those customers: the
   next pattern, last visit's mower and settings, trim/edge choices,
   location and areas (and a double/triple cut if that's what was done last
   time), ready to check and save. The row previews what it will fill in.
 - **Run sheet** — for a customer group: set the pattern, mower and grass once,
-  tick each house done (or skip it) as you go, adjust tasks or areas per
-  house, and save every finished house at the end. A house's "+ Extra" adds
-  extra yard work and **Sprayed** (target, product, amount and sprayer - the
-  next house sprayed starts from the same, and the amount comes out of
-  inventory). Start one from Group Mow Patterns or a group's Ready to Mow
-  row.
+  tick each house done (or skip it) as you go, adjust tasks per house, and
+  save every finished house at the end. A house's "+ Extra" adds extra yard
+  work and **Sprayed** (target, product, amount and sprayer - the next house
+  sprayed starts from the same, and the amount comes out of inventory).
+  Yard work, extra work and spraying each pick their own areas at each
+  house (yard work starts from last time's; the others from none), so a
+  spray on the front yard is recorded as just the front yard. Start one
+  from Group Mow Patterns or a group's Ready to Mow row.
 - **Cuts: areas mowed differently, double and triple cuts** — "+ Add a
   second cut" (then another) on a mow in Log Event, the run sheet, or when
   editing a visit in History. Each cut has its own areas, pattern, mower,
@@ -73,6 +78,13 @@ API in the browser and cached in Firestore.
     recent pattern rotation, and their full visit list.
   - **Last Sprayed** — every customer sorted by how long since their last
     spray for a given target (e.g. weeds), to see who's due.
+
+  History also offers one-tap repairs for records saved by older versions,
+  shown only while there's something to repair: **Combine duplicates** (a
+  record saved per area) and **Fix records** saved at the wrong yard
+  (logging several customers at once used to put everyone's record at the
+  first customer's location - each is moved to its own customer's
+  location, with the areas of the same name).
 - **Settings** — customer records, each with a **primary contact** (name,
   phone, email — the phone auto-formats to `(XXX) XXX-XXXX`) and an address
   you can validate against real US postal data with one click; **locations**

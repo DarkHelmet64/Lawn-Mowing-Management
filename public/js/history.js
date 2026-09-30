@@ -19,6 +19,7 @@ import { getLocationLabel } from "./locations.js";
 import { getProductName, getProductById } from "./products.js";
 import { openLogEventFor } from "./eventLog.js";
 import { countDuplicates, combineDuplicates } from "./duplicates.js";
+import { countMisplaced, fixMisplaced } from "./misplacedRecords.js";
 import { createdMs, mowHistory, nextPattern, patternGlyph } from "./visitDefaults.js";
 import { visitCuts, cutNumbers, passCount, multiCutAreaIds, cutLabel } from "./cuts.js";
 
@@ -63,7 +64,7 @@ const state = {
   dayLimit: DAYS_PER_PAGE,
   calendarMonth: todayStr().slice(0, 7),
   calendarDay: todayStr(),
-  combineMessage: "",
+  noticeMessage: "",
 };
 let listenersBound = false;
 
@@ -810,23 +811,35 @@ const RENDERERS = {
   sprays: renderSpraysView,
 };
 
-// Shown only while old one-record-per-area duplicates exist (and once more
-// right after combining, to confirm what happened).
-function renderDuplicateNotice() {
-  const container = byId("history-duplicates");
+// Repairs for records saved by older versions, each shown only while there's
+// something to repair (and a confirmation right after one runs):
+// one-record-per-area duplicates, and records saved at another customer's
+// location.
+function renderRepairNotices() {
   const { sets, records } = countDuplicates();
-  if (!sets) {
-    container.innerHTML = state.combineMessage ? `<p class="notice-done">${escapeHtml(state.combineMessage)}</p>` : "";
-    return;
-  }
-  container.innerHTML = `
+  const misplaced = countMisplaced();
+  const notices = [
+    sets &&
+      `
     <div class="card notice-card">
       <div class="notice-text">
         <strong>Old duplicate records</strong>
         <span class="hint-text">Before the fix, each area was saved as its own record, so some visits show up more than once. ${records} records can be combined into ${sets}, keeping all of their areas.</span>
       </div>
       <button type="button" class="primary-btn" id="combine-duplicates-btn">Combine duplicates</button>
-    </div>`;
+    </div>`,
+    misplaced &&
+      `
+    <div class="card notice-card">
+      <div class="notice-text">
+        <strong>Records saved at the wrong yard</strong>
+        <span class="hint-text">Logging several customers at once used to save everyone's record at the first customer's location. ${plural(misplaced, "record")} can be moved to their own customer's location, with the areas of the same name.</span>
+      </div>
+      <button type="button" class="primary-btn" id="fix-misplaced-btn">Fix ${plural(misplaced, "record")}</button>
+    </div>`,
+  ].filter(Boolean);
+  byId("history-duplicates").innerHTML =
+    (state.noticeMessage ? `<p class="notice-done">${escapeHtml(state.noticeMessage)}</p>` : "") + notices.join("");
 }
 
 async function handleCombineDuplicates() {
@@ -844,24 +857,47 @@ async function handleCombineDuplicates() {
   }
   try {
     const result = await combineDuplicates();
-    state.combineMessage = `Combined ${result.records} records into ${result.sets}.`;
+    state.noticeMessage = `Combined ${result.records} records into ${result.sets}.`;
   } catch (err) {
     console.error("Failed to combine duplicate records", err);
-    state.combineMessage = "";
+    state.noticeMessage = "";
     alert("Couldn't combine the duplicates. Nothing was changed for any record that failed - try again.");
+  }
+  render();
+}
+
+async function handleFixMisplaced() {
+  const n = countMisplaced();
+  if (!n) return;
+  const ok = await confirmAction(
+    `Move ${plural(n, "record")} to their own customer's location? Each gets the areas with the same names there (like Front Yard); any that customer doesn't have are left off. This can't be undone.`,
+    { confirmLabel: "Fix", danger: false }
+  );
+  if (!ok) return;
+  const btn = byId("fix-misplaced-btn");
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "Fixing…";
+  }
+  try {
+    state.noticeMessage = `Moved ${plural(await fixMisplaced(), "record")} to their own customer's location.`;
+  } catch (err) {
+    console.error("Failed to fix misplaced records", err);
+    state.noticeMessage = "";
+    alert("Couldn't fix those records. Any that failed were left as they were - try again.");
   }
   render();
 }
 
 function render() {
   applyControlVisibility();
-  renderDuplicateNotice();
+  renderRepairNotices();
   RENDERERS[state.view]();
 }
 
 function setView(view) {
   state.view = view;
-  state.combineMessage = "";
+  state.noticeMessage = "";
   state.dayLimit = DAYS_PER_PAGE;
   try {
     localStorage.setItem(VIEW_STORAGE_KEY, view);
@@ -958,6 +994,7 @@ export function initHistoryView() {
     byId("history-results").addEventListener("click", handleClick);
     byId("history-duplicates").addEventListener("click", (e) => {
       if (e.target.closest("#combine-duplicates-btn")) handleCombineDuplicates();
+      if (e.target.closest("#fix-misplaced-btn")) handleFixMisplaced();
     });
     document.addEventListener("records:changed", render);
     document.addEventListener("event:logged", render);
