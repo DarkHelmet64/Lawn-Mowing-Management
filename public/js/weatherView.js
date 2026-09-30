@@ -1,5 +1,6 @@
 import { syncWeather, loadCachedWeather } from "./weather.js";
 import { syncLawnWeather } from "./lawnWeather.js";
+import { initGroupThresholds, renderGroupThresholds } from "./groupThresholds.js";
 import { getSettings, saveSettings } from "./settings.js";
 import {
   growthPotentialSeries,
@@ -142,7 +143,6 @@ export function syncLawns() {
 export async function initWeatherView() {
   const settings = await getSettings();
   byId("grass-type").value = settings.grassType;
-  byId("mow-threshold").value = settings.mowThresholdGPDays;
   byId("rain-adjust").checked = settings.rainAdjust !== false;
   byId("rain-full-growth").value = settings.rainFullGrowthIn;
   byId("rain-full-growth").disabled = !byId("rain-adjust").checked;
@@ -157,7 +157,6 @@ export async function initWeatherView() {
   byId("save-gp-settings-btn").addEventListener("click", async () => {
     await saveSettings({
       grassType: byId("grass-type").value,
-      mowThresholdGPDays: Number(byId("mow-threshold").value),
       rainAdjust: byId("rain-adjust").checked,
       rainFullGrowthIn: Number(byId("rain-full-growth").value) || 1,
       crabgrassGddStart: Number(byId("crabgrass-gdd-start").value),
@@ -167,8 +166,10 @@ export async function initWeatherView() {
     });
     byId("gp-settings-saved").classList.remove("hidden");
     setTimeout(() => byId("gp-settings-saved").classList.add("hidden"), 1500);
+    renderGroupThresholds();
     await liveSyncAndRender();
   });
+  initGroupThresholds();
 
   byId("refresh-weather-btn").addEventListener("click", () => liveSyncAndRender());
 

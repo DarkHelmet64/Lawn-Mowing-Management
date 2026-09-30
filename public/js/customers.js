@@ -22,6 +22,25 @@ export function getActiveCustomers() {
   return cache.filter((c) => c.active !== false);
 }
 
+// Sets several customers' mow threshold at once (everyone in a group).
+// Blank puts them back on the Weather & Growth default. The caller fires
+// "customers:changed" once it's done.
+export async function setMowThreshold(customerIds, threshold) {
+  const value = Number(threshold) > 0 ? Number(threshold) : null;
+  for (const id of customerIds) {
+    await updateDocById(COLLECTION, id, { mowThresholdGPDays: value });
+    const customer = cache.find((c) => c.id === id);
+    if (customer) customer.mowThresholdGPDays = value;
+  }
+}
+
+// The mow threshold these customers share: a number, null when they're all
+// on the default, or undefined when they differ.
+export function sharedMowThreshold(customerIds) {
+  const values = new Set(customerIds.map((id) => cache.find((c) => c.id === id)?.mowThresholdGPDays ?? null));
+  return values.size === 1 ? [...values][0] : undefined;
+}
+
 export function getCustomerName(id) {
   return cache.find((c) => c.id === id)?.name || "(deleted customer)";
 }

@@ -1788,6 +1788,36 @@ form {
   flex-shrink: 0;
 }
 
+.threshold-list {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 12px;
+}
+
+.threshold-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+}
+
+.threshold-row + .threshold-row {
+  border-top: 1px solid var(--surface-muted);
+}
+
+.threshold-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.threshold-row input {
+  width: 110px;
+  flex-shrink: 0;
+}
+
 .gp-progress {
   height: 6px;
   border-radius: 999px;

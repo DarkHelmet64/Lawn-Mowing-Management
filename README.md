@@ -201,9 +201,9 @@ slow growth (too cold, too hot, or dormant).
 
 **Ready to mow**: for each active customer, the app adds up each day's
 growth since their last logged mow (the mow day itself isn't counted; today
-uses today's forecast high/low). Once that running total crosses the
-**Mow Threshold (GP-days)** (default: 5), the lawn is flagged "Ready to
-mow" on the Dashboard. There's no universally "correct" threshold — watch
+uses today's forecast high/low). Once that running total crosses their
+**mow threshold** (in GP-days; 5 unless set), the lawn is flagged "Ready
+to mow" on the Dashboard. There's no universally "correct" threshold — watch
 how the accumulated GP-days value tracks against what you actually see in
 the yard over a few mow cycles, and adjust the threshold up or down to
 match.
@@ -213,9 +213,14 @@ match.
   14 days against **Rain for Full Growth** (default 1 inch a week): 100%
   with at least that much, easing down (about 80% with half of it) to 30%
   with none. Irrigated customers are never slowed down.
+- **Thresholds**: **Mow Thresholds by Group** on Weather & Growth sets one
+  threshold for a whole customer group at once (saved on each customer in
+  it), with a row for each customer not in a group too; a customer's own
+  can also be changed on their form. Blank uses the default (shown in the
+  box; 5 to start).
 - **Per customer** (Settings → Customers → Mowing): a customer can have
-  their own grass type and threshold (blank uses the Weather & Growth
-  settings) and be marked Irrigated.
+  their own grass type (blank uses the Weather & Growth setting) and be
+  marked Irrigated.
 - **Per lawn weather**: each customer's lawn is found on the map (the
   location of their last mow, else their first location with an address,
   else their own address) and uses the weather there, fetched per ~7-mile

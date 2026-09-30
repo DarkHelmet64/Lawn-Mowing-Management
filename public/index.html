@@ -1193,9 +1193,6 @@
               <option value="warm">Warm-season (bermuda, zoysia)</option>
             </select>
           </label>
-          <label>Mow Threshold (GP-days)
-            <input type="number" id="mow-threshold" value="5" min="0.5" step="0.5" />
-          </label>
           <label class="checkbox-label">
             <input type="checkbox" id="rain-adjust" /> Dry spells slow growth
           </label>
@@ -1220,12 +1217,24 @@
         <p class="hint-text">
           Location: Dayton, OH (lat 39.7589, lon -84.1916). Data source: Open-Meteo (no API key required).
           Growth Potential (GP) estimates how fast the grass is growing today, from 0-100%, based on temperature.
-          A customer's lawn is flagged "ready to mow" once their accumulated GP since the last mow crosses the threshold above -
-          tune the threshold up or down based on how it matches what you see in the yard.
+          A customer's lawn is flagged "ready to mow" once their accumulated GP since the last mow crosses their mow threshold
+          (Mow Thresholds by Group, below) - tune it up or down based on how it matches what you see in the yard.
           With "Dry spells slow growth" on, each day's GP is scaled by the rain over the last two weeks: full speed with at least
           the rain above, easing down to 30% with none (irrigated lawns are never slowed). Ready to Mow uses the weather at each lawn's own
-          address, and a customer can have their own grass type and threshold (Settings → Customers).
+          address, and a customer can have their own grass type (Settings → Customers).
         </p>
+        <div class="card">
+          <h3>Mow Thresholds by Group</h3>
+          <p class="hint-text">
+            How many GP-days of growth make a lawn ready to mow. Neighbors mowed together usually need the same, so a group's
+            threshold is saved on every customer in it (the same as setting it on each customer); blank uses the default.
+          </p>
+          <div id="group-threshold-list" class="threshold-list"></div>
+          <div class="form-actions">
+            <button type="button" id="save-thresholds-btn" class="primary-btn">Save Thresholds</button>
+            <span id="thresholds-saved" class="hint-text hidden">Saved!</span>
+          </div>
+        </div>
         <div class="card">
           <div class="view-header">
             <h3>Lawn Treatment Windows</h3>
