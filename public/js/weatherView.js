@@ -91,6 +91,13 @@ function renderCharts(series) {
 // live call out to Open-Meteo. This is what the Dashboard and Settings
 // (mow-readiness) rely on, so their initial render never blocks on a
 // third-party API.
+// Dayton's season from the cache, loaded once for whatever on this page
+// needs it.
+async function seasonDays() {
+  if (!lastDays.length) lastDays = await loadCachedWeather(FETCH_SINCE);
+  return lastDays;
+}
+
 export async function refreshWeatherView() {
   const settings = await getSettings();
   lastDays = await loadCachedWeather(FETCH_SINCE);
@@ -169,7 +176,7 @@ export async function initWeatherView() {
     renderGroupThresholds();
     await liveSyncAndRender();
   });
-  initGroupThresholds();
+  initGroupThresholds(seasonDays);
 
   byId("refresh-weather-btn").addEventListener("click", () => liveSyncAndRender());
 

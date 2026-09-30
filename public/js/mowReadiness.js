@@ -152,3 +152,86 @@ export function computeMowStatus(customers, visits, weatherFor, settings, today 
   }
   return result;
 }
+
+// What someone's own mowing says their threshold is. Every gap between
+// back-to-back mows is how much growth they let build up before mowing;
+// the middle value of the recent gaps is the suggestion. For a group
+// (customers mowed together) the gaps are between the group's mow rounds,
+// with each gap's growth averaged over its customers.
+
+// Mows this close together are one round - a street done over a day or two.
+const SAME_ROUND_DAYS = 2;
+// Longer gaps are vacations, dormancy or the season's start, not a normal
+// mowing interval.
+const MAX_GAP_DAYS = 21;
+const MAX_GAPS = 10;
+export const MIN_GAPS = 4;
+
+function median(xs) {
+  const s = [...xs].sort((a, b) => a - b);
+  const mid = Math.floor(s.length / 2);
+  return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
+}
+
+// Returns {
+//   suggestion: number | null (null: fewer than MIN_GAPS gaps to go on),
+//   gaps: [{ from, to, days, growth }] counted, newest first,
+//   skipped: [{ from, to, days }] too long to count, newest first,
+//   low, high: the counted gaps' range,
+// }
+export function suggestThreshold(customers, visits, weatherFor, settings, today = todayStr()) {
+  const ids = new Set(customers.map((c) => c.id));
+  const dates = [...new Set(visits.filter((v) => ids.has(v.customerId) && v.mowed && v.date <= today).map((v) => v.date))].sort();
+  // Each round starts on its first day.
+  const rounds = [];
+  let lastDate = null;
+  for (const d of dates) {
+    if (!lastDate || daysBetween(lastDate, d) > SAME_ROUND_DAYS) rounds.push(d);
+    lastDate = d;
+  }
+
+  // Each customer's growth by date, on their own weather and settings.
+  const growthByCustomer = customers.map((c) => {
+    const { profile, rainFullGrowthIn } = mowSettingsFor(c, settings);
+    const days = weatherFor(c).days.filter((d) => d.date <= today);
+    return new Map(growthSeries(days, profile, rainFullGrowthIn).map((d) => [d.date, d.growth]));
+  });
+
+  const gaps = [];
+  const skipped = [];
+  for (let i = 1; i < rounds.length; i++) {
+    const from = rounds[i - 1];
+    const to = rounds[i];
+    const days = daysBetween(from, to);
+    if (days > MAX_GAP_DAYS) {
+      skipped.push({ from, to, days });
+      continue;
+    }
+    // From the day after one round through the day of the next - what Ready
+    // to Mow would have shown that morning.
+    const totals = growthByCustomer
+      .map((growth) => {
+        let total = 0;
+        for (let n = 1; n <= days; n++) {
+          const g = growth.get(addDays(from, n));
+          if (g == null) return null;
+          total += g;
+        }
+        return total;
+      })
+      .filter((t) => t != null);
+    if (totals.length) gaps.push({ from, to, days, growth: mean(totals) });
+  }
+
+  const recent = gaps.slice(-MAX_GAPS).reverse();
+  const oldest = recent.length ? recent[recent.length - 1].from : null;
+  const result = {
+    suggestion: null,
+    gaps: recent,
+    skipped: skipped.filter((g) => !oldest || g.to >= oldest).reverse(),
+    low: recent.length ? Math.min(...recent.map((g) => g.growth)) : null,
+    high: recent.length ? Math.max(...recent.map((g) => g.growth)) : null,
+  };
+  if (recent.length >= MIN_GAPS) result.suggestion = Math.max(0.5, Math.round(median(recent.map((g) => g.growth)) * 2) / 2);
+  return result;
+}

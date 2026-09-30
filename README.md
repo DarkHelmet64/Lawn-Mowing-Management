@@ -217,7 +217,11 @@ match.
   threshold for a whole customer group at once (saved on each customer in
   it), with a row for each customer not in a group too; a customer's own
   can also be changed on their form. Blank uses the default (shown in the
-  box; 5 to start).
+  box; 5 to start). Each row also **suggests a threshold from your own
+  mowing**: the growth that built up between back-to-back mows (a street
+  done over a day or two counts as one round; gaps over 3 weeks are
+  skipped), the middle value of the last 10 gaps, once there are at least
+  4. **Use** puts it in the box to save; **Why?** lists the gaps it used.
 - **Per customer** (Settings → Customers → Mowing): a customer can have
   their own grass type (blank uses the Weather & Growth setting) and be
   marked Irrigated.
