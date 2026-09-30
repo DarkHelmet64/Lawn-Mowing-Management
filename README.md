@@ -31,12 +31,14 @@ API in the browser and cached in Firestore.
   location and areas (and a double/triple cut if that's what was done last
   time), ready to check and save. The row previews what it will fill in.
 - **Run sheet** — for a customer group: set the pattern, mower and grass once,
-  tick each house done (or skip it) as you go, adjust tasks or areas per
-  house, and save every finished house at the end. A house's "+ Extra" adds
-  extra yard work and **Sprayed** (target, product, amount and sprayer - the
-  next house sprayed starts from the same, and the amount comes out of
-  inventory). Start one from Group Mow Patterns or a group's Ready to Mow
-  row.
+  tick each house done (or skip it) as you go, adjust tasks per house, and
+  save every finished house at the end. A house's "+ Extra" adds extra yard
+  work and **Sprayed** (target, product, amount and sprayer - the next house
+  sprayed starts from the same, and the amount comes out of inventory).
+  Yard work, extra work and spraying each pick their own areas at each
+  house (yard work starts from last time's; the others from none), so a
+  spray on the front yard is recorded as just the front yard. Start one
+  from Group Mow Patterns or a group's Ready to Mow row.
 - **Cuts: areas mowed differently, double and triple cuts** — "+ Add a
   second cut" (then another) on a mow in Log Event, the run sheet, or when
   editing a visit in History. Each cut has its own areas, pattern, mower,

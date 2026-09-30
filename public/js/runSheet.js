@@ -10,7 +10,7 @@ import {
   getEquipmentById,
 } from "./equipment.js";
 import { getLocations } from "./locations.js";
-import { getAreasForLocation, areaAppliesToEventTypes, getAreaNames, getAreaName } from "./areas.js";
+import { getAreasForLocation, areaAppliesToEventTypes, getAreaName } from "./areas.js";
 import { loadVisits, PATTERN_LABELS, TIME_OF_DAY_LABELS } from "./mowLog.js";
 import {
   repeatVisitFor,
@@ -30,7 +30,9 @@ import { showHistory } from "./history.js";
 // A run sheet for one Customer Group (a street): pattern, mower and grass
 // are set once for everyone, then each house is ticked done (or skipped) as
 // it's finished, and every done house is saved in one go at the end. "+
-// Extra" on a house adds extra yard work and spraying there.
+// Extra" on a house adds extra yard work and spraying there. Yard work,
+// extra work and spraying each have their own areas, as in Log Event, so a
+// spray on the front yard isn't recorded as covering the whole lawn.
 
 const YARD_TASK_LABELS = { mowed: "Mowed", trimmed: "Trimmed", edged: "Edged" };
 const EXTRA_TASK_LABELS = { pruned: "Pruned", trimmedBushes: "Trimmed Bushes", mulched: "Mulched" };
@@ -50,7 +52,7 @@ let cutEditor = null;
 function areaNameOptions() {
   const names = new Set();
   for (const h of state.houses) {
-    for (const a of getAreasForLocation(h.locationId)) if (areaAppliesToEventTypes(a, ["yardwork"])) names.add(a.name);
+    for (const a of areasFor(h.locationId, "yard")) names.add(a.name);
   }
   return [...names].sort().map((name) => ({ id: name, name }));
 }
@@ -176,8 +178,10 @@ export function startRun(groupId) {
       sprayed: false,
       spray: { ...NO_SPRAY },
       locationId: repeat.locationId,
-      areaIds: [...repeat.areaIds],
-      showAreas: false,
+      // Yard work areas; extra work and spraying start with none picked.
+      areaIds: areaIdsFor(repeat.locationId, "yard").filter((a) => repeat.areaIds.includes(a)),
+      extraAreaIds: [],
+      sprayAreaIds: [],
     };
   });
 
@@ -199,11 +203,45 @@ export function startRun(groupId) {
 
 const NO_SPRAY = { target: "weeds", productId: "", quantity: "", equipmentId: "" };
 
+// Each kind of work picks from the areas set up (in Settings) for it.
+const AREA_KINDS = {
+  yard: { eventType: "yardwork", label: "Yard work areas", chipClass: "chip-toggle", key: "areaIds" },
+  extra: { eventType: "extra_yardwork", label: "Extra work areas", chipClass: "chip-toggle chip-extra-toggle", key: "extraAreaIds" },
+  spray: { eventType: "chemical", label: "Areas sprayed", chipClass: "chip-toggle chip-spray-toggle", key: "sprayAreaIds" },
+};
+
+function areasFor(locationId, kind) {
+  return getAreasForLocation(locationId).filter((a) => areaAppliesToEventTypes(a, [AREA_KINDS[kind].eventType]));
+}
+
+function areaIdsFor(locationId, kind) {
+  return areasFor(locationId, kind).map((a) => a.id);
+}
+
+function areaChipsHtml(h, kind) {
+  const { label, chipClass, key } = AREA_KINDS[kind];
+  const id = escapeHtml(h.customerId);
+  const chips = areasFor(h.locationId, kind)
+    .map(
+      (a) =>
+        `<label class="${chipClass}"><input type="checkbox" data-run-area="${id}" data-kind="${kind}" value="${escapeHtml(a.id)}" ${h[key].includes(a.id) ? "checked" : ""} /><span>${escapeHtml(a.name)}</span></label>`
+    )
+    .join("");
+  return `
+      <div class="run-areas" role="group" aria-label="${escapeHtml(label)}">
+        <span class="field-label">${escapeHtml(label)}</span>
+        <div class="chip-group">${chips || `<p class="hint-text">No areas set up for this at this location.</p>`}</div>
+      </div>`;
+}
+
 // A house's spray starts as a copy of one already set up on this run -
-// neighbors usually get the same product - so only the amount may differ.
-function sprayDefaults() {
-  const other = state.houses.find((h) => h.sprayed && h.spray.productId);
-  return other ? { ...other.spray } : { ...NO_SPRAY };
+// neighbors usually get the same product, on the same parts of the lawn
+// (matched by name) - so often only the amount differs.
+function sprayDefaults(h) {
+  const other = state.houses.find((x) => x !== h && x.sprayed && x.spray.productId);
+  if (!other) return { spray: { ...NO_SPRAY }, areaIds: [] };
+  const names = new Set(other.sprayAreaIds.map(getAreaName));
+  return { spray: { ...other.spray }, areaIds: areasFor(h.locationId, "spray").filter((a) => names.has(a.name)).map((a) => a.id) };
 }
 
 function sprayPanelHtml(h) {
@@ -217,6 +255,7 @@ function sprayPanelHtml(h) {
     .join("");
   return `
       <div class="run-spray">
+        ${areaChipsHtml(h, "spray")}
         <div class="chip-group" role="radiogroup" aria-label="Sprayed for">${targets}</div>
         <div class="run-spray-fields">
           <label class="run-spray-product">Product <select data-run-spray="${id}" data-field="productId"></select></label>
@@ -257,22 +296,15 @@ function renderHouse(h) {
       </article>`;
   }
   const done = h.status === "done";
-  const showExtra = h.showExtra || Object.values(h.extra).some(Boolean) || h.sprayed;
+  const anyExtra = Object.values(h.extra).some(Boolean);
+  const showExtra = h.showExtra || anyExtra || h.sprayed;
+  const yardChips = Object.entries(YARD_TASK_LABELS)
+    .map(([f, l]) => taskChip(h.customerId, f, l, h.tasks[f], "task"))
+    .join("");
+  const extraChips = Object.entries(EXTRA_TASK_LABELS)
+    .map(([f, l]) => taskChip(h.customerId, f, l, h.extra[f], "extra"))
+    .join("");
   const sprayChip = `<label class="chip-toggle chip-spray-toggle"><input type="checkbox" data-run-sprayed="${id}" ${h.sprayed ? "checked" : ""} /><span>Sprayed</span></label>`;
-  const chips = [
-    ...Object.entries(YARD_TASK_LABELS).map(([f, l]) => taskChip(h.customerId, f, l, h.tasks[f], "task")),
-    ...(showExtra ? [...Object.entries(EXTRA_TASK_LABELS).map(([f, l]) => taskChip(h.customerId, f, l, h.extra[f], "extra")), sprayChip] : []),
-  ].join("");
-  const areaOptions = h.showAreas
-    ? `<div class="chip-group run-area-chips">${
-        getAreasForLocation(h.locationId)
-          .map(
-            (a) =>
-              `<label class="chip-toggle"><input type="checkbox" data-run-area="${id}" value="${escapeHtml(a.id)}" ${h.areaIds.includes(a.id) ? "checked" : ""} /><span>${escapeHtml(a.name)}</span></label>`
-          )
-          .join("") || `<p class="hint-text">No areas set up at this location.</p>`
-      }</div>`
-    : "";
   return `
     <article class="run-house${done ? " done" : ""}">
       <div class="run-house-head">
@@ -280,15 +312,19 @@ function renderHouse(h) {
         <button type="button" class="run-done-btn" data-run-action="done" data-customer="${id}" aria-pressed="${done}" aria-label="${done ? "Done" : "Mark done"}: ${name}">${CHECK_SVG}</button>
       </div>
       <div class="chip-group">
-        ${chips}
+        ${yardChips}
         ${showExtra ? "" : `<button type="button" class="add-chip-btn" data-run-action="extra" data-customer="${id}">+ Extra</button>`}
       </div>
-      ${h.sprayed ? sprayPanelHtml(h) : ""}
-      <div class="run-house-meta">
-        <span>${escapeHtml(getAreaNames(h.areaIds) || "No areas picked")}</span>
-        <button type="button" class="link-btn" data-run-action="areas" data-customer="${id}" aria-expanded="${h.showAreas}">${h.showAreas ? "Done" : "Change areas"}</button>
-      </div>
-      ${areaOptions}
+      ${areaChipsHtml(h, "yard")}
+      ${
+        showExtra
+          ? `<div class="run-extra">
+        <div class="chip-group">${extraChips}${sprayChip}</div>
+        ${anyExtra ? areaChipsHtml(h, "extra") : ""}
+        ${h.sprayed ? sprayPanelHtml(h) : ""}
+      </div>`
+          : ""
+      }
       <div class="run-house-actions">
         <button type="button" class="link-btn" data-run-action="skip" data-customer="${id}">Skip today</button>
       </div>
@@ -327,7 +363,6 @@ function handleHouseClick(e) {
   else if (action === "skip") h.status = "skipped";
   else if (action === "unskip") h.status = "pending";
   else if (action === "extra") h.showExtra = true;
-  else if (action === "areas") h.showAreas = !h.showAreas;
   state.dirty = true;
   render();
   // Re-rendering replaced the button; keep focus where it was (a skipped
@@ -343,10 +378,18 @@ function handleHouseChange(e) {
   if (!h) return;
   state.dirty = true;
   if (d.runTask) h.tasks[d.field] = input.checked;
-  else if (d.runExtra) h.extra[d.field] = input.checked;
-  else if (d.runSprayed) {
+  else if (d.runExtra) {
+    // The extra work areas show once there's extra work to place.
+    h.extra[d.field] = input.checked;
+    render();
+    document.querySelector(`#run-houses [data-run-extra="${CSS.escape(h.customerId)}"][data-field="${d.field}"]`)?.focus();
+  } else if (d.runSprayed) {
     h.sprayed = input.checked;
-    if (h.sprayed && !h.spray.productId) h.spray = sprayDefaults();
+    if (h.sprayed && !h.spray.productId) {
+      const defaults = sprayDefaults(h);
+      h.spray = defaults.spray;
+      h.sprayAreaIds = defaults.areaIds;
+    }
     render();
     document.querySelector(`#run-houses [data-run-sprayed="${CSS.escape(h.customerId)}"]`)?.focus();
   } else if (d.runSpray) {
@@ -358,9 +401,8 @@ function handleHouseChange(e) {
       document.querySelector(`#run-houses [data-run-spray="${CSS.escape(h.customerId)}"][data-field="productId"]`)?.focus();
     }
   } else if (d.runArea) {
-    h.areaIds = input.checked ? [...h.areaIds, input.value] : h.areaIds.filter((a) => a !== input.value);
-    render();
-    document.querySelector(`#run-houses [data-run-area="${CSS.escape(h.customerId)}"][value="${CSS.escape(input.value)}"]`)?.focus();
+    const key = AREA_KINDS[d.kind].key;
+    h[key] = input.checked ? [...h[key], input.value] : h[key].filter((a) => a !== input.value);
   }
 }
 
@@ -420,9 +462,6 @@ async function saveRun() {
         );
       }
       if (Object.values(h.extra).some(Boolean)) {
-        const extraAreas = getAreasForLocation(h.locationId)
-          .filter((a) => h.areaIds.includes(a.id) && areaAppliesToEventTypes(a, ["extra_yardwork"]))
-          .map((a) => a.id);
         ids.push(
           await createDoc("mowVisits", {
             ...base,
@@ -436,7 +475,7 @@ async function saveRun() {
             grassCondition: null,
             equipmentId: null,
             ...h.extra,
-            areaIds: extraAreas,
+            areaIds: h.extraAreaIds,
           })
         );
       }
@@ -451,9 +490,7 @@ async function saveRun() {
             productId: h.spray.productId,
             quantityUsed,
             locationId: h.locationId,
-            areaIds: getAreasForLocation(h.locationId)
-              .filter((a) => h.areaIds.includes(a.id) && areaAppliesToEventTypes(a, ["chemical"]))
-              .map((a) => a.id),
+            areaIds: h.sprayAreaIds,
             featureId: null,
             equipmentId: h.spray.equipmentId || null,
             notes: "",
