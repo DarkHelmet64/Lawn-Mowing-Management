@@ -1788,6 +1788,69 @@ form {
   flex-shrink: 0;
 }
 
+.threshold-list {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 12px;
+}
+
+.threshold-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 0;
+}
+
+.threshold-row-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.threshold-suggest {
+  font-size: 13px;
+}
+
+.threshold-suggest .link-btn {
+  min-height: 32px;
+  padding: 0 4px;
+  font-size: 13px;
+}
+
+.threshold-why {
+  max-width: 560px;
+  list-style: none;
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--surface-muted);
+  font-size: 13px;
+}
+
+.threshold-why li {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 0.8fr) minmax(0, 1.2fr);
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.threshold-row + .threshold-row {
+  border-top: 1px solid var(--surface-muted);
+}
+
+.threshold-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.threshold-row input {
+  width: 110px;
+  flex-shrink: 0;
+}
+
 .gp-progress {
   height: 6px;
   border-radius: 999px;

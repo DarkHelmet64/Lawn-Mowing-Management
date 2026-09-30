@@ -1,5 +1,6 @@
 import { syncWeather, loadCachedWeather } from "./weather.js";
 import { syncLawnWeather } from "./lawnWeather.js";
+import { initGroupThresholds, renderGroupThresholds } from "./groupThresholds.js";
 import { getSettings, saveSettings } from "./settings.js";
 import {
   growthPotentialSeries,
@@ -90,6 +91,13 @@ function renderCharts(series) {
 // live call out to Open-Meteo. This is what the Dashboard and Settings
 // (mow-readiness) rely on, so their initial render never blocks on a
 // third-party API.
+// Dayton's season from the cache, loaded once for whatever on this page
+// needs it.
+async function seasonDays() {
+  if (!lastDays.length) lastDays = await loadCachedWeather(FETCH_SINCE);
+  return lastDays;
+}
+
 export async function refreshWeatherView() {
   const settings = await getSettings();
   lastDays = await loadCachedWeather(FETCH_SINCE);
@@ -142,7 +150,6 @@ export function syncLawns() {
 export async function initWeatherView() {
   const settings = await getSettings();
   byId("grass-type").value = settings.grassType;
-  byId("mow-threshold").value = settings.mowThresholdGPDays;
   byId("rain-adjust").checked = settings.rainAdjust !== false;
   byId("rain-full-growth").value = settings.rainFullGrowthIn;
   byId("rain-full-growth").disabled = !byId("rain-adjust").checked;
@@ -157,7 +164,6 @@ export async function initWeatherView() {
   byId("save-gp-settings-btn").addEventListener("click", async () => {
     await saveSettings({
       grassType: byId("grass-type").value,
-      mowThresholdGPDays: Number(byId("mow-threshold").value),
       rainAdjust: byId("rain-adjust").checked,
       rainFullGrowthIn: Number(byId("rain-full-growth").value) || 1,
       crabgrassGddStart: Number(byId("crabgrass-gdd-start").value),
@@ -167,8 +173,10 @@ export async function initWeatherView() {
     });
     byId("gp-settings-saved").classList.remove("hidden");
     setTimeout(() => byId("gp-settings-saved").classList.add("hidden"), 1500);
+    renderGroupThresholds();
     await liveSyncAndRender();
   });
+  initGroupThresholds(seasonDays);
 
   byId("refresh-weather-btn").addEventListener("click", () => liveSyncAndRender());
 
