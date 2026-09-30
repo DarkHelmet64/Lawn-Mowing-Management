@@ -10,7 +10,7 @@ import {
   getEquipmentById,
 } from "./equipment.js";
 import { getLocationsForCustomer, populateLocationSelect, getLocationLabel } from "./locations.js";
-import { getAreasForLocation, areaAppliesToEventTypes } from "./areas.js";
+import { getAreasForLocation, areaAppliesToEventTypes, getAreaName } from "./areas.js";
 import { getYardFeatures } from "./yardFeatures.js";
 import { loadVisits, PATTERN_LABELS, TIME_OF_DAY_LABELS } from "./mowLog.js";
 import { loadSprays, getLastQuantityUsedForProduct } from "./sprayLog.js";
@@ -24,6 +24,7 @@ import {
   grassDefault,
   mowerSettings,
   mowerSummary,
+  repeatVisitFor,
 } from "./visitDefaults.js";
 
 // Set once a pattern or mower is picked by hand, so changing who's checked
@@ -33,9 +34,10 @@ let mowerTouched = false;
 // Cuts 2 and 3 of a double/triple cut (cut 1 is the pattern/mower/areas above).
 let cutEditor = null;
 
-// Customers are a multi-select - Location/Areas are shared across whichever
-// customers are checked (driven by the first one checked), and submitting
-// saves a copy of every record for each of them.
+// Customers are a multi-select - Location/Areas are picked at the first
+// customer checked, and submitting saves a copy of every record for each of
+// them, each at the customer's own location with the same areas by name
+// (see copyPlace).
 function checkedCustomerIds() {
   return Array.from(document.querySelectorAll("#event-customer-list .event-customer-checkbox:checked")).map(
     (cb) => cb.value
@@ -214,11 +216,17 @@ function applyGrassConditionDefault() {
 }
 
 function updateWhenSummary() {
+  const ids = checkedCustomerIds();
+  const multi = ids.length > 1;
   byId("event-when-summary").textContent = whenSummaryText(
     byId("event-date").value,
     TIME_OF_DAY_LABELS[byId("event-time-of-day").value],
-    getLocationLabel(byId("event-location").value)
+    multi ? "each customer's own location" : getLocationLabel(byId("event-location").value)
   );
+  byId("event-location-hint").classList.toggle("hidden", !multi);
+  if (multi) {
+    byId("event-location-hint").textContent = `Areas are picked at ${getCustomerName(ids[0])}'s location. Everyone else's record goes to their own location, with the areas of the same name (like Front Yard).`;
+  }
 }
 
 function updateSaveLabel() {
@@ -409,6 +417,39 @@ function resetForNextEntry() {
   updateSaveLabel();
 }
 
+// Where a customer's copy of a multi-customer entry goes: the picked
+// location if it's theirs, else theirs with the same label ("Home"), else
+// where they were last worked on (their first location for someone new).
+function locationFor(customerId, pickedId) {
+  const locations = getLocationsForCustomer(customerId);
+  if (locations.some((l) => l.id === pickedId)) return pickedId;
+  const label = getLocationLabel(pickedId);
+  return locations.find((l) => label && l.label === label)?.id ?? repeatVisitFor(customerId).locationId;
+}
+
+// A customer's copy of the entry: their location, and a function turning
+// areas picked at the form's location into theirs - the same names
+// ("Front Yard"), among their areas set up for that kind of work.
+function copyPlace(customerId, pickedId) {
+  const locationId = locationFor(customerId, pickedId);
+  const areas = (ids, type) => {
+    if (locationId === pickedId) return ids;
+    const names = new Set(ids.map(getAreaName));
+    return getAreasForLocation(locationId)
+      .filter((a) => areaAppliesToEventTypes(a, [type]) && names.has(a.name))
+      .map((a) => a.id);
+  };
+  return { locationId, areas, samePlace: locationId === pickedId };
+}
+
+// The mow's cuts at a customer's own location. A cut over areas they don't
+// have is left out; if none are left, cut 1 stands for the whole mow.
+function cutsAt(cuts, areas) {
+  const mapped = cuts.map((c) => ({ ...c, areaIds: areas(c.areaIds || [], "yardwork") }));
+  const kept = mapped.filter((c, i) => c.areaIds.length || !cuts[i].areaIds?.length);
+  return kept.length ? kept : [{ ...mapped[0], areaIds: [] }];
+}
+
 // Each active event type is independent: its own areas and fields, saved as
 // one record per checked customer carrying all of that type's checked
 // areas. Yard Work and Extra Yard Work save separate records.
@@ -431,17 +472,17 @@ async function handleSubmit(e) {
   const locationId = byId("event-location").value || null;
 
   let yardworkFields = null;
+  let cuts = null;
+  let yardAreaIds = [];
   if (types.includes("yardwork")) {
     const mowed = byId("event-mowed").checked;
     // A mow saves its cuts (see cuts.js); trim/edge alone has none of that.
-    const cutData = mowed
-      ? cutFields([firstCut(), ...cutEditor.get()])
-      : { pattern: null, equipmentId: null, deckHeight: null, groundSpeed: null, bladeSpeed: null, areaIds: checkedAreaIds("yardwork"), cuts: null };
+    cuts = mowed ? [firstCut(), ...cutEditor.get()] : null;
+    yardAreaIds = checkedAreaIds("yardwork");
     yardworkFields = {
       mowed,
       trimmed: byId("event-trimmed").checked,
       edged: byId("event-edged").checked,
-      ...cutData,
       grassCondition: mowed ? radioValue("event-grass") : null,
     };
     if (!yardworkFields.mowed && !yardworkFields.trimmed && !yardworkFields.edged) {
@@ -478,14 +519,21 @@ async function handleSubmit(e) {
     }
   }
 
-  const eventBase = { date, timeOfDay, locationId, notes };
+  const eventBase = { date, timeOfDay, notes };
+  const places = new Map(customerIds.map((id) => [id, copyPlace(id, locationId)]));
 
   if (yardworkFields) {
     for (const customerId of customerIds) {
+      const place = places.get(customerId);
+      const cutData = cuts
+        ? cutFields(cutsAt(cuts, place.areas))
+        : { pattern: null, equipmentId: null, deckHeight: null, groundSpeed: null, bladeSpeed: null, areaIds: place.areas(yardAreaIds, "yardwork"), cuts: null };
       await createDoc("mowVisits", {
         customerId,
         ...eventBase,
+        locationId: place.locationId,
         ...yardworkFields,
+        ...cutData,
         pruned: false,
         trimmedBushes: false,
         mulched: false,
@@ -498,9 +546,11 @@ async function handleSubmit(e) {
     const areaIds = checkedAreaIds("extra_yardwork");
     const featureId = byId("event-feature").value || null;
     for (const customerId of customerIds) {
+      const place = places.get(customerId);
       await createDoc("mowVisits", {
         customerId,
         ...eventBase,
+        locationId: place.locationId,
         mowed: false,
         trimmed: false,
         edged: false,
@@ -511,8 +561,9 @@ async function handleSubmit(e) {
         grassCondition: null,
         equipmentId: null,
         ...extraFields,
-        areaIds,
-        featureId,
+        areaIds: place.areas(areaIds, "extra_yardwork"),
+        // A plant/object is one particular thing in one yard.
+        featureId: place.samePlace ? featureId : null,
       });
     }
   }
@@ -520,6 +571,7 @@ async function handleSubmit(e) {
   if (productId) {
     const areaIds = checkedAreaIds("chemical");
     for (const customerId of customerIds) {
+      const place = places.get(customerId);
       await createDoc("sprayApplications", {
         customerId,
         date,
@@ -527,8 +579,8 @@ async function handleSubmit(e) {
         target: radioValue("event-spray-target") || "weeds",
         productId,
         quantityUsed,
-        locationId,
-        areaIds,
+        locationId: place.locationId,
+        areaIds: place.areas(areaIds, "chemical"),
         featureId: null,
         equipmentId: byId("event-spray-equipment").value || null,
         notes,

@@ -24,7 +24,10 @@ API in the browser and cached in Firestore.
   pattern is pre-picked as the next one in that customer's (or group's)
   rotation, and the mower with its deck height and speeds comes from their
   last mow; date, time, location and mower settings sit behind a "Change"
-  button until you need them.
+  button until you need them. With several customers picked, areas are
+  chosen at the first one's location and every other customer's record is
+  saved at their own location with the areas of the same name ("Front
+  Yard" at theirs).
 - **Log mow (Ready to Mow)** — each lawn (or street group) that's ready gets
   a button that opens Log Event already filled in for those customers: the
   next pattern, last visit's mower and settings, trim/edge choices,
