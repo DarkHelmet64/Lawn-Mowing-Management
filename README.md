@@ -63,7 +63,9 @@ API in the browser and cached in Firestore.
   diagonal right, other), deck height, ground speed, blade speed, time of
   day, grass condition, areas, plant/object, equipment, and notes; sprays
   record the target (weeds, insects, fungus, fertilizer, or other), product
-  and quantity, equipment, areas, and notes. Filter by type (yard work,
+  and quantity, equipment, areas, and notes. Editing a spray's product or
+  quantity updates what's on hand (the old amount goes back, the new one
+  comes out), and deleting a spray puts its amount back. Filter by type (yard work,
   extra yard work, sprays), customer group, customer, and date range, and
   browse it five ways:
   - **Days** — one card per customer per day combining everything done

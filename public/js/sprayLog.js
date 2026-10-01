@@ -5,7 +5,7 @@ import { populateEquipmentSelect } from "./equipment.js";
 import { populateLocationSelect, getLocationLabel } from "./locations.js";
 import { recordAreaIds, renderAreaChecklist, checkedAreaIdsIn } from "./areas.js";
 import { populateYardFeatureSelect } from "./yardFeatures.js";
-import { populateProductSelect } from "./products.js";
+import { populateProductSelect, adjustProductQuantity, getProductById } from "./products.js";
 
 // Spray applications: the data cache plus the Edit Spray form (laid out like
 // Log Event). How sprays are listed and browsed lives in history.js.
@@ -126,9 +126,29 @@ function closeForm() {
   byId("spray-form").reset();
 }
 
+// Keeps products' on-hand amounts in step when a spray record changes: what
+// the record used before goes back on the shelf, and what it uses now comes
+// off - so a corrected amount, or a switch to another product, lands on
+// the right products.
+async function adjustInventory(before, after) {
+  const deltas = new Map();
+  const add = (productId, quantity) => {
+    if (productId && quantity) deltas.set(productId, (deltas.get(productId) || 0) + quantity);
+  };
+  add(before?.productId, Number(before?.quantityUsed) || 0);
+  add(after?.productId, -(Number(after?.quantityUsed) || 0));
+  for (const [productId, delta] of deltas) {
+    if (delta) await adjustProductQuantity(productId, delta);
+  }
+}
+
 export async function deleteSpray(id) {
-  if (!(await confirmAction("Delete this spray record?"))) return;
+  const spray = cache.find((s) => s.id === id);
+  const product = getProductById(spray?.productId);
+  const giveBack = product && spray.quantityUsed ? ` Its ${spray.quantityUsed} ${product.unit} of ${product.name} goes back on hand.` : "";
+  if (!(await confirmAction(`Delete this spray record?${giveBack}`))) return;
   await deleteDocById(COLLECTION, id);
+  await adjustInventory(spray, null);
   await loadSprays();
   recordsChanged();
 }
@@ -157,8 +177,10 @@ async function handleSubmit(e) {
     equipmentId: byId("spray-equipment").value || null,
     notes: byId("spray-notes").value.trim(),
   };
+  const before = id ? cache.find((s) => s.id === id) : null;
   if (id) await updateDocById(COLLECTION, id, data);
   else await createDoc(COLLECTION, data);
+  await adjustInventory(before, data);
   closeForm();
   await loadSprays();
   recordsChanged();
