@@ -126,6 +126,17 @@ textarea {
   font-family: inherit;
 }
 
+/* iPhone Safari zooms the page in when a field smaller than 16px gets
+   focus, so phones and touch tablets (an iPhone held sideways is wider
+   than 600px) get 16px fields. Pinch zoom itself stays allowed. */
+@media (max-width: 600px), (pointer: coarse) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
 textarea {
   resize: vertical;
 }
